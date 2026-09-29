@@ -12,15 +12,12 @@ permissions:
 jobs:
   check:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: 3dpixel2d
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: npm
-          cache-dependency-path: 3dpixel2d/package-lock.json
+          cache-dependency-path: package-lock.json
       - run: npm ci
       - run: npm run check

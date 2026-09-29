@@ -10,7 +10,7 @@ For a multi-step task, keep a short plan in the session. Track completed work an
 
 Work on a focused branch such as `agent/<short-task>` for ongoing changes. Respect the current branch if the user explicitly requests it. Preserve unrelated edits and inspect changes before staging. Never use destructive Git operations to obtain a clean tree.
 
-Install with `cd 3dpixel2d && npm ci`. The committed runtime assets allow normal development without downloading source packs. Run asset preparation only when assets need to change. Keep credentials and downloaded caches untracked.
+Install with `npm ci` from the repository root. The committed runtime assets allow normal development without downloading source packs. Run asset preparation only when assets need to change. Keep credentials and downloaded caches untracked.
 
 ## 3. Implement
 
@@ -20,7 +20,7 @@ For reproducible browser observations, use `/?agent&seed=1`, wait for `window.ag
 
 ## 4. Verify the outcome
 
-Execute checks from `3dpixel2d/`:
+Execute checks from the repository root:
 
 ```sh
 npm run check

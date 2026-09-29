@@ -2,10 +2,9 @@
 
 A browser game demo that renders 3D characters as pixel art, built with TypeScript, Three.js, Rapier physics and Vite. Includes keyboard and touch controls, a plain 3D view, deterministic simulation stepping, and a self-contained HTML build.
 
-The application lives in `3dpixel2d/`. Run application commands from that directory. Node.js 22.12+ (Node 22 recommended) and npm are required.
+The application lives at the repository root. Run application commands from the root. Node.js 22.12+ (Node 22 recommended) and npm are required.
 
 ```sh
-cd 3dpixel2d
 npm ci
 npm run dev -- --host 127.0.0.1
 ```
@@ -14,7 +13,7 @@ Open http://localhost:5173. Use WASD or arrow keys to move, Shift to sprint, Spa
 
 ## Commands
 
-| Command (inside `3dpixel2d/`) | Purpose |
+| Command (from the repository root) | Purpose |
 | --- | --- |
 | `npm run typecheck` | Strict TypeScript validation |
 | `npm run check` | TypeScript validation and production build; also runs in CI |
@@ -27,20 +26,20 @@ There is currently no unit test suite. The production build and existing browser
 
 ## Layout
 
-- `3dpixel2d/src/sim/`: simulation, navigation and seeded RNG.
-- `3dpixel2d/src/render/`: assets, character animation, stage and pixel rendering.
-- `3dpixel2d/src/content/`: character presets and level data.
-- `3dpixel2d/src/main.ts`, `game.ts`, `input.ts`, `config.ts`: boot, game coordination, controls and configuration.
-- `3dpixel2d/public/assets/`: committed runtime models, animations and manifest.
-- `3dpixel2d/tools/`: asset preparation, standalone bundling and browser verification.
-- `3dpixel2d/standalone/`: shareable HTML game and usage notes.
+- `src/sim/`: simulation, navigation and seeded RNG.
+- `src/render/`: assets, character animation, stage and pixel rendering.
+- `src/content/`: character presets and level data.
+- `src/main.ts`, `src/game.ts`, `src/input.ts`, `src/config.ts`: boot, game coordination, controls and configuration.
+- `public/assets/`: committed runtime models, animations and manifest.
+- `tools/`: asset preparation, standalone bundling and browser verification.
+- `standalone/`: shareable HTML game and usage notes.
 
 For browser automation, open `/?agent&seed=1`, wait for `window.agent.ready`, and call `window.agent.step(frames)`. This mode starts paused with human input disabled. `window.game` exposes the game object; inspect the source for supported methods. A broader agent CLI or MCP server is not implemented.
 
-The standalone HTML embeds runtime libraries and assets; see [standalone instructions](3dpixel2d/standalone/README.md). Keep it in sync after runtime or asset changes.
+The standalone HTML embeds runtime libraries and assets; see [standalone instructions](standalone/README.md). Keep it in sync after runtime or asset changes.
 
 ## Contributing with agents
 
 Read [AGENTS.md](AGENTS.md) first and follow the [agent coding SOP](docs/AGENTIC-CODING-SOP.md). CI checks pushes and pull requests on `main`.
 
-Quaternius models and animations carry the included [CC0 asset notice](3dpixel2d/public/assets/LICENSE-quaternius.txt). This repository does not declare a separate license for its application source.
+Quaternius models and animations carry the included [CC0 asset notice](public/assets/LICENSE-quaternius.txt). This repository does not declare a separate license for its application source.
