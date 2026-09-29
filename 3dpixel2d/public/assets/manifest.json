@@ -1,0 +1,904 @@
+{
+ "generatedBy": "tools/build-assets.mjs (npm run assets)",
+ "license": "CC0 1.0 public domain, models and animations by Quaternius (quaternius.com). See LICENSE-quaternius.txt.",
+ "animationSourceModel": "mannequin_m",
+ "notes": [
+  "All models share the 65-joint UE5-style skeleton names; rest poses differ slightly, so the runtime retargets rotations by rest-pose deltas (src/render/retarget.ts).",
+  "Clips are in-place: translation only on pelvis, no scale tracks. rootSpeed (m/s) is measured from the root-motion variants and used to match stride to movement speed."
+ ],
+ "clips": [
+  {
+   "name": "A_TPose",
+   "duration": 2.5,
+   "lib": "ual1",
+   "file": "anims/ual1.glb",
+   "loop": false,
+   "rootSpeed": 0
+  },
+  {
+   "name": "Crouch_Fwd_Loop",
+   "duration": 2,
+   "lib": "ual1",
+   "file": "anims/ual1.glb",
+   "loop": true,
+   "rootSpeed": 0.75
+  },
+  {
+   "name": "Crouch_Idle_Loop",
+   "duration": 2.9333,
+   "lib": "ual1",
+   "file": "anims/ual1.glb",
+   "loop": true,
+   "rootSpeed": 0
+  },
+  {
+   "name": "Dance_Loop",
+   "duration": 1,
+   "lib": "ual1",
+   "file": "anims/ual1.glb",
+   "loop": true,
+   "rootSpeed": 0
+  },
+  {
+   "name": "Death01",
+   "duration": 2.4,
+   "lib": "ual1",
+   "file": "anims/ual1.glb",
+   "loop": false,
+   "rootSpeed": 0.271
+  },
+  {
+   "name": "Driving_Loop",
+   "duration": 1.6667,
+   "lib": "ual1",
+   "file": "anims/ual1.glb",
+   "loop": true,
+   "rootSpeed": 0
+  },
+  {
+   "name": "Fixing_Kneeling",
+   "duration": 5.2,
+   "lib": "ual1",
+   "file": "anims/ual1.glb",
+   "loop": false,
+   "rootSpeed": 0
+  },
+  {
+   "name": "Hit_Chest",
+   "duration": 0.3333,
+   "lib": "ual1",
+   "file": "anims/ual1.glb",
+   "loop": false,
+   "rootSpeed": 0
+  },
+  {
+   "name": "Hit_Head",
+   "duration": 0.4333,
+   "lib": "ual1",
+   "file": "anims/ual1.glb",
+   "loop": false,
+   "rootSpeed": 0
+  },
+  {
+   "name": "Idle_Loop",
+   "duration": 2.5,
+   "lib": "ual1",
+   "file": "anims/ual1.glb",
+   "loop": true,
+   "rootSpeed": 0
+  },
+  {
+   "name": "Idle_Talking_Loop",
+   "duration": 2.9333,
+   "lib": "ual1",
+   "file": "anims/ual1.glb",
+   "loop": true,
+   "rootSpeed": 0
+  },
+  {
+   "name": "Idle_Torch_Loop",
+   "duration": 1.2667,
+   "lib": "ual1",
+   "file": "anims/ual1.glb",
+   "loop": true,
+   "rootSpeed": 0
+  },
+  {
+   "name": "Interact",
+   "duration": 2,
+   "lib": "ual1",
+   "file": "anims/ual1.glb",
+   "loop": false,
+   "rootSpeed": 0
+  },
+  {
+   "name": "Jog_Fwd_Loop",
+   "duration": 0.9333,
+   "lib": "ual1",
+   "file": "anims/ual1.glb",
+   "loop": true,
+   "rootSpeed": 5.357
+  },
+  {
+   "name": "Jump_Land",
+   "duration": 1.2667,
+   "lib": "ual1",
+   "file": "anims/ual1.glb",
+   "loop": false,
+   "rootSpeed": 0
+  },
+  {
+   "name": "Jump_Loop",
+   "duration": 2.5,
+   "lib": "ual1",
+   "file": "anims/ual1.glb",
+   "loop": true,
+   "rootSpeed": 0
+  },
+  {
+   "name": "Jump_Start",
+   "duration": 1.3333,
+   "lib": "ual1",
+   "file": "anims/ual1.glb",
+   "loop": false,
+   "rootSpeed": 0
+  },
+  {
+   "name": "PickUp_Table",
+   "duration": 0.8333,
+   "lib": "ual1",
+   "file": "anims/ual1.glb",
+   "loop": false,
+   "rootSpeed": 0
+  },
+  {
+   "name": "Pistol_Aim_Down",
+   "duration": 0.1667,
+   "lib": "ual1",
+   "file": "anims/ual1.glb",
+   "loop": false,
+   "rootSpeed": 0
+  },
+  {
+   "name": "Pistol_Aim_Neutral",
+   "duration": 0.1667,
+   "lib": "ual1",
+   "file": "anims/ual1.glb",
+   "loop": false,
+   "rootSpeed": 0
+  },
+  {
+   "name": "Pistol_Aim_Up",
+   "duration": 0.1667,
+   "lib": "ual1",
+   "file": "anims/ual1.glb",
+   "loop": false,
+   "rootSpeed": 0
+  },
+  {
+   "name": "Pistol_Idle_Loop",
+   "duration": 1.6667,
+   "lib": "ual1",
+   "file": "anims/ual1.glb",
+   "loop": true,
+   "rootSpeed": 0
+  },
+  {
+   "name": "Pistol_Reload",
+   "duration": 1.6667,
+   "lib": "ual1",
+   "file": "anims/ual1.glb",
+   "loop": false,
+   "rootSpeed": 0
+  },
+  {
+   "name": "Pistol_Shoot",
+   "duration": 0.6333,
+   "lib": "ual1",
+   "file": "anims/ual1.glb",
+   "loop": false,
+   "rootSpeed": 0
+  },
+  {
+   "name": "Punch_Cross",
+   "duration": 1,
+   "lib": "ual1",
+   "file": "anims/ual1.glb",
+   "loop": false,
+   "rootSpeed": 0
+  },
+  {
+   "name": "Punch_Jab",
+   "duration": 0.8667,
+   "lib": "ual1",
+   "file": "anims/ual1.glb",
+   "loop": false,
+   "rootSpeed": 0
+  },
+  {
+   "name": "Push_Loop",
+   "duration": 2.6667,
+   "lib": "ual1",
+   "file": "anims/ual1.glb",
+   "loop": true,
+   "rootSpeed": 0.3
+  },
+  {
+   "name": "Roll",
+   "duration": 1.4667,
+   "lib": "ual1",
+   "file": "anims/ual1.glb",
+   "loop": false,
+   "rootSpeed": 3.403
+  },
+  {
+   "name": "Sitting_Enter",
+   "duration": 1.3,
+   "lib": "ual1",
+   "file": "anims/ual1.glb",
+   "loop": false,
+   "rootSpeed": 0
+  },
+  {
+   "name": "Sitting_Exit",
+   "duration": 1.0333,
+   "lib": "ual1",
+   "file": "anims/ual1.glb",
+   "loop": false,
+   "rootSpeed": 0
+  },
+  {
+   "name": "Sitting_Idle_Loop",
+   "duration": 1.6667,
+   "lib": "ual1",
+   "file": "anims/ual1.glb",
+   "loop": true,
+   "rootSpeed": 0
+  },
+  {
+   "name": "Sitting_Talking_Loop",
+   "duration": 2.9333,
+   "lib": "ual1",
+   "file": "anims/ual1.glb",
+   "loop": true,
+   "rootSpeed": 0
+  },
+  {
+   "name": "Spell_Simple_Enter",
+   "duration": 0.5333,
+   "lib": "ual1",
+   "file": "anims/ual1.glb",
+   "loop": false,
+   "rootSpeed": 0
+  },
+  {
+   "name": "Spell_Simple_Exit",
+   "duration": 0.4333,
+   "lib": "ual1",
+   "file": "anims/ual1.glb",
+   "loop": false,
+   "rootSpeed": 0
+  },
+  {
+   "name": "Spell_Simple_Idle_Loop",
+   "duration": 2.1,
+   "lib": "ual1",
+   "file": "anims/ual1.glb",
+   "loop": true,
+   "rootSpeed": 0
+  },
+  {
+   "name": "Spell_Simple_Shoot",
+   "duration": 0.5,
+   "lib": "ual1",
+   "file": "anims/ual1.glb",
+   "loop": false,
+   "rootSpeed": 0
+  },
+  {
+   "name": "Sprint_Loop",
+   "duration": 0.6667,
+   "lib": "ual1",
+   "file": "anims/ual1.glb",
+   "loop": true,
+   "rootSpeed": 8.25
+  },
+  {
+   "name": "Swim_Fwd_Loop",
+   "duration": 1.3333,
+   "lib": "ual1",
+   "file": "anims/ual1.glb",
+   "loop": true,
+   "rootSpeed": 2.175
+  },
+  {
+   "name": "Swim_Idle_Loop",
+   "duration": 3.3333,
+   "lib": "ual1",
+   "file": "anims/ual1.glb",
+   "loop": true,
+   "rootSpeed": 0
+  },
+  {
+   "name": "Sword_Attack",
+   "duration": 1.5333,
+   "lib": "ual1",
+   "file": "anims/ual1.glb",
+   "loop": false,
+   "rootSpeed": 0.979
+  },
+  {
+   "name": "Sword_Idle",
+   "duration": 1.6667,
+   "lib": "ual1",
+   "file": "anims/ual1.glb",
+   "loop": true,
+   "rootSpeed": 0
+  },
+  {
+   "name": "Walk_Formal_Loop",
+   "duration": 1.3333,
+   "lib": "ual1",
+   "file": "anims/ual1.glb",
+   "loop": true,
+   "rootSpeed": 0.975
+  },
+  {
+   "name": "Walk_Loop",
+   "duration": 1.3333,
+   "lib": "ual1",
+   "file": "anims/ual1.glb",
+   "loop": true,
+   "rootSpeed": 0.975
+  },
+  {
+   "name": "A_TPose",
+   "duration": 2.5,
+   "lib": "ual2",
+   "file": "anims/ual2.glb",
+   "loop": false,
+   "rootSpeed": 0
+  },
+  {
+   "name": "Chest_Open",
+   "duration": 1.3667,
+   "lib": "ual2",
+   "file": "anims/ual2.glb",
+   "loop": false,
+   "rootSpeed": 0
+  },
+  {
+   "name": "ClimbUp_1m",
+   "duration": 0.6667,
+   "lib": "ual2",
+   "file": "anims/ual2.glb",
+   "loop": false,
+   "rootSpeed": 2.515
+  },
+  {
+   "name": "Consume",
+   "duration": 1.3333,
+   "lib": "ual2",
+   "file": "anims/ual2.glb",
+   "loop": false,
+   "rootSpeed": 0
+  },
+  {
+   "name": "Farm_Harvest",
+   "duration": 2.5,
+   "lib": "ual2",
+   "file": "anims/ual2.glb",
+   "loop": false,
+   "rootSpeed": 0
+  },
+  {
+   "name": "Farm_PlantSeed",
+   "duration": 2.7667,
+   "lib": "ual2",
+   "file": "anims/ual2.glb",
+   "loop": false,
+   "rootSpeed": 0
+  },
+  {
+   "name": "Farm_Watering",
+   "duration": 3.8,
+   "lib": "ual2",
+   "file": "anims/ual2.glb",
+   "loop": false,
+   "rootSpeed": 0
+  },
+  {
+   "name": "Hit_Knockback",
+   "duration": 0.8333,
+   "lib": "ual2",
+   "file": "anims/ual2.glb",
+   "loop": false,
+   "rootSpeed": 3.6
+  },
+  {
+   "name": "Idle_FoldArms_Loop",
+   "duration": 2.5,
+   "lib": "ual2",
+   "file": "anims/ual2.glb",
+   "loop": true,
+   "rootSpeed": 0
+  },
+  {
+   "name": "Idle_Lantern_Loop",
+   "duration": 2.5,
+   "lib": "ual2",
+   "file": "anims/ual2.glb",
+   "loop": true,
+   "rootSpeed": 0
+  },
+  {
+   "name": "Idle_No_Loop",
+   "duration": 2.5,
+   "lib": "ual2",
+   "file": "anims/ual2.glb",
+   "loop": true,
+   "rootSpeed": 0
+  },
+  {
+   "name": "Idle_Rail_Call",
+   "duration": 2.5,
+   "lib": "ual2",
+   "file": "anims/ual2.glb",
+   "loop": false,
+   "rootSpeed": 0
+  },
+  {
+   "name": "Idle_Rail_Loop",
+   "duration": 2.5,
+   "lib": "ual2",
+   "file": "anims/ual2.glb",
+   "loop": true,
+   "rootSpeed": 0
+  },
+  {
+   "name": "Idle_Shield_Break",
+   "duration": 1.0667,
+   "lib": "ual2",
+   "file": "anims/ual2.glb",
+   "loop": false,
+   "rootSpeed": 0
+  },
+  {
+   "name": "Idle_Shield_Loop",
+   "duration": 2.5,
+   "lib": "ual2",
+   "file": "anims/ual2.glb",
+   "loop": true,
+   "rootSpeed": 0
+  },
+  {
+   "name": "Idle_TalkingPhone_Loop",
+   "duration": 2.9333,
+   "lib": "ual2",
+   "file": "anims/ual2.glb",
+   "loop": true,
+   "rootSpeed": 0
+  },
+  {
+   "name": "LayToIdle",
+   "duration": 1.5333,
+   "lib": "ual2",
+   "file": "anims/ual2.glb",
+   "loop": true,
+   "rootSpeed": 0
+  },
+  {
+   "name": "Melee_Hook",
+   "duration": 0.4667,
+   "lib": "ual2",
+   "file": "anims/ual2.glb",
+   "loop": false,
+   "rootSpeed": 0.76
+  },
+  {
+   "name": "Melee_Hook_Rec",
+   "duration": 0.6,
+   "lib": "ual2",
+   "file": "anims/ual2.glb",
+   "loop": false,
+   "rootSpeed": 0
+  },
+  {
+   "name": "NinjaJump_Idle_Loop",
+   "duration": 2,
+   "lib": "ual2",
+   "file": "anims/ual2.glb",
+   "loop": true,
+   "rootSpeed": 0
+  },
+  {
+   "name": "NinjaJump_Land",
+   "duration": 1.2667,
+   "lib": "ual2",
+   "file": "anims/ual2.glb",
+   "loop": false,
+   "rootSpeed": 0
+  },
+  {
+   "name": "NinjaJump_Start",
+   "duration": 0.9667,
+   "lib": "ual2",
+   "file": "anims/ual2.glb",
+   "loop": false,
+   "rootSpeed": 0
+  },
+  {
+   "name": "OverhandThrow",
+   "duration": 1.3333,
+   "lib": "ual2",
+   "file": "anims/ual2.glb",
+   "loop": false,
+   "rootSpeed": 0
+  },
+  {
+   "name": "Shield_Dash",
+   "duration": 1.1,
+   "lib": "ual2",
+   "file": "anims/ual2.glb",
+   "loop": false,
+   "rootSpeed": 0.909
+  },
+  {
+   "name": "Shield_OneShot",
+   "duration": 0.8333,
+   "lib": "ual2",
+   "file": "anims/ual2.glb",
+   "loop": false,
+   "rootSpeed": 0
+  },
+  {
+   "name": "Slide_Exit",
+   "duration": 0.5,
+   "lib": "ual2",
+   "file": "anims/ual2.glb",
+   "loop": false,
+   "rootSpeed": 4
+  },
+  {
+   "name": "Slide_Loop",
+   "duration": 2,
+   "lib": "ual2",
+   "file": "anims/ual2.glb",
+   "loop": true,
+   "rootSpeed": 4.5
+  },
+  {
+   "name": "Slide_Start",
+   "duration": 0.8333,
+   "lib": "ual2",
+   "file": "anims/ual2.glb",
+   "loop": false,
+   "rootSpeed": 4.8
+  },
+  {
+   "name": "Sword_Block",
+   "duration": 1.2333,
+   "lib": "ual2",
+   "file": "anims/ual2.glb",
+   "loop": false,
+   "rootSpeed": 0
+  },
+  {
+   "name": "Sword_Dash",
+   "duration": 1.5667,
+   "lib": "ual2",
+   "file": "anims/ual2.glb",
+   "loop": false,
+   "rootSpeed": 2.357
+  },
+  {
+   "name": "Sword_Heavy_Combo",
+   "duration": 4.3333,
+   "lib": "ual2",
+   "file": "anims/ual2.glb",
+   "loop": false,
+   "rootSpeed": 1.229
+  },
+  {
+   "name": "Sword_Regular_A",
+   "duration": 0.4333,
+   "lib": "ual2",
+   "file": "anims/ual2.glb",
+   "loop": false,
+   "rootSpeed": 1.903
+  },
+  {
+   "name": "Sword_Regular_A_Rec",
+   "duration": 0.9667,
+   "lib": "ual2",
+   "file": "anims/ual2.glb",
+   "loop": false,
+   "rootSpeed": 0.319
+  },
+  {
+   "name": "Sword_Regular_B",
+   "duration": 0.5333,
+   "lib": "ual2",
+   "file": "anims/ual2.glb",
+   "loop": false,
+   "rootSpeed": 0.099
+  },
+  {
+   "name": "Sword_Regular_B_Rec",
+   "duration": 1.0333,
+   "lib": "ual2",
+   "file": "anims/ual2.glb",
+   "loop": false,
+   "rootSpeed": 0.358
+  },
+  {
+   "name": "Sword_Regular_C",
+   "duration": 2,
+   "lib": "ual2",
+   "file": "anims/ual2.glb",
+   "loop": false,
+   "rootSpeed": 0.778
+  },
+  {
+   "name": "Sword_Regular_Combo",
+   "duration": 3,
+   "lib": "ual2",
+   "file": "anims/ual2.glb",
+   "loop": false,
+   "rootSpeed": 0.781
+  },
+  {
+   "name": "TreeChopping_Loop",
+   "duration": 0.9667,
+   "lib": "ual2",
+   "file": "anims/ual2.glb",
+   "loop": true,
+   "rootSpeed": 0
+  },
+  {
+   "name": "Walk_Carry_Loop",
+   "duration": 2,
+   "lib": "ual2",
+   "file": "anims/ual2.glb",
+   "loop": true,
+   "rootSpeed": 0.65
+  },
+  {
+   "name": "Yes",
+   "duration": 2.5,
+   "lib": "ual2",
+   "file": "anims/ual2.glb",
+   "loop": false,
+   "rootSpeed": 0
+  },
+  {
+   "name": "Zombie_Idle_Loop",
+   "duration": 1.3333,
+   "lib": "ual2",
+   "file": "anims/ual2.glb",
+   "loop": true,
+   "rootSpeed": 0
+  },
+  {
+   "name": "Zombie_Scratch",
+   "duration": 1.8,
+   "lib": "ual2",
+   "file": "anims/ual2.glb",
+   "loop": false,
+   "rootSpeed": 0
+  },
+  {
+   "name": "Zombie_Walk_Fwd_Loop",
+   "duration": 1.3333,
+   "lib": "ual2",
+   "file": "anims/ual2.glb",
+   "loop": true,
+   "rootSpeed": 1.05
+  }
+ ],
+ "models": [
+  {
+   "id": "mannequin_m",
+   "file": "models/mannequin_m.glb",
+   "note": "UAL male mannequin; its bind pose is the animation source pose",
+   "meshes": [
+    "Mannequin"
+   ],
+   "materials": [
+    "M_Main",
+    "M_Joints"
+   ],
+   "joints": 65
+  },
+  {
+   "id": "mannequin_f",
+   "file": "models/mannequin_f.glb",
+   "note": "UAL female mannequin",
+   "meshes": [
+    "Mannequin"
+   ],
+   "materials": [
+    "M_Main",
+    "M_Joints"
+   ],
+   "joints": 65
+  },
+  {
+   "id": "head_m",
+   "file": "models/head_m.glb",
+   "note": "male head + eyes + brows (cut from Superhero_Male)",
+   "meshes": [
+    "Face",
+    "Face.001",
+    "Sphere.005_Retopology.004"
+   ],
+   "materials": [
+    "MI_Hair_1",
+    "MI_Eyes",
+    "MI_Superhero_Male"
+   ],
+   "joints": 65
+  },
+  {
+   "id": "head_f",
+   "file": "models/head_f.glb",
+   "note": "female head + eyes + brows (cut from Superhero_Female)",
+   "meshes": [
+    "Eyebrows",
+    "Eyes",
+    "Superhero_Female"
+   ],
+   "materials": [
+    "MI_Hair_2",
+    "MI_Eyes",
+    "MI_Superhero_Female"
+   ],
+   "joints": 65
+  },
+  {
+   "id": "outfit_ranger_m",
+   "file": "models/outfit_ranger_m.glb",
+   "note": "hooded ranger, male body parts",
+   "meshes": [
+    "Male_Ranger_Acc_Pauldron",
+    "Male_Ranger_Arms",
+    "Male_Ranger_Arms_Bracer",
+    "Male_Ranger_Body",
+    "Male_Ranger_Body_Belt_1",
+    "Male_Ranger_Body_Belt_1.001",
+    "Male_Ranger_Feet_Boots",
+    "Male_Ranger_Head_Hood",
+    "Male_Ranger_Legs"
+   ],
+   "materials": [
+    "MI_Ranger",
+    "MI_Regular_Male"
+   ],
+   "joints": 65
+  },
+  {
+   "id": "outfit_ranger_f",
+   "file": "models/outfit_ranger_f.glb",
+   "note": "hooded ranger, female body parts",
+   "meshes": [
+    "Female_Ranger_Acc_Pauldrons",
+    "Female_Ranger_Arms",
+    "Female_Ranger_Arms_Bracer",
+    "Female_Ranger_Body",
+    "Female_Ranger_Body_Belt_1",
+    "Female_Ranger_Body_Belt_2",
+    "Female_Ranger_Feet",
+    "Female_Ranger_Head_Hood",
+    "Female_Ranger_Legs"
+   ],
+   "materials": [
+    "MI_Ranger",
+    "MI_Regular_Female"
+   ],
+   "joints": 65
+  },
+  {
+   "id": "outfit_peasant_m",
+   "file": "models/outfit_peasant_m.glb",
+   "note": "peasant, male body parts",
+   "meshes": [
+    "Male_Peasant_Arms",
+    "Male_Peasant_Body",
+    "Male_Peasant_Feet",
+    "Male_Peasant_Legs"
+   ],
+   "materials": [
+    "MI_Peasant",
+    "MI_Regular_Male"
+   ],
+   "joints": 65
+  },
+  {
+   "id": "outfit_peasant_f",
+   "file": "models/outfit_peasant_f.glb",
+   "note": "peasant, female body parts",
+   "meshes": [
+    "Female_Peasant_Arms",
+    "Female_Peasant_Body",
+    "Female_Peasant_Feet",
+    "Female_Peasant_Legs"
+   ],
+   "materials": [
+    "MI_Peasant"
+   ],
+   "joints": 65
+  },
+  {
+   "id": "hair_beard",
+   "file": "models/hair_beard.glb",
+   "note": "beard (rigged to Head)",
+   "meshes": [
+    "Plane.006"
+   ],
+   "materials": [
+    "MI_Hair_1"
+   ],
+   "joints": 65
+  },
+  {
+   "id": "hair_buns",
+   "file": "models/hair_buns.glb",
+   "note": "hair: buns",
+   "meshes": [
+    "Hair_Buns"
+   ],
+   "materials": [
+    "MI_Hair_2"
+   ],
+   "joints": 65
+  },
+  {
+   "id": "hair_buzzed",
+   "file": "models/hair_buzzed.glb",
+   "note": "hair: buzzed",
+   "meshes": [
+    "Cylinder.002"
+   ],
+   "materials": [
+    "MI_Hair_1"
+   ],
+   "joints": 65
+  },
+  {
+   "id": "hair_buzzed_f",
+   "file": "models/hair_buzzed_f.glb",
+   "note": "hair: buzzed (female)",
+   "meshes": [
+    "Hair_BuzzedFemale"
+   ],
+   "materials": [
+    "MI_Hair_1"
+   ],
+   "joints": 65
+  },
+  {
+   "id": "hair_long",
+   "file": "models/hair_long.glb",
+   "note": "hair: long",
+   "meshes": [
+    "Hair_Long"
+   ],
+   "materials": [
+    "MI_Hair_2"
+   ],
+   "joints": 65
+  },
+  {
+   "id": "hair_parted",
+   "file": "models/hair_parted.glb",
+   "note": "hair: simple parted",
+   "meshes": [
+    "Plane.002"
+   ],
+   "materials": [
+    "MI_Hair_1"
+   ],
+   "joints": 65
+  }
+ ]
+}

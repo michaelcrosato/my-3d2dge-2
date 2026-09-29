@@ -1,0 +1,335 @@
+/**
+ * Low-res render -> 1-px outlines/creases -> optional palette lock -> exact integer upscale.
+ *
+ * Frame flow (pixel mode):
+ *   1. scene  -> targets.scene   (half-float color + depth/stencil texture), low resolution
+ *   2. scene  -> targets.normal  (view-space normals via override material, main layer only)
+ *   3. post   -> targets.post    (edges, sRGB encode, palette; 8-bit, what agents capture)
+ *   4. upscale-> canvas          (nearest, integer factor, centered, optional sub-pixel offset)
+ * Plain mode renders the scene at full device resolution with 4x MSAA instead.
+ */
+import * as THREE from 'three';
+import { FullScreenQuad } from 'three/addons/postprocessing/Pass.js';
+import { config } from '../config';
+import { chooseScale } from './pixelGrid';
+import { hexToOklab, MAX_PALETTE, PALETTES, type PaletteName } from './palettes';
+
+/** Layer bits. Layer 0 is the main pass; FX (blob shadows, silhouettes) skip the normal pass. */
+export const LAYER = { MAIN: 0, FX: 1, DEBUG: 2, ISOLATE: 7 } as const;
+
+export class PixelTargets {
+  scene: THREE.WebGLRenderTarget;
+  normal: THREE.WebGLRenderTarget;
+  post: THREE.WebGLRenderTarget;
+  constructor(public width: number, public height: number) {
+    const depthTexture = new THREE.DepthTexture(width, height, THREE.UnsignedInt248Type);
+    depthTexture.format = THREE.DepthStencilFormat;
+    const nearest = { minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, generateMipmaps: false };
+    this.scene = new THREE.WebGLRenderTarget(width, height, {
+      ...nearest, type: THREE.HalfFloatType, depthBuffer: true, stencilBuffer: true, depthTexture,
+    });
+    this.normal = new THREE.WebGLRenderTarget(width, height, { ...nearest, type: THREE.UnsignedByteType, depthBuffer: true });
+    this.post = new THREE.WebGLRenderTarget(width, height, { ...nearest, type: THREE.UnsignedByteType, depthBuffer: false });
+  }
+  dispose() {
+    this.scene.depthTexture?.dispose();
+    this.scene.dispose();
+    this.normal.dispose();
+    this.post.dispose();
+  }
+}
+
+const quadVertex = /* glsl */ `
+varying vec2 vUv;
+void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`;
+
+const postFragment = /* glsl */ `
+uniform sampler2D tColor;
+uniform sampler2D tDepth;
+uniform sampler2D tNormal;
+uniform vec4 resolution;
+uniform float cameraNear;
+uniform float cameraFar;
+uniform float outlineStrength;
+uniform float innerStrength;
+uniform float depthThreshold;
+uniform int paletteSize;
+uniform vec3 paletteLab[${MAX_PALETTE}];
+uniform vec3 paletteRgb[${MAX_PALETTE}];
+varying vec2 vUv;
+
+float depthAt(vec2 uv) { return cameraNear + texture2D(tDepth, uv).r * (cameraFar - cameraNear); }
+vec3 normalAt(vec2 uv) { return normalize(texture2D(tNormal, uv).rgb * 2.0 - 1.0); }
+
+vec3 toSrgb(vec3 c) {
+  c = clamp(c, 0.0, 1.0);
+  return mix(c * 12.92, 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055, step(0.0031308, c));
+}
+vec3 toOklab(vec3 c) {
+  float l = pow(0.4122214708 * c.r + 0.5363325363 * c.g + 0.0514459929 * c.b, 1.0 / 3.0);
+  float m = pow(0.2119034982 * c.r + 0.6806995451 * c.g + 0.1073969566 * c.b, 1.0 / 3.0);
+  float s = pow(0.0883024619 * c.r + 0.2817188376 * c.g + 0.6299787005 * c.b, 1.0 / 3.0);
+  return vec3(0.2104542553 * l + 0.7936177850 * m - 0.0040720468 * s,
+              1.9779984951 * l - 2.4285922050 * m + 0.4505937099 * s,
+              0.0259040371 * l + 0.7827717662 * m - 0.8086757660 * s);
+}
+
+// Crease test against one neighbour: only the shallower pixel, and only the side whose normal
+// leans toward the bias direction, marks the edge, so creases stay exactly 1 px wide.
+float crease(vec2 offs, float d, vec3 n) {
+  vec2 uv = vUv + offs * resolution.zw;
+  float dd = depthAt(uv) - d;
+  if (abs(dd) > depthThreshold) return 0.0;
+  vec3 nn = normalAt(uv);
+  float side = step(0.0, dot(n - nn, vec3(1.0, 1.0, 1.0)));
+  float shallower = step(0.0, dd * 0.25 + 0.0025);
+  return (1.0 - dot(n, nn)) * side * shallower;
+}
+
+void main() {
+  vec4 color = texture2D(tColor, vUv);
+  vec3 c = color.rgb;
+  float a = color.a;
+  float d = depthAt(vUv);
+  vec2 px = resolution.zw;
+
+  float far = 0.0;
+  far = max(far, depthAt(vUv + vec2(px.x, 0.0)) - d);
+  far = max(far, depthAt(vUv - vec2(px.x, 0.0)) - d);
+  far = max(far, depthAt(vUv + vec2(0.0, px.y)) - d);
+  far = max(far, depthAt(vUv - vec2(0.0, px.y)) - d);
+  bool isOutline = outlineStrength > 0.0 && far > depthThreshold && a > 0.0;
+
+  if (isOutline) {
+    c *= 1.0 - outlineStrength;
+  } else if (innerStrength > 0.0 && a > 0.0) {
+    vec3 n = normalAt(vUv);
+    float e = crease(vec2(1.0, 0.0), d, n) + crease(vec2(-1.0, 0.0), d, n)
+            + crease(vec2(0.0, 1.0), d, n) + crease(vec2(0.0, -1.0), d, n);
+    if (e > 0.18) c = mix(c, c * 1.6 + 0.04, innerStrength);
+  }
+
+  vec3 outRgb = toSrgb(c);
+  if (paletteSize > 0) {
+    vec3 lab = toOklab(clamp(c, 0.0, 1.0));
+    float best = 1e9;
+    vec3 pick = outRgb;
+    for (int i = 0; i < ${MAX_PALETTE}; i++) {
+      if (i >= paletteSize) break;
+      vec3 dl = lab - paletteLab[i];
+      float dist = dot(dl, dl);
+      if (dist < best) { best = dist; pick = paletteRgb[i]; }
+    }
+    outRgb = pick;
+  }
+  gl_FragColor = vec4(outRgb, a);
+}`;
+
+const upscaleFragment = /* glsl */ `
+uniform sampler2D tPost;
+uniform vec2 lowRes;
+uniform float scale;
+uniform vec2 offset;
+uniform vec3 background;
+void main() {
+  vec2 p = floor((gl_FragCoord.xy + offset) / scale);
+  vec4 c = texture2D(tPost, (p + 0.5) / lowRes);
+  gl_FragColor = vec4(mix(background, c.rgb, c.a), 1.0);
+}`;
+
+const copyFragment = /* glsl */ `
+uniform sampler2D tColor;
+varying vec2 vUv;
+void main() {
+  vec3 c = clamp(texture2D(tColor, vUv).rgb, 0.0, 1.0);
+  gl_FragColor = vec4(mix(c * 12.92, 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055, step(0.0031308, c)), 1.0);
+}`;
+
+export interface RenderOptions {
+  /** Sub-pixel camera remainder in art pixels (smooth scroll), applied after upscaling. */
+  subPixel?: { x: number; y: number };
+  /** Draw edges/palette. false = raw low-res (used for plain-mode comparisons). */
+  post?: boolean;
+}
+
+export class PixelPipeline {
+  scale = 1;
+  width = 2;
+  height = 2;
+  margin = 1;
+  deviceW = 1;
+  deviceH = 1;
+  main: PixelTargets;
+  private full: THREE.WebGLRenderTarget;
+  private normalMaterial = new THREE.MeshNormalMaterial();
+  private postMaterial: THREE.ShaderMaterial;
+  private upscaleMaterial: THREE.ShaderMaterial;
+  private copyMaterial: THREE.ShaderMaterial;
+  private quad = new FullScreenQuad();
+  private paletteKey = '';
+  background = new THREE.Color(0x0d0c11);
+
+  constructor(readonly renderer: THREE.WebGLRenderer) {
+    this.main = new PixelTargets(2, 2);
+    this.full = new THREE.WebGLRenderTarget(2, 2, { type: THREE.HalfFloatType, samples: 4 });
+    this.postMaterial = new THREE.ShaderMaterial({
+      vertexShader: quadVertex,
+      fragmentShader: postFragment,
+      uniforms: {
+        tColor: { value: null }, tDepth: { value: null }, tNormal: { value: null },
+        resolution: { value: new THREE.Vector4() }, cameraNear: { value: 0.1 }, cameraFar: { value: 100 },
+        outlineStrength: { value: 0 }, innerStrength: { value: 0 }, depthThreshold: { value: 0.3 },
+        paletteSize: { value: 0 },
+        paletteLab: { value: Array.from({ length: MAX_PALETTE }, () => new THREE.Vector3()) },
+        paletteRgb: { value: Array.from({ length: MAX_PALETTE }, () => new THREE.Vector3()) },
+      },
+      depthTest: false,
+      depthWrite: false,
+    });
+    this.upscaleMaterial = new THREE.ShaderMaterial({
+      vertexShader: quadVertex,
+      fragmentShader: upscaleFragment,
+      uniforms: {
+        tPost: { value: null }, lowRes: { value: new THREE.Vector2() }, scale: { value: 1 },
+        offset: { value: new THREE.Vector2() }, background: { value: new THREE.Vector3() },
+      },
+      depthTest: false,
+      depthWrite: false,
+    });
+    this.copyMaterial = new THREE.ShaderMaterial({
+      vertexShader: quadVertex,
+      fragmentShader: copyFragment,
+      uniforms: { tColor: { value: null } },
+      depthTest: false,
+      depthWrite: false,
+    });
+  }
+
+  /** Canvas size in device pixels. Recomputes the integer scale and low-res target size. */
+  setSize(deviceW: number, deviceH: number): boolean {
+    const s = chooseScale(deviceW, deviceH, config['render.targetLines']);
+    const changed = s.width !== this.width || s.height !== this.height || deviceW !== this.deviceW || deviceH !== this.deviceH;
+    this.deviceW = deviceW;
+    this.deviceH = deviceH;
+    this.scale = s.scale;
+    this.margin = s.margin;
+    if (s.width !== this.width || s.height !== this.height) {
+      this.main.dispose();
+      this.main = new PixelTargets(s.width, s.height);
+      this.width = s.width;
+      this.height = s.height;
+    }
+    this.full.setSize(deviceW, deviceH);
+    return changed;
+  }
+
+  /** Visible low-res rectangle (inside the margin), in target pixels, origin bottom-left. */
+  visibleRect() {
+    const w = Math.ceil(this.deviceW / this.scale);
+    const h = Math.ceil(this.deviceH / this.scale);
+    return { x: Math.floor((this.width - w) / 2), y: Math.floor((this.height - h) / 2), w, h };
+  }
+
+  private syncPalette() {
+    const name = config['render.palette'] as PaletteName;
+    if (name === this.paletteKey) return;
+    this.paletteKey = name;
+    const colors = PALETTES[name] ?? [];
+    const u = this.postMaterial.uniforms;
+    u.paletteSize.value = Math.min(colors.length, MAX_PALETTE);
+    colors.slice(0, MAX_PALETTE).forEach((hex, i) => {
+      const [L, A, B] = hexToOklab(hex);
+      (u.paletteLab.value as THREE.Vector3[])[i].set(L, A, B);
+      const n = parseInt(hex, 16);
+      (u.paletteRgb.value as THREE.Vector3[])[i].set(((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255);
+    });
+  }
+
+  /** Steps 1-3 into `targets`. The camera must already be sized to the targets. */
+  renderLowRes(targets: PixelTargets, scene: THREE.Scene, camera: THREE.OrthographicCamera, layers: number[], opts: RenderOptions = {}) {
+    const r = this.renderer;
+    const prevMask = camera.layers.mask;
+    camera.layers.disableAll();
+    for (const l of layers) camera.layers.enable(l);
+    r.setRenderTarget(targets.scene);
+    r.clear(true, true, true);
+    r.render(scene, camera);
+
+    const post = opts.post !== false;
+    if (post && config['render.innerLines']) {
+      const onlyMain = layers.filter((l) => l !== LAYER.FX && l !== LAYER.DEBUG);
+      camera.layers.disableAll();
+      for (const l of onlyMain) camera.layers.enable(l);
+      const prevOverride = scene.overrideMaterial;
+      const prevBg = scene.background;
+      const prevClear = r.getClearColor(new THREE.Color());
+      const prevAlpha = r.getClearAlpha();
+      scene.overrideMaterial = this.normalMaterial;
+      scene.background = null;
+      r.setRenderTarget(targets.normal);
+      r.setClearColor(0x8080ff, 1);
+      r.clear(true, true, false);
+      r.render(scene, camera);
+      r.setClearColor(prevClear, prevAlpha);
+      scene.overrideMaterial = prevOverride;
+      scene.background = prevBg;
+    }
+    camera.layers.mask = prevMask;
+
+    this.syncPalette();
+    const u = this.postMaterial.uniforms;
+    u.tColor.value = targets.scene.texture;
+    u.tDepth.value = targets.scene.depthTexture;
+    u.tNormal.value = targets.normal.texture;
+    u.resolution.value.set(targets.width, targets.height, 1 / targets.width, 1 / targets.height);
+    u.cameraNear.value = camera.near;
+    u.cameraFar.value = camera.far;
+    u.outlineStrength.value = post && config['render.outlines'] ? config['render.outlineStrength'] : 0;
+    u.innerStrength.value = post && config['render.innerLines'] ? config['render.innerLineStrength'] : 0;
+    if (!post) u.paletteSize.value = 0;
+    this.quad.material = this.postMaterial;
+    r.setRenderTarget(targets.post);
+    this.quad.render(r);
+    if (!post) this.paletteKey = '';
+  }
+
+  /** Full frame for the main view. */
+  render(scene: THREE.Scene, camera: THREE.OrthographicCamera, opts: RenderOptions = {}) {
+    const r = this.renderer;
+    if (!config['render.pixelMode']) {
+      r.setRenderTarget(this.full);
+      r.clear(true, true, true);
+      r.render(scene, camera);
+      this.copyMaterial.uniforms.tColor.value = this.full.texture;
+      this.quad.material = this.copyMaterial;
+      r.setRenderTarget(null);
+      this.quad.render(r);
+      return;
+    }
+    this.renderLowRes(this.main, scene, camera, [LAYER.MAIN, LAYER.FX, LAYER.DEBUG], opts);
+    const u = this.upscaleMaterial.uniforms;
+    u.tPost.value = this.main.post.texture;
+    u.lowRes.value.set(this.width, this.height);
+    u.scale.value = this.scale;
+    const sub = opts.subPixel ?? { x: 0, y: 0 };
+    u.offset.value.set(
+      (this.width * this.scale - this.deviceW) / 2 + sub.x * this.scale,
+      (this.height * this.scale - this.deviceH) / 2 + sub.y * this.scale,
+    );
+    const bg = this.background;
+    u.background.value.set(bg.r, bg.g, bg.b);
+    this.quad.material = this.upscaleMaterial;
+    r.setRenderTarget(null);
+    this.quad.render(r);
+  }
+
+  /** RGBA bytes of a target's post image, top row first. `rect` in target pixels (origin bottom-left). */
+  read(targets: PixelTargets, rect?: { x: number; y: number; w: number; h: number }) {
+    const { x, y, w, h } = rect ?? { x: 0, y: 0, w: targets.width, h: targets.height };
+    const buf = new Uint8Array(w * h * 4);
+    this.renderer.readRenderTargetPixels(targets.post, x, y, w, h, buf);
+    const out = new Uint8ClampedArray(w * h * 4);
+    for (let row = 0; row < h; row++) out.set(buf.subarray((h - 1 - row) * w * 4, (h - row) * w * 4), row * w * 4);
+    return { width: w, height: h, data: out };
+  }
+}

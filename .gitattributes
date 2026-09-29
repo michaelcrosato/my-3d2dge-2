@@ -1,0 +1,4 @@
+* text=auto
+*.glb binary
+# Generated bundle embeds upstream shader strings with their original whitespace.
+3dpixel2d/standalone/3dpixel2d.html -whitespace linguist-generated=true

@@ -1,0 +1,21 @@
+# Dependencies, generated builds and local caches
+node_modules/
+dist/
+.cache/
+.agent/
+*.log
+coverage/
+playwright-report/
+test-results/
+
+# Local configuration and credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# OS / Windows download metadata
+.DS_Store
+Thumbs.db
+*:Zone.Identifier
