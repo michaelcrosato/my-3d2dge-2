@@ -2,7 +2,7 @@
 
 ## Scope and project
 
-These instructions apply to the entire repository. Follow the user's task and [docs/AGENTIC-CODING-SOP.md](docs/AGENTIC-CODING-SOP.md). The app is in `3dpixel2d/`; execute npm commands there. Use Node 22.12+ and the committed npm lockfile.
+These instructions apply to the entire repository. Follow the user's task and [docs/AGENTIC-CODING-SOP.md](docs/AGENTIC-CODING-SOP.md). The app is at the repository root; execute npm commands from the root. Use Node 22.12+ and the committed npm lockfile.
 
 ## Working rules
 
