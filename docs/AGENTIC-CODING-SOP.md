@@ -29,9 +29,9 @@ npm run build:standalone
 npm run verify:standalone
 ```
 
-`check` validates TypeScript and builds the web app; it does not run unit tests. `verify:standalone` uses Python Playwright and installed browser engines to test offline loading, movement/release, jump, attack, pause/reset/resume, both rendering modes and all models. On a new machine install Python Playwright and compatible browsers before running it; the maintainer's WSL2 toolkit already supplies them.
+`check` validates TypeScript, builds the web app and runs the Vitest unit tests in `tests/`. `verify:standalone` uses Python Playwright and installed browser engines to test offline loading, touch movement/release, jump, attack, settings rebinding and touch layout editing, pause/reset/resume, both rendering modes and all models. On a new machine install Python Playwright and compatible browsers before running it; the maintainer's WSL2 toolkit already supplies them.
 
-For meaningful logic changes, add a targeted regression test that distinguishes the fixed behavior from the old behavior, and wire its execution into the normal check command. Avoid tests that merely restate the implementation.
+For meaningful logic changes, add a targeted regression test under `tests/` that distinguishes the fixed behavior from the old behavior; `npm run check` runs it. Avoid tests that merely restate the implementation.
 
 For UI changes, start a local dev server and run the viewport matrix covering small phones, tablets, wide screens and WebKit. Inspect screenshots yourself. Fix horizontal overflow and JavaScript/console errors. Keep artifacts in `/tmp`, and report emulation limits. Follow the machine-specific instructions in `AGENTS.md`.
 

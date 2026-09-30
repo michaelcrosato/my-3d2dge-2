@@ -8,10 +8,11 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
-    "check": "npm run build",
+    "check": "npm run build && npm run test",
     "assets": "node tools/build-assets.mjs",
     "build:standalone": "node node_modules/typescript/bin/tsc --noEmit && node tools/build-standalone.mjs",
-    "verify:standalone": "python3 tools/verify-standalone.py"
+    "verify:standalone": "python3 tools/verify-standalone.py",
+    "test": "vitest run"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "0.20.0",

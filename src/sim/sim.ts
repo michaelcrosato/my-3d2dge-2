@@ -4,6 +4,10 @@
  * Rules (see AGENTS.md): fixed 60 Hz steps, seeded RNG only, no wall-clock time, no DOM, no
  * rendering. Same level + seed + inputs => same state, frame for frame. Runs in the browser and
  * in Node (tests). The renderer only reads from it.
+ *
+ * Rapier does all spatial work: kinematic character controllers (walking, stepping, pushing),
+ * dynamic crates, collision groups, shape queries for sword reach, ray casts for line of sight,
+ * ground probes (blob shadows) and view occlusion (silhouettes), and collision events for crates.
  */
 import RAPIER from '@dimforge/rapier3d-compat';
 import { config } from '../config';
@@ -56,7 +60,7 @@ export interface SpriteState {
   tick: number;
 }
 
-interface V3 {
+export interface V3 {
   x: number;
   y: number;
   z: number;
@@ -92,6 +96,8 @@ export interface Character {
   forced: { clip: string; loop: boolean } | null;
   anim: AnimState;
   sprite: SpriteState;
+  /** Height of the walkable surface under the character (Rapier ray probe; floor = 0). */
+  groundY: number;
   body: RAPIER.RigidBody;
   collider: RAPIER.Collider;
 }
@@ -116,12 +122,23 @@ export interface SimEvent {
 const CAPSULE_RADIUS = 0.3;
 const CAPSULE_HALF = 0.55;
 const CAPSULE_CENTER = CAPSULE_HALF + CAPSULE_RADIUS;
+/** Height above the feet used for sword reach and line-of-sight rays. */
+const CHEST = 1.1;
 const STEP_HZ = 60;
+
+/** Rapier collision groups: membership bits in the high half, filter bits in the low half. */
+export const GROUP = { STATIC: 0x1, CRATE: 0x2, CHARACTER: 0x4 } as const;
+const ALL_GROUPS = 0xffff;
+const groups = (membership: number, filter = ALL_GROUPS) => ((membership << 16) | filter) >>> 0;
+/** Query filters: what blocks a sword or a line of sight, and what a character can stand on. */
+const BLOCKERS = groups(ALL_GROUPS, GROUP.STATIC | GROUP.CRATE);
+const IDENTITY_ROT = { x: 0, y: 0, z: 0, w: 1 };
 
 let rapierReady: Promise<void> | null = null;
 export const initPhysics = () => (rapierReady ??= RAPIER.init());
 
 const emptyInput = (): CharacterInput => ({ moveX: 0, moveZ: 0, gait: 'run', jump: false, attack: false });
+const chestOf = (ch: Character): V3 => ({ x: ch.pos.x, y: ch.pos.y + CHEST, z: ch.pos.z });
 const r3 = (n: number) => Math.round(n * 1000) / 1000;
 const wrapAngle = (a: number) => Math.atan2(Math.sin(a), Math.cos(a));
 
@@ -152,6 +169,11 @@ export class Sim {
   private eventSeq = 0;
   private lastTick = -1;
   private crateByCollider = new Map<number, Crate>();
+  private charByCollider = new Map<number, Character>();
+  /** Collider handle -> wall id, for readable contact events. */
+  private staticNames = new Map<number, string>();
+  private eventQueue = new RAPIER.EventQueue(true);
+  private readonly ray = new RAPIER.Ray({ x: 0, y: 0, z: 0 }, { x: 0, y: -1, z: 0 });
 
   /** Physics must be initialised first: `await initPhysics()`. */
   constructor(readonly level: Level, readonly clips: ClipTable, readonly seed = 1) {
@@ -198,6 +220,8 @@ export class Sim {
     this.world.free();
     this.world = RAPIER.World.restoreSnapshot(cp.world);
     this.world.timestep = this.dt;
+    this.eventQueue.free();
+    this.eventQueue = new RAPIER.EventQueue(true);
     this.createController();
     this.frame = cp.frame;
     this.hitstop = cp.hitstop;
@@ -206,9 +230,11 @@ export class Sim {
     this.eventSeq = cp.eventSeq;
     this.events = structuredClone(cp.events);
     this.characters.clear();
+    this.charByCollider.clear();
     for (const { bodyHandle, colliderHandle, ...rest } of cp.characters) {
       const ch = { ...structuredClone(rest), body: this.world.getRigidBody(bodyHandle), collider: this.world.getCollider(colliderHandle) } as Character;
       this.characters.set(ch.id, ch);
+      this.charByCollider.set(colliderHandle, ch);
     }
     this.crates.clear();
     this.crateByCollider.clear();
@@ -225,6 +251,7 @@ export class Sim {
   }
 
   dispose() {
+    this.eventQueue.free();
     this.world.free();
   }
 
@@ -232,26 +259,38 @@ export class Sim {
 
   private buildStatic() {
     const L = this.level;
+    const staticGroups = groups(GROUP.STATIC);
     const floor = RAPIER.RigidBodyDesc.fixed().setTranslation(0, -0.5, 0);
-    this.world.createCollider(RAPIER.ColliderDesc.cuboid(L.width / 2 + 2, 0.5, L.depth / 2 + 2), this.world.createRigidBody(floor));
+    const floorCollider = this.world.createCollider(
+      RAPIER.ColliderDesc.cuboid(L.width / 2 + 2, 0.5, L.depth / 2 + 2).setCollisionGroups(staticGroups),
+      this.world.createRigidBody(floor),
+    );
+    this.staticNames.set(floorCollider.handle, 'floor');
     for (const w of L.walls) {
       const t = (w.thickness ?? 0.4) / 2;
       const minX = Math.min(w.from[0], w.to[0]) - t, maxX = Math.max(w.from[0], w.to[0]) + t;
       const minZ = Math.min(w.from[1], w.to[1]) - t, maxZ = Math.max(w.from[1], w.to[1]) + t;
       const body = this.world.createRigidBody(RAPIER.RigidBodyDesc.fixed().setTranslation((minX + maxX) / 2, w.height / 2, (minZ + maxZ) / 2));
-      this.world.createCollider(RAPIER.ColliderDesc.cuboid((maxX - minX) / 2, w.height / 2, (maxZ - minZ) / 2), body);
+      const collider = this.world.createCollider(
+        RAPIER.ColliderDesc.cuboid((maxX - minX) / 2, w.height / 2, (maxZ - minZ) / 2).setCollisionGroups(staticGroups),
+        body,
+      );
+      this.staticNames.set(collider.handle, w.id);
     }
     for (const c of L.crates) {
       const size = c.size ?? 1;
       const y = (c.y ?? 0) + size / 2;
+      // CCD keeps a crate knocked by a heavy hit from tunnelling through a thin wall.
       const desc = c.pushable
-        ? RAPIER.RigidBodyDesc.dynamic().lockRotations().setLinearDamping(6).setCanSleep(true)
+        ? RAPIER.RigidBodyDesc.dynamic().lockRotations().setLinearDamping(6).setCanSleep(true).setCcdEnabled(true)
         : RAPIER.RigidBodyDesc.fixed();
       const body = this.world.createRigidBody(desc.setTranslation(c.x, y, c.z));
-      const collider = this.world.createCollider(
-        RAPIER.ColliderDesc.cuboid(size / 2, size / 2, size / 2).setDensity(40).setFriction(0.4),
-        body,
-      );
+      const colliderDesc = RAPIER.ColliderDesc.cuboid(size / 2, size / 2, size / 2)
+        .setDensity(40)
+        .setFriction(0.4)
+        .setCollisionGroups(groups(GROUP.CRATE));
+      if (c.pushable) colliderDesc.setActiveEvents(RAPIER.ActiveEvents.COLLISION_EVENTS);
+      const collider = this.world.createCollider(colliderDesc, body);
       const pos = { x: c.x, y: y - size / 2, z: c.z };
       const crate: Crate = { id: c.id, pushable: !!c.pushable, size, pos, prevPos: { ...pos }, body, collider };
       this.crates.set(c.id, crate);
@@ -268,7 +307,10 @@ export class Sim {
     const body = this.world.createRigidBody(
       RAPIER.RigidBodyDesc.kinematicPositionBased().setTranslation(def.x, CAPSULE_CENTER, def.z),
     );
-    const collider = this.world.createCollider(RAPIER.ColliderDesc.capsule(CAPSULE_HALF, CAPSULE_RADIUS), body);
+    const collider = this.world.createCollider(
+      RAPIER.ColliderDesc.capsule(CAPSULE_HALF, CAPSULE_RADIUS).setCollisionGroups(groups(GROUP.CHARACTER)),
+      body,
+    );
     const pos = { x: def.x, y: 0, z: def.z };
     const idleAnim: AnimState = { clip: anims.idle, time: 0, speed: 1, prevClip: null, prevTime: 0, prevSpeed: 1, blend: 1 };
     const ch: Character = {
@@ -280,17 +322,20 @@ export class Sim {
       ai: { path: [], wait: 0.5 + this.rng.next() * 2, stuck: 0, last: { x: def.x, z: def.z } },
       order: null, forced: null, anim: idleAnim,
       sprite: { ...this.spriteOf(idleAnim, yaw), tick: 0 },
+      groundY: 0,
       body, collider,
     };
     // Stagger idle loops so characters don't breathe in unison.
     ch.anim.time = this.rng.next() * (this.clips[anims.idle]?.duration ?? 1);
     this.characters.set(ch.id, ch);
+    this.charByCollider.set(collider.handle, ch);
     this.emit('spawn', { id: ch.id, preset: ch.preset });
     return ch;
   }
 
   despawn(id: string) {
     const ch = this.get(id);
+    this.charByCollider.delete(ch.collider.handle);
     this.world.removeRigidBody(ch.body);
     this.characters.delete(id);
     this.emit('despawn', { id });
@@ -360,16 +405,79 @@ export class Sim {
     }
     this.world.gravity = { x: 0, y: -config['sim.gravity'], z: 0 };
     for (const ch of this.characters.values()) this.updateCharacter(ch, this.think(ch));
-    this.world.step();
+    this.world.step(this.eventQueue);
     for (const ch of this.characters.values()) {
       const t = ch.body.translation();
       ch.pos = { x: t.x, y: t.y - CAPSULE_CENTER, z: t.z };
+      ch.groundY = this.groundBelow(ch);
     }
     for (const c of this.crates.values()) {
       const t = c.body.translation();
       c.pos = { x: t.x, y: t.y - c.size / 2, z: t.z };
     }
+    this.eventQueue.drainCollisionEvents((h1, h2, started) => {
+      if (!started) return;
+      const a = this.crateByCollider.get(h1), b = this.crateByCollider.get(h2);
+      const crate = a ?? b;
+      const other = a ? h2 : h1;
+      const withName = this.crateByCollider.get(other)?.id ?? this.charByCollider.get(other)?.id ?? this.staticNames.get(other);
+      if (crate && withName && withName !== 'floor') this.emit('crate.contact', { crate: crate.id, with: withName });
+    });
     this.spriteTick();
+  }
+
+  // ---------------------------------------------------------------- Rapier queries
+
+  /** Casts the shared ray; returns the first blocker hit within maxToi (solid shapes). */
+  private cast(ox: number, oy: number, oz: number, dx: number, dy: number, dz: number, maxToi: number, filter = BLOCKERS, exclude?: RAPIER.Collider) {
+    const r = this.ray;
+    r.origin.x = ox; r.origin.y = oy; r.origin.z = oz;
+    r.dir.x = dx; r.dir.y = dy; r.dir.z = dz;
+    return this.world.castRay(r, maxToi, true, undefined, filter, exclude);
+  }
+
+  /** Top of the floor, wall or crate directly under a character's feet. */
+  private groundBelow(ch: Character): number {
+    const hit = this.cast(ch.pos.x, ch.pos.y + 0.05, ch.pos.z, 0, -1, 0, 50);
+    return hit ? ch.pos.y + 0.05 - hit.timeOfImpact : 0;
+  }
+
+  /** First floor, wall or crate hit by a ray (pointer picking, agents). `dir` need not be normalized. */
+  raycast(origin: V3, dir: V3, maxDistance = 500): { x: number; y: number; z: number; distance: number; id: string | null } | null {
+    const len = Math.hypot(dir.x, dir.y, dir.z);
+    if (len < 1e-9) return null;
+    const dx = dir.x / len, dy = dir.y / len, dz = dir.z / len;
+    const hit = this.cast(origin.x, origin.y, origin.z, dx, dy, dz, maxDistance);
+    if (!hit) return null;
+    const t = hit.timeOfImpact;
+    const h = hit.collider.handle;
+    return {
+      x: r3(origin.x + dx * t), y: r3(origin.y + dy * t), z: r3(origin.z + dz * t), distance: r3(t),
+      id: this.crateByCollider.get(h)?.id ?? this.staticNames.get(h) ?? null,
+    };
+  }
+
+  /** True when no wall or crate blocks the straight line between two points. */
+  lineOfSight(from: V3, to: V3, ignore?: RAPIER.Collider): boolean {
+    const dx = to.x - from.x, dy = to.y - from.y, dz = to.z - from.z;
+    const len = Math.hypot(dx, dy, dz);
+    if (len < 1e-4) return true;
+    return !this.cast(from.x, from.y, from.z, dx / len, dy / len, dz / len, len, BLOCKERS, ignore);
+  }
+
+  /**
+   * True when walls or crates hide part of a character from a viewer looking along `viewDir`
+   * (unit vector into the screen). Samples feet, body, head and both shoulders.
+   */
+  occluded(id: string, viewDir: V3, right: V3): boolean {
+    const ch = this.characters.get(id);
+    if (!ch) return false;
+    const samples: Array<[number, number]> = [[0, 0.25], [0, 0.95], [0, 1.65], [-0.28, 1.2], [0.28, 1.2]];
+    for (const [side, h] of samples) {
+      const ox = ch.pos.x + right.x * side, oy = ch.pos.y + h, oz = ch.pos.z + right.z * side;
+      if (this.cast(ox, oy, oz, -viewDir.x, -viewDir.y, -viewDir.z, 60)) return true;
+    }
+    return false;
   }
 
   private emit(type: string, data: Record<string, unknown> = {}) {
@@ -683,7 +791,7 @@ export class Sim {
     for (const o of this.characters.values()) {
       if (o === ch || o.state === 'dead') continue;
       const d = Math.hypot(o.pos.x - ch.pos.x, o.pos.z - ch.pos.z);
-      if (d < bestD) {
+      if (d < bestD && this.lineOfSight(chestOf(ch), chestOf(o))) {
         bestD = d;
         best = o;
       }
@@ -696,12 +804,22 @@ export class Sim {
   private strike(ch: Character, step: (typeof ATTACKS)[number]) {
     const fx = Math.sin(ch.yaw), fz = Math.cos(ch.yaw);
     const cosArc = Math.cos(((step.arcDeg / 2) * Math.PI) / 180);
+    const chest = chestOf(ch);
+    // Broad phase: every character and crate collider the swing could reach.
+    const reach = new Set<number>();
+    this.world.intersectionsWithShape(
+      chest, IDENTITY_ROT, new RAPIER.Ball(step.range + 1),
+      (c) => { reach.add(c.handle); return true; },
+      undefined, groups(ALL_GROUPS, GROUP.CHARACTER | GROUP.CRATE), ch.collider,
+    );
     let hits = 0;
+    // Iterate in roster order (not query order) so event order stays stable.
     for (const o of this.characters.values()) {
-      if (o === ch || o.state === 'dead') continue;
+      if (o === ch || o.state === 'dead' || !reach.has(o.collider.handle)) continue;
       const dx = o.pos.x - ch.pos.x, dz = o.pos.z - ch.pos.z;
       const d = Math.hypot(dx, dz);
       if (d > step.range || d < 1e-4 || (dx * fx + dz * fz) / d < cosArc) continue;
+      if (!this.lineOfSight(chest, chestOf(o))) continue;
       hits++;
       o.hp = Math.max(0, o.hp - step.damage);
       o.flash = 8;
@@ -721,7 +839,26 @@ export class Sim {
         this.play(o, step.heavy ? o.anims.hitHeavy : o.anims.hit, { restart: true, blend: 0.03 });
       }
     }
+    let crateHits = 0;
+    const knock = config['sim.crateKnock'];
+    for (const c of this.crates.values()) {
+      if (!c.pushable || knock <= 0 || !reach.has(c.collider.handle)) continue;
+      const dx = c.pos.x - ch.pos.x, dz = c.pos.z - ch.pos.z;
+      const d = Math.hypot(dx, dz);
+      if (d - c.size / 2 > step.range || d < 1e-4 || (dx * fx + dz * fz) / d < cosArc) continue;
+      // The first blocker along the swing must be this crate itself.
+      const center = { x: c.pos.x, y: Math.min(c.pos.y + c.size / 2, chest.y), z: c.pos.z };
+      const len = Math.hypot(center.x - chest.x, center.y - chest.y, center.z - chest.z);
+      const hit = this.cast(chest.x, chest.y, chest.z, (center.x - chest.x) / len, (center.y - chest.y) / len, (center.z - chest.z) / len, len + c.size);
+      if (hit && hit.collider.handle !== c.collider.handle) continue;
+      const speed = step.knock * knock;
+      const m = c.body.mass();
+      c.body.applyImpulse({ x: (dx / d) * speed * m, y: 0, z: (dz / d) * speed * m }, true);
+      crateHits++;
+      this.emit('crate.hit', { attacker: ch.id, crate: c.id, speed: r3(speed), heavy: step.heavy });
+    }
     if (hits) this.hitstop = Math.max(this.hitstop, config['sim.hitstopFrames'] + (step.heavy ? 3 : 0));
+    else if (crateHits) this.hitstop = Math.max(this.hitstop, Math.floor(config['sim.hitstopFrames'] / 2));
     else this.emit('whiff', { id: ch.id, step: ch.combo + 1 });
   }
 
@@ -776,6 +913,7 @@ export class Sim {
         yawDeg: r3((ch.yaw * 180) / Math.PI),
         facing: DIR8_SCREEN_NAMES[dir8(ch.yaw).index],
         grounded: ch.grounded,
+        groundY: r3(ch.groundY),
         pushing: ch.pushing > 0,
         anim: { clip: ch.anim.clip, time: r3(ch.anim.time), speed: r3(ch.anim.speed) },
         sprite: {

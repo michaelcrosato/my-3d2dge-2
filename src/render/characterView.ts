@@ -7,7 +7,7 @@ import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import { config } from '../config';
 import { PRESETS } from '../content/characters';
 import { AssetLibrary, firstSkinnedMesh } from './assets';
-import { toonize } from './materials';
+import { toonize, writesNormals } from './materials';
 import { LAYER } from './pixelPipeline';
 import { restPoseOf, type RestPose } from './retarget';
 
@@ -19,7 +19,7 @@ export interface PoseInput {
   blend: number;
 }
 
-const silhouetteMaterial = new THREE.MeshBasicMaterial({
+const silhouetteMaterial = writesNormals(new THREE.MeshBasicMaterial({
   color: 0x8fb8ff,
   transparent: true,
   opacity: 0.55,
@@ -29,7 +29,13 @@ const silhouetteMaterial = new THREE.MeshBasicMaterial({
   stencilRef: 1,
   stencilFunc: THREE.NotEqualStencilFunc,
   stencilZPass: THREE.KeepStencilOp,
-});
+}), 'fx');
+
+const shadowMaterial = writesNormals(
+  new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.32, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }),
+  'fx',
+);
+const shadowGeometry = new THREE.CircleGeometry(0.36, 20);
 
 function makeSword(): THREE.Group {
   const g = new THREE.Group();
@@ -54,11 +60,15 @@ export class CharacterView {
   readonly materials: THREE.MeshToonMaterial[] = [];
   readonly meshes: THREE.SkinnedMesh[] = [];
   readonly shadow: THREE.Mesh;
+  private readonly silhouettes: THREE.SkinnedMesh[] = [];
   private readonly mixer: THREE.AnimationMixer;
   private readonly actions = new Map<string, THREE.AnimationAction>();
   private readonly rest: RestPose;
   private readonly restKey: string;
   private lastFlash = -1;
+  private silhouettesOn: boolean | null = null;
+  /** Last pose applied; the skeleton only changes on sprite ticks, so most frames skip the mixer. */
+  private lastPose: PoseInput = { clip: '', time: NaN, prevClip: null, prevTime: NaN, blend: NaN };
 
   constructor(readonly id: string, readonly preset: string, private lib: AssetLibrary) {
     const p = PRESETS[preset];
@@ -116,6 +126,7 @@ export class CharacterView {
         sil.name = `${m.name}:silhouette`;
         sil.userData.silhouette = true;
         m.parent!.add(sil);
+        this.silhouettes.push(sil);
       }
     });
 
@@ -137,10 +148,7 @@ export class CharacterView {
     this.restKey = p.base;
     this.mixer = new THREE.AnimationMixer(this.model);
 
-    this.shadow = new THREE.Mesh(
-      new THREE.CircleGeometry(0.36, 20),
-      new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.32, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }),
-    );
+    this.shadow = new THREE.Mesh(shadowGeometry, shadowMaterial);
     this.shadow.rotation.x = -Math.PI / 2;
     this.shadow.layers.set(LAYER.FX);
     this.shadow.name = `shadow:${id}`;
@@ -166,6 +174,15 @@ export class CharacterView {
 
   /** Pose the skeleton exactly at the given clip times (no mixer clock). */
   pose(p: PoseInput) {
+    const last = this.lastPose;
+    const same = p.clip === last.clip && p.time === last.time && p.prevClip === last.prevClip && p.blend === last.blend &&
+      (p.prevClip === null || p.blend >= 1 || p.prevTime === last.prevTime);
+    if (same) return;
+    last.clip = p.clip;
+    last.time = p.time;
+    last.prevClip = p.prevClip;
+    last.prevTime = p.prevTime;
+    last.blend = p.blend;
     const cur = this.action(p.clip);
     const prev = p.prevClip && p.blend < 1 ? this.action(p.prevClip) : null;
     for (const a of this.actions.values()) if (a !== cur && a !== prev && a.isRunning()) a.stop();
@@ -188,9 +205,9 @@ export class CharacterView {
   }
 
   setSilhouettes(on: boolean) {
-    this.root.traverse((o) => {
-      if (o.userData.silhouette) o.visible = on;
-    });
+    if (on === this.silhouettesOn) return;
+    this.silhouettesOn = on;
+    for (const s of this.silhouettes) s.visible = on;
   }
 
   /** Put every mesh of this character on `layer` (used for isolated captures), or back to normal. */

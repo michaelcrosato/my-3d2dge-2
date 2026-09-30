@@ -2,6 +2,27 @@
 import * as THREE from 'three';
 import { config } from '../config';
 
+/**
+ * The pixel pipeline draws color and view-space normals in ONE geometry pass (two render
+ * targets), instead of re-rendering the whole scene with a normal override material.
+ * Every material drawn into the pixel targets therefore writes attachment 1:
+ * - 'surface': opaque materials write their shading normal (packed like MeshNormalMaterial).
+ * - 'fx': blended overlays (silhouettes, blob shadows, debug lines) write alpha 0, which normal
+ *   blending turns into "leave the normal buffer unchanged". FX materials must be transparent.
+ * Targets with one attachment (plain mode, the canvas) simply discard the extra output.
+ */
+export function writesNormals<T extends THREE.Material>(material: T, kind: 'surface' | 'fx' = 'surface'): T {
+  const write = kind === 'surface' ? 'pc_fragNormal = vec4( normalize( normal ) * 0.5 + 0.5, 1.0 );' : 'pc_fragNormal = vec4( 0.0 );';
+  material.onBeforeCompile = (shader) => {
+    shader.fragmentShader = `layout(location = 1) out highp vec4 pc_fragNormal;\n${shader.fragmentShader.replace(
+      '#include <dithering_fragment>',
+      `#include <dithering_fragment>\n\t${write}`,
+    )}`;
+  };
+  material.customProgramCacheKey = () => `normals-${kind}`;
+  return material;
+}
+
 let gradient: THREE.DataTexture | null = null;
 let gradientBands = 0;
 
@@ -29,8 +50,8 @@ export function toonGradient(): THREE.DataTexture {
   return gradient!;
 }
 
-export function toonMaterial(color: THREE.ColorRepresentation, map: THREE.Texture | null = null): THREE.MeshToonMaterial {
-  return new THREE.MeshToonMaterial({ color, map, gradientMap: toonGradient() });
+export function toonMaterial(color: THREE.ColorRepresentation, map: THREE.Texture | null = null, vertexColors = false): THREE.MeshToonMaterial {
+  return writesNormals(new THREE.MeshToonMaterial({ color, map, gradientMap: toonGradient(), vertexColors }));
 }
 
 /** Converts any glTF material (usually MeshStandardMaterial) into a toon material with the same color/map. */
@@ -55,5 +76,5 @@ export function toonize(src: THREE.Material): THREE.MeshToonMaterial {
     m.transparent = false;
     m.alphaTest = 0.5;
   }
-  return m;
+  return writesNormals(m);
 }

@@ -1,14 +1,19 @@
 /**
  * The three.js side of the game: builds meshes from level data, mirrors the sim every frame
  * (snapping movers to the art-pixel grid), drives the iso camera, and owns the capture helpers.
+ *
+ * Per-frame cost is kept low: all walls are one merged mesh, static meshes never recompute
+ * matrices, the shadow map is only redrawn when a shadow caster moves, and silhouettes are only
+ * drawn for characters that Rapier ray casts report as hidden behind walls or crates.
  */
 import * as THREE from 'three';
-import { config } from '../config';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { config, configListeners } from '../config';
 import type { Level } from '../content/level';
 import type { Sim } from '../sim/sim';
 import { AssetLibrary } from './assets';
 import { CharacterView } from './characterView';
-import { toonGradient, toonMaterial } from './materials';
+import { toonGradient, toonMaterial, writesNormals } from './materials';
 import { isoBasis, snapToGrid, subPixel, type IsoBasis, type V3 } from './pixelGrid';
 import { LAYER, type PixelPipeline } from './pixelPipeline';
 
@@ -63,6 +68,37 @@ function crateTexture(pushable: boolean): THREE.Texture {
 
 const toV3 = (v: THREE.Vector3): V3 => ({ x: v.x, y: v.y, z: v.z });
 
+/** BoxGeometry builds 6 faces of 4 vertices each, in +x, -x, +y, -y, +z, -z order. */
+const BOX_TOP_FACE = 2;
+
+/** One geometry for every wall, colored per vertex (sides vs. tops), so walls cost one draw call per pass. */
+function wallGeometry(level: Level): THREE.BufferGeometry | null {
+  const top = new THREE.Color(level.wallTopColor);
+  const parts = level.walls.map((w) => {
+    const t = (w.thickness ?? 0.4) / 2;
+    const minX = Math.min(w.from[0], w.to[0]) - t, maxX = Math.max(w.from[0], w.to[0]) + t;
+    const minZ = Math.min(w.from[1], w.to[1]) - t, maxZ = Math.max(w.from[1], w.to[1]) + t;
+    const g = new THREE.BoxGeometry(maxX - minX, w.height, maxZ - minZ);
+    g.translate((minX + maxX) / 2, w.height / 2, (minZ + maxZ) / 2);
+    const side = new THREE.Color(w.color ?? level.wallColor);
+    const n = g.attributes.position.count;
+    const colors = new Float32Array(n * 3);
+    for (let v = 0; v < n; v++) (Math.floor(v / 4) === BOX_TOP_FACE ? top : side).toArray(colors, v * 3);
+    g.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    g.clearGroups();
+    return g;
+  });
+  if (!parts.length) return null;
+  const merged = mergeGeometries(parts);
+  parts.forEach((g) => g.dispose());
+  return merged;
+}
+
+const freeze = (o: THREE.Object3D) => {
+  o.matrixAutoUpdate = false;
+  o.updateMatrix();
+};
+
 export class Stage {
   readonly scene = new THREE.Scene();
   readonly camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, CAMERA_DISTANCE * 2.5);
@@ -78,6 +114,9 @@ export class Stage {
   private sun = new THREE.DirectionalLight(0xfff0dc, 2.4);
   private colliderLines: THREE.LineSegments;
   private tmp = new THREE.Vector3();
+  /** Set when a shadow caster moved or shadow settings changed; the shadow map redraws once. */
+  private shadowsDirty = true;
+  private snapOut: V3 = { x: 0, y: 0, z: 0 };
 
   constructor(readonly lib: AssetLibrary) {
     this.scene.add(this.env);
@@ -89,22 +128,34 @@ export class Stage {
     this.scene.add(this.sun, this.sun.target);
     this.colliderLines = new THREE.LineSegments(
       new THREE.BufferGeometry(),
-      new THREE.LineBasicMaterial({ vertexColors: true, depthTest: false, transparent: true }),
+      writesNormals(new THREE.LineBasicMaterial({ vertexColors: true, depthTest: false, transparent: true }), 'fx'),
     );
     this.colliderLines.layers.set(LAYER.DEBUG);
     this.colliderLines.frustumCulled = false;
     this.colliderLines.renderOrder = 20;
     this.scene.add(this.colliderLines);
     this.camera.up.set(0, 1, 0);
+    configListeners.add((key) => {
+      this.shadowsDirty = true;
+      if (key === 'render.headScale' || key === 'render.handScale') for (const v of this.views.values()) v.applyProportions();
+    });
   }
 
   buildLevel(level: Level) {
     for (const child of [...this.env.children]) {
       child.removeFromParent();
-      child.traverse((o) => (o as THREE.Mesh).geometry?.dispose());
+      child.traverse((o) => {
+        const mesh = o as THREE.Mesh;
+        mesh.geometry?.dispose();
+        for (const m of Array.isArray(mesh.material) ? mesh.material : mesh.material ? [mesh.material] : []) {
+          (m as THREE.MeshToonMaterial).map?.dispose();
+          m.dispose();
+        }
+      });
     }
     this.crateMeshes.clear();
     this.scene.background = new THREE.Color(level.background);
+    this.shadowsDirty = true;
 
     const floorTex = checkerTexture(level.floor.colorA, level.floor.colorB);
     floorTex.repeat.set(level.width / level.floor.tile / 2, level.depth / level.floor.tile / 2);
@@ -112,19 +163,15 @@ export class Stage {
     floor.rotation.x = -Math.PI / 2;
     floor.receiveShadow = true;
     floor.name = 'floor';
+    freeze(floor);
     this.env.add(floor);
 
-    const side = toonMaterial(level.wallColor);
-    const top = toonMaterial(level.wallTopColor);
-    for (const w of level.walls) {
-      const t = (w.thickness ?? 0.4) / 2;
-      const minX = Math.min(w.from[0], w.to[0]) - t, maxX = Math.max(w.from[0], w.to[0]) + t;
-      const minZ = Math.min(w.from[1], w.to[1]) - t, maxZ = Math.max(w.from[1], w.to[1]) + t;
-      const mats = w.color ? toonMaterial(w.color) : side;
-      const mesh = new THREE.Mesh(new THREE.BoxGeometry(maxX - minX, w.height, maxZ - minZ), [mats, mats, top, mats, mats, mats]);
-      mesh.position.set((minX + maxX) / 2, w.height / 2, (minZ + maxZ) / 2);
+    const walls = wallGeometry(level);
+    if (walls) {
+      const mesh = new THREE.Mesh(walls, toonMaterial(0xffffff, null, true));
       mesh.castShadow = mesh.receiveShadow = true;
-      mesh.name = w.id;
+      mesh.name = 'walls';
+      freeze(mesh);
       this.env.add(mesh);
     }
 
@@ -167,7 +214,8 @@ export class Stage {
     const pixel = config['render.pixelMode'];
     const snapMovers = pixel && config['render.snapMovers'];
     const ppm = config['render.pixelsPerMeter'];
-    const snap = (p: V3): V3 => (snapMovers ? snapToGrid(p, this.basis, ppm) : p);
+    const snap = (p: V3): V3 => (snapMovers ? snapToGrid(p, this.basis, ppm, this.snapOut) : p);
+    const silhouettes = pixel && config['render.silhouettes'];
     toonGradient();
 
     let followPos: V3 | null = null;
@@ -186,11 +234,14 @@ export class Stage {
       view.root.rotation.y = sp ? sp.yaw : ch.yaw;
       view.pose(sp ?? ch.anim);
       view.setFlash(ch.flash > 0);
-      view.setSilhouettes(pixel && config['render.silhouettes']);
-      const sh = snap({ x: p.x, y: 0.012, z: p.z });
-      view.shadow.position.set(sh.x, 0.012, sh.z);
-      view.shadow.visible = config['render.blobShadows'] && ch.pos.y < 1.5;
-      view.shadow.scale.setScalar(Math.max(0.4, 1 - Math.max(0, ch.pos.y) * 0.35));
+      // Silhouettes cost a second skinned draw per mesh: only draw them when something hides the character.
+      view.setSilhouettes(silhouettes && sim.occluded(ch.id, this.basis.forward, this.basis.right));
+      const ground = ch.groundY;
+      const height = Math.max(0, p.y - ground);
+      const sh = snap({ x: p.x, y: ground + 0.012, z: p.z });
+      view.shadow.position.set(sh.x, ground + 0.012, sh.z);
+      view.shadow.visible = config['render.blobShadows'] && height < 1.5;
+      view.shadow.scale.setScalar(Math.max(0.4, 1 - height * 0.35));
     }
     for (const c of sim.crates.values()) {
       const mesh = this.crateMeshes.get(c.id);
@@ -200,9 +251,18 @@ export class Stage {
         y: c.prevPos.y + (c.pos.y - c.prevPos.y) * alpha + c.size / 2,
         z: c.prevPos.z + (c.pos.z - c.prevPos.z) * alpha,
       });
-      mesh.position.set(s.x, s.y, s.z);
+      if (mesh.position.x !== s.x || mesh.position.y !== s.y || mesh.position.z !== s.z) {
+        mesh.position.set(s.x, s.y, s.z);
+        this.shadowsDirty = true;
+      }
     }
     this.sun.castShadow = config['render.shadows'];
+    const shadowMap = pipeline.renderer.shadowMap;
+    shadowMap.autoUpdate = false;
+    if (this.shadowsDirty) {
+      shadowMap.needsUpdate = true;
+      this.shadowsDirty = false;
+    }
 
     // Camera: follow target. Locked mode follows the target's SNAPPED position, so the target
     // keeps the exact same screen pixels while the world scrolls in whole art pixels.
