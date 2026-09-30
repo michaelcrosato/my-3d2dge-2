@@ -57,6 +57,7 @@ export const CONFIG_SPEC = {
   'sim.jumpSpeed': { value: 6.6, min: 0, max: 15, desc: 'Take-off speed, m/s (~1 m jump with default gravity).' },
   'sim.gravity': { value: 22, min: 1, max: 60, desc: 'Downward acceleration, m/s^2 (snappier than 9.8 on purpose).' },
   'sim.hitstopFrames': { value: 5, min: 0, max: 30, desc: 'Frames everything freezes on a hit (impact feel).' },
+  'sim.crateKnock': { value: 0.6, min: 0, max: 3, desc: "Sword hits shove pushable crates: speed given = the attack's knockback x this (Rapier impulse). 0 = crates ignore swords." },
   'sim.respawnSeconds': { value: 4, min: 0.5, max: 30, desc: 'Seconds before a dead character respawns.' },
   'sim.timeScale': { value: 1, min: 0, max: 4, desc: 'Real-time playback speed. Ignored by agent step(), which always advances exact frames.' },
 } as const satisfies Record<string, Spec>;
@@ -75,11 +76,10 @@ export function isConfigKey(key: string): key is ConfigKey {
   return Object.prototype.hasOwnProperty.call(CONFIG_SPEC, key);
 }
 
-/** Validates and applies one value. Throws with a message an agent can act on. */
-export function setConfig(key: string, value: unknown): { key: ConfigKey; value: unknown; previous: unknown } {
+/** Throws with a message an agent can act on unless `value` is valid for `key`. */
+export function validateConfig(key: string, value: unknown): asserts key is ConfigKey {
   if (!isConfigKey(key)) throw new Error(`unknown config key "${key}". Call config.describe for the list.`);
   const spec: Spec = CONFIG_SPEC[key];
-  const previous = config[key];
   if (typeof spec.value === 'boolean') {
     if (typeof value !== 'boolean') throw new Error(`${key} expects a boolean`);
   } else if (typeof spec.value === 'number') {
@@ -90,10 +90,18 @@ export function setConfig(key: string, value: unknown): { key: ConfigKey; value:
     if (typeof value !== 'string') throw new Error(`${key} expects a string`);
     if (spec.options && !spec.options.includes(value)) throw new Error(`${key} must be one of: ${spec.options.join(', ')}`);
   }
+}
+
+/** Validates and applies one value. Throws with a message an agent can act on. */
+export function setConfig(key: string, value: unknown): { key: ConfigKey; value: unknown; previous: unknown } {
+  validateConfig(key, value);
+  const previous = config[key];
   (config as Record<string, unknown>)[key] = value;
   for (const fn of configListeners) fn(key);
   return { key, value, previous };
 }
+
+export const configDefault = (key: ConfigKey): Config[ConfigKey] => CONFIG_SPEC[key].value;
 
 export function resetConfig(): void {
   const d = defaults();

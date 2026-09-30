@@ -12,12 +12,12 @@ These instructions apply to the entire repository. Follow the user's task and [d
 - Use `npm ci` for reproducible installs. Do not upgrade dependencies or replace the lockfile without a task-related reason.
 - Never commit credentials, `.env` files, dependencies, build caches, test screenshots or Windows `:Zone.Identifier` files. Preserve asset attribution.
 - `public/assets/` and `standalone/3dpixel2d.html` are intentional tracked deliverables. Rebuild the standalone after changing runtime code, the HTML template or assets.
-- Current automation is `window.agent.ready`, `window.agent.step(frames)` and `window.game`; do not assume missing CLI/MCP tools exist.
+- Current automation is `window.agent.ready`, `window.agent.step(frames)` and `window.game`; do not assume missing CLI/MCP tools exist. `?agent` mode does not load saved settings profiles or attach human input.
 - Do not reset, discard or overwrite unrelated work. Commit/push when requested by the user; do not merge, deploy or send messages to others without authorization.
 
 ## Validation
 
-Run `npm run check` for code/configuration changes. There is no unit test suite yet; add focused regression tests for meaningful logic changes when appropriate, and include them in the checks. Do not claim typechecking proves runtime behavior.
+Run `npm run check` for code/configuration changes; it typechecks, builds and runs the Vitest suite in `tests/`. Add focused regression tests there for meaningful logic changes. Do not claim typechecking proves runtime behavior.
 
 For runtime/input/asset/standalone changes, run `npm run build:standalone` and `npm run verify:standalone`. Record actual results and failures.
 

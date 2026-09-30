@@ -2,10 +2,10 @@
  * Low-res render -> 1-px outlines/creases -> optional palette lock -> exact integer upscale.
  *
  * Frame flow (pixel mode):
- *   1. scene  -> targets.scene   (half-float color + depth/stencil texture), low resolution
- *   2. scene  -> targets.normal  (view-space normals via override material, main layer only)
- *   3. post   -> targets.post    (edges, sRGB encode, palette; 8-bit, what agents capture)
- *   4. upscale-> canvas          (nearest, integer factor, centered, optional sub-pixel offset)
+ *   1. scene  -> targets.scene   ONE geometry pass into two attachments: half-float color and
+ *                                view-space normals (see writesNormals), plus depth/stencil texture
+ *   2. post   -> targets.post    (edges, sRGB encode, palette; 8-bit, what agents capture)
+ *   3. upscale-> canvas          (nearest, integer factor, centered, optional sub-pixel offset)
  * Plain mode renders the scene at full device resolution with 4x MSAA instead.
  */
 import * as THREE from 'three';
@@ -14,27 +14,30 @@ import { config } from '../config';
 import { chooseScale } from './pixelGrid';
 import { hexToOklab, MAX_PALETTE, PALETTES, type PaletteName } from './palettes';
 
-/** Layer bits. Layer 0 is the main pass; FX (blob shadows, silhouettes) skip the normal pass. */
+/** Layer bits. Layer 0 is the main pass; FX = blob shadows and silhouettes (see writesNormals). */
 export const LAYER = { MAIN: 0, FX: 1, DEBUG: 2, ISOLATE: 7 } as const;
+const MAIN_VIEW_LAYERS = [LAYER.MAIN, LAYER.FX, LAYER.DEBUG] as const;
 
 export class PixelTargets {
+  /** textures[0] = linear color, textures[1] = packed view-space normals. */
   scene: THREE.WebGLRenderTarget;
-  normal: THREE.WebGLRenderTarget;
   post: THREE.WebGLRenderTarget;
   constructor(public width: number, public height: number) {
     const depthTexture = new THREE.DepthTexture(width, height, THREE.UnsignedInt248Type);
     depthTexture.format = THREE.DepthStencilFormat;
     const nearest = { minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, generateMipmaps: false };
     this.scene = new THREE.WebGLRenderTarget(width, height, {
-      ...nearest, type: THREE.HalfFloatType, depthBuffer: true, stencilBuffer: true, depthTexture,
+      ...nearest, type: THREE.HalfFloatType, depthBuffer: true, stencilBuffer: true, depthTexture, count: 2,
     });
-    this.normal = new THREE.WebGLRenderTarget(width, height, { ...nearest, type: THREE.UnsignedByteType, depthBuffer: true });
+    this.scene.textures[1].name = 'normal';
     this.post = new THREE.WebGLRenderTarget(width, height, { ...nearest, type: THREE.UnsignedByteType, depthBuffer: false });
+  }
+  get normal(): THREE.Texture {
+    return this.scene.textures[1];
   }
   dispose() {
     this.scene.depthTexture?.dispose();
     this.scene.dispose();
-    this.normal.dispose();
     this.post.dispose();
   }
 }
@@ -59,7 +62,8 @@ uniform vec3 paletteRgb[${MAX_PALETTE}];
 varying vec2 vUv;
 
 float depthAt(vec2 uv) { return cameraNear + texture2D(tDepth, uv).r * (cameraFar - cameraNear); }
-vec3 normalAt(vec2 uv) { return normalize(texture2D(tNormal, uv).rgb * 2.0 - 1.0); }
+// Normals share the half-float MRT pass; quantize like an 8-bit target so flat faces compare exactly equal.
+vec3 normalAt(vec2 uv) { return normalize(floor(texture2D(tNormal, uv).rgb * 255.0 + 0.5) / 255.0 * 2.0 - 1.0); }
 
 vec3 toSrgb(vec3 c) {
   c = clamp(c, 0.0, 1.0);
@@ -161,7 +165,6 @@ export class PixelPipeline {
   deviceH = 1;
   main: PixelTargets;
   private full: THREE.WebGLRenderTarget;
-  private normalMaterial = new THREE.MeshNormalMaterial();
   private postMaterial: THREE.ShaderMaterial;
   private upscaleMaterial: THREE.ShaderMaterial;
   private copyMaterial: THREE.ShaderMaterial;
@@ -245,8 +248,8 @@ export class PixelPipeline {
     });
   }
 
-  /** Steps 1-3 into `targets`. The camera must already be sized to the targets. */
-  renderLowRes(targets: PixelTargets, scene: THREE.Scene, camera: THREE.OrthographicCamera, layers: number[], opts: RenderOptions = {}) {
+  /** Steps 1-2 into `targets`. The camera must already be sized to the targets. */
+  renderLowRes(targets: PixelTargets, scene: THREE.Scene, camera: THREE.OrthographicCamera, layers: readonly number[], opts: RenderOptions = {}) {
     const r = this.renderer;
     const prevMask = camera.layers.mask;
     camera.layers.disableAll();
@@ -254,33 +257,14 @@ export class PixelPipeline {
     r.setRenderTarget(targets.scene);
     r.clear(true, true, true);
     r.render(scene, camera);
-
-    const post = opts.post !== false;
-    if (post && config['render.innerLines']) {
-      const onlyMain = layers.filter((l) => l !== LAYER.FX && l !== LAYER.DEBUG);
-      camera.layers.disableAll();
-      for (const l of onlyMain) camera.layers.enable(l);
-      const prevOverride = scene.overrideMaterial;
-      const prevBg = scene.background;
-      const prevClear = r.getClearColor(new THREE.Color());
-      const prevAlpha = r.getClearAlpha();
-      scene.overrideMaterial = this.normalMaterial;
-      scene.background = null;
-      r.setRenderTarget(targets.normal);
-      r.setClearColor(0x8080ff, 1);
-      r.clear(true, true, false);
-      r.render(scene, camera);
-      r.setClearColor(prevClear, prevAlpha);
-      scene.overrideMaterial = prevOverride;
-      scene.background = prevBg;
-    }
     camera.layers.mask = prevMask;
 
+    const post = opts.post !== false;
     this.syncPalette();
     const u = this.postMaterial.uniforms;
     u.tColor.value = targets.scene.texture;
     u.tDepth.value = targets.scene.depthTexture;
-    u.tNormal.value = targets.normal.texture;
+    u.tNormal.value = targets.normal;
     u.resolution.value.set(targets.width, targets.height, 1 / targets.width, 1 / targets.height);
     u.cameraNear.value = camera.near;
     u.cameraFar.value = camera.far;
@@ -306,7 +290,7 @@ export class PixelPipeline {
       this.quad.render(r);
       return;
     }
-    this.renderLowRes(this.main, scene, camera, [LAYER.MAIN, LAYER.FX, LAYER.DEBUG], opts);
+    this.renderLowRes(this.main, scene, camera, MAIN_VIEW_LAYERS, opts);
     const u = this.upscaleMaterial.uniforms;
     u.tPost.value = this.main.post.texture;
     u.lowRes.value.set(this.width, this.height);
