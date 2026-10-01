@@ -12,7 +12,7 @@
   - Behaviour archetypes, elite affixes, champion and rare packs, and bosses with phases and enrage.
 - **Level mechanics:** each depth is named after one trick (Blast Kegs, Spike Traps, Shrines, Launch Pads, Black Ice, Lightless, Rolling Boulders, Rift Gates, Fire Vents, Totems, Gravity Wells, Chrono Fields, Loot Imps). You can ignore them and fight, or exploit them for +50% XP trick kills and speedrun routes. Depths 14–24 combine them, and past that the endless generator mixes mechanics, themes, palettes and species forever.
 - **World:** procedural dungeons with themes, iso-aware walls with a hero cutaway, torches and dynamic lights, breakables and chests. Haven is the town hub with animated NPCs, and there is no bottom to the depths.
-- **Sound:** every sound is synthesized live from data (no audio files): swings, element-flavoured hits, crits, kills, loot chimes by rarity, level-ups, mechanic sounds, and a drone per dungeon theme. Sounds are placed and panned relative to the hero, and volumes live in Settings → Graphics & audio.
+- **Sound:** every sound is synthesized live from data (no audio files): swings, element-flavoured hits, crits, kills, loot chimes by rarity, level-ups, mechanic sounds, a drone per dungeon theme, and generative music: a calm town tune, dark phrases in the dungeons, and a driving pulse when a boss engages. Sounds are placed and panned relative to the hero, and volumes live in Settings → Graphics & audio.
 - **Pacts:** optional risk-for-reward modifiers at the waypoint, unlocked as you go deeper: Brutal, Stalwart, Teeming, Swift, Champions, Volatile, Bloodthirsty, Eclipse. Each makes the depths harder in one readable way and pays in experience, item rarity, quantity or gold. They stack for power-levellers, and casual players can ignore them.
 - **Difficulty:** pause menu → Difficulty & tuning has hero and enemy damage, life and speed, plus XP, loot and density multipliers.
 
@@ -88,7 +88,7 @@ The CLI and the MCP server start Vite in-process and drive headless Chromium (`-
 | level | `campaign.list`, `level.generate` (any depth or a remix of theme / layout / mechanics, with a map image and critical path) |
 | tree, hero | `tree.inspect`, `tree.path`, `tree.render`, `hero.build` (auto-built hero of any level), `skill.inspect` |
 | balance | `balance.curve` (power curves by level), `balance.run` (the autoplayer bot plays a depth headless at ~60x speed: clear rate, time, deaths), `balance.campaign` (one hero plays depth after depth, equipping drops and spending points: the progression curve) |
-| config, audio | `config.get`, `config.set`, `difficulty.set`, `audio.list`, `audio.inspect` (renders a sound offline: waveform + spectrogram image, loudness, brightness) |
+| config, audio | `config.get`, `config.set`, `difficulty.set`, `audio.list`, `audio.inspect` (renders a sound or bars of music offline: waveform + spectrogram image, loudness, brightness) |
 | render (live) | `creature.render`, `creature.lineup`, `monster.render`, `item.icon`, `scene.capture` (exact pixels, HUD, labelled boxes), `scene.stats`, `logs.read` |
 | world (live) | `game.state`, `game.goto`, `game.step`, `game.input`, `hero.set`, `hero.sheet`, `hero.give`, `monster.spawn`, `bot.play`, `bot.autopilot` |
 

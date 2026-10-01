@@ -6,7 +6,9 @@
  * on the first user gesture (browser autoplay rules); nothing runs in ?agent mode.
  */
 import { config, configListeners } from '../config';
+import { composeBar, MOODS, THEME_MOOD, type Mood } from '../content/music';
 import { SOUNDS, soundFor, THEME_AMBIENCE, type SoundCue, type SoundDef } from '../content/sounds';
+import { hashSeed } from '../sim/rng';
 import type { Game, GameEvent } from '../game';
 import type { SimEvent } from '../sim/sim';
 
@@ -74,6 +76,28 @@ export function scheduleSound(ctx: BaseAudioContext, out: AudioNode, def: SoundD
   return end;
 }
 
+/** Schedules one bar of a mood's generated score. */
+export function scheduleMoodBar(ctx: BaseAudioContext, out: AudioNode, mood: Mood, seed: number, bar: number, start: number, barLen = 240 / mood.bpm) {
+  const stepLen = barLen / 16;
+  for (const n of composeBar(mood, seed, bar)) {
+    const voice = n.voice === 'pulse' ? mood.pulse! : mood[n.voice];
+    const dur = n.voice === 'pad' ? barLen * 0.98 : Math.min(voice.length, n.voice === 'bass' && mood.bass.pattern.length > 2 ? stepLen * 1.8 : voice.length);
+    const def: SoundDef = { layers: [{ wave: voice.wave, f0: n.freq, f1: n.freq, dur, attack: voice.attack, gain: voice.gain, filter: { type: 'lowpass', f0: voice.cutoff, q: 0.6 } }] };
+    scheduleSound(ctx, out, def, start + n.step * stepLen);
+  }
+}
+
+/** Renders `bars` bars of a mood offline (agents look at the score as a spectrogram). */
+export async function renderMood(id: string, bars = 4, seed = 1, sampleRate = 22050): Promise<Float32Array> {
+  const mood = MOODS[id];
+  if (!mood) throw new Error(`unknown mood "${id}". Moods: ${Object.keys(MOODS).join(', ')}`);
+  const barLen = 240 / mood.bpm;
+  const ctx = new OfflineAudioContext(1, Math.ceil((bars * barLen + 1) * sampleRate), sampleRate);
+  for (let b = 0; b < bars; b++) scheduleMoodBar(ctx, ctx.destination, mood, seed, b, b * barLen, barLen);
+  const buf = await ctx.startRendering();
+  return buf.getChannelData(0);
+}
+
 /** Renders a sound to PCM offline (agents inspect sounds as waveforms and spectrograms). */
 export async function renderSound(id: string, sampleRate = 22050): Promise<Float32Array> {
   const def = SOUNDS[id];
@@ -100,12 +124,19 @@ export class AudioEngine {
   private ambience: Ambience | null = null;
   private ambienceTheme = '';
   private wantTheme = '';
+  private music!: GainNode;
+  private mood = '';
+  private moodGain: GainNode | null = null;
+  private moodSeed = 1;
+  private bar = 0;
+  private nextBar = 0;
 
   constructor(private game: Game) {
     const unlock = () => this.unlock();
     for (const ev of ['pointerdown', 'keydown', 'touchstart'] as const) window.addEventListener(ev, unlock, { passive: true });
     configListeners.add((key) => key.startsWith('audio.') && this.applyVolume());
     game.listeners.add((e) => this.onEvent(e));
+    setInterval(() => this.tickMusic(), 120);
   }
 
   /** Creates or resumes the context (must run inside a user gesture the first time). */
@@ -117,8 +148,10 @@ export class AudioEngine {
       this.master = this.ctx.createGain();
       this.sfx = this.ctx.createGain();
       this.amb = this.ctx.createGain();
+      this.music = this.ctx.createGain();
       this.sfx.connect(this.master);
       this.amb.connect(this.master);
+      this.music.connect(this.master);
       // A gentle limiter keeps big fights from clipping.
       const comp = this.ctx.createDynamicsCompressor();
       comp.threshold.value = -14;
@@ -138,6 +171,61 @@ export class AudioEngine {
     this.master.gain.setTargetAtTime(on * config['audio.master'], t, 0.03);
     this.sfx.gain.setTargetAtTime(config['audio.sfx'], t, 0.03);
     this.amb.gain.setTargetAtTime(config['audio.ambience'], t, 0.2);
+    this.music.gain.setTargetAtTime(config['audio.music'], t, 0.2);
+  }
+
+  // ---------------------------------------------------------------- music
+
+  /** The mood the game is in right now: town, the level's theme, or a boss fight. */
+  private wantedMood(): string {
+    const g = this.game;
+    if (g.mode === 'town' || g.mode === 'title') return 'town';
+    if (g.mode !== 'dungeon' || !g.sim) return '';
+    const hero = g.sim.player;
+    if (hero) for (const c of g.sim.characters.values()) {
+      if (c.monster?.boss && c.state !== 'dead' && c.ai.awake && Math.hypot(c.pos.x - hero.pos.x, c.pos.z - hero.pos.z) < 18) return 'boss';
+    }
+    return THEME_MOOD[g.level.theme ?? ''] ?? 'dungeon';
+  }
+
+  private tickMusic() {
+    const ctx = this.ctx;
+    if (!ctx || ctx.state !== 'running') return;
+    const want = this.wantedMood();
+    if (want !== this.mood) this.switchMood(want);
+    const mood = MOODS[this.mood];
+    if (!mood || !this.moodGain) return;
+    const barLen = 240 / mood.bpm;
+    while (this.nextBar < ctx.currentTime + 0.8) {
+      this.scheduleBar(mood, this.nextBar, barLen);
+      this.nextBar += barLen;
+      this.bar++;
+    }
+  }
+
+  private switchMood(id: string) {
+    const ctx = this.ctx!;
+    const t = ctx.currentTime;
+    const old = this.moodGain;
+    if (old) {
+      old.gain.setTargetAtTime(0, t, 0.6);
+      setTimeout(() => old.disconnect(), 4000);
+    }
+    this.mood = id;
+    this.moodGain = null;
+    if (!MOODS[id]) return;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0, t);
+    g.gain.setTargetAtTime(1, t, id === 'boss' ? 0.3 : 1.2);
+    g.connect(this.music);
+    this.moodGain = g;
+    this.moodSeed = hashSeed('music', id, this.game.level.theme ?? '', this.game.stageNo);
+    this.bar = 0;
+    this.nextBar = t + 0.1;
+  }
+
+  private scheduleBar(mood: Mood, start: number, barLen: number) {
+    scheduleMoodBar(this.ctx!, this.moodGain!, mood, this.moodSeed, this.bar, start, barLen);
   }
 
   play(cue: SoundCue) {

@@ -27,7 +27,7 @@ const GRAPHICS_LABELS: Record<GraphicsKey, string> = {
   'render.colliders': 'Collider overlay', 'render.headScale': 'Head scale', 'render.handScale': 'Hand scale',
   'anim.stepped': 'Stepped animation', 'anim.fps': 'Animation fps', 'anim.dir8': '8-way facing', 'anim.blend': 'Blend time (s)',
   'sim.timeScale': 'Game speed',
-  'ui.lootFilter': 'Loot filter', 'audio.master': 'Master volume', 'audio.sfx': 'Sound effects', 'audio.ambience': 'Ambience', 'audio.mute': 'Mute',
+  'ui.lootFilter': 'Loot filter', 'audio.master': 'Master volume', 'audio.sfx': 'Sound effects', 'audio.ambience': 'Ambience', 'audio.music': 'Music', 'audio.mute': 'Mute',
 };
 
 const FOCUSABLE = 'button:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';

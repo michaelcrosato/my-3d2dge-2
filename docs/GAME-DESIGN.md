@@ -137,7 +137,11 @@ minimum gap, so a whirlwind through a pack stays crisp. `soundFor` maps game eve
 swings, element-flavoured hits, crits, kills, loot chimes that rise with rarity, level-ups and one
 sound per mechanic. `THEME_AMBIENCE` gives each theme a drone. `src/audio/engine.ts` plays them
 with WebAudio, quieter with distance and panned along the screen axis, behind a soft compressor.
-Agents inspect sounds as images with `audio.inspect` (waveform + spectrogram).
+Music is generative (`src/content/music.ts`): a mood is a tempo, a mode, a root, a chord
+progression and voices (bass, pad, melody, optional pulse). `composeBar` draws each bar's notes
+from a seeded RNG, so the score stays in key but never loops audibly. The engine follows the game
+(town, one mood per theme family, boss when a boss is engaged nearby) and crossfades. Agents
+inspect sounds and music as images with `audio.inspect` (waveform + spectrogram).
 
 ## Difficulty and tuning
 

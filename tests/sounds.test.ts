@@ -60,3 +60,27 @@ describe('event to sound mapping', () => {
     }
   });
 });
+
+describe('generative music', () => {
+  it('composes deterministic bars in key for every mood, and every theme has a mood', async () => {
+    const { MOODS, THEME_MOOD, composeBar } = await import('../src/content/music');
+    const { THEMES } = await import('../src/content/themes');
+    for (const t of Object.keys(THEMES)) expect(MOODS[THEME_MOOD[t]], t).toBeTruthy();
+    for (const [id, m] of Object.entries(MOODS)) {
+      const allowed = new Set(m.scale);
+      for (let bar = 0; bar < 16; bar++) {
+        const notes = composeBar(m, 7, bar);
+        expect(notes).toEqual(composeBar(m, 7, bar));
+        expect(notes.some((n) => n.voice === 'bass'), id).toBe(true);
+        for (const n of notes) {
+          const semis = Math.round(12 * Math.log2(n.freq / m.root));
+          expect(allowed.has(((semis % 12) + 12) % 12), `${id} bar ${bar} ${n.freq}`).toBe(true);
+          expect(n.step).toBeGreaterThanOrEqual(0);
+          expect(n.step).toBeLessThan(16);
+        }
+      }
+      // Bars differ (generative, not a loop).
+      expect(JSON.stringify(composeBar(m, 7, 0))).not.toBe(JSON.stringify(composeBar(m, 7, 5)));
+    }
+  });
+});
