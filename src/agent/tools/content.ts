@@ -474,7 +474,8 @@ defineTool({
 defineTool({
   name: 'tree.path', group: 'tree',
   desc: 'Shortest allocation path to a node from an allocated set (default: nothing allocated), with its cost in points.',
-  params: { to: { type: 'string', required: true, desc: 'Target node id.' }, allocated: { type: 'array', items: { type: 'string' }, default: [], desc: 'Already allocated node ids.' } },
+  params: { to: { type: 'string', required: true, desc: 'Target node id (tree.inspect search finds ids).' }, allocated: { type: 'array', items: { type: 'string' }, default: [], desc: 'Already allocated node ids.' } },
+  example: { to: 'ks_blood_magic' },
   run({ to, allocated }) {
     if (!TREE.byId.has(to)) throw new Error(`unknown node "${to}"`);
     const path = pathTo(new Set(allocated as string[]), to);
@@ -737,6 +738,7 @@ defineTool({
   name: 'config.set', group: 'config',
   desc: 'Changes settings live (validated against their ranges). Difficulty keys: tune.playerDamage/Life/Speed, tune.enemyDamage/Life/Speed, tune.xp, tune.loot, tune.density.',
   params: { values: { type: 'object', required: true, desc: 'Key -> value, e.g. {"tune.enemyLife":1.5,"render.outlines":false}.' } },
+  example: { values: { 'tune.enemyLife': 1.5, 'tune.enemyDamage': 1.25 } },
   run({ values }) {
     return Object.entries(values as Record<string, unknown>).map(([k, v]) => setConfig(k, v));
   },
@@ -746,6 +748,7 @@ defineTool({
   name: 'difficulty.set', group: 'config',
   desc: 'Applies a difficulty preset (sets every tune.* key), same as the pause-menu buttons.',
   params: { preset: { type: 'string', required: true, enum: Object.keys(DIFFICULTY_PRESETS), desc: 'Preset name.' } },
+  example: { preset: 'Hard' },
   run({ preset }) {
     return { preset, values: applyDifficulty(preset) };
   },
