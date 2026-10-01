@@ -9,7 +9,7 @@ import { ACTIONS, isAction, MAX_BINDINGS, type Action, type PadInput } from './a
 export type KeyBindings = Record<Action, string[]>;
 export type PadBindings = Record<Action, PadInput[]>;
 
-export const TOUCH_CONTROLS = ['move', 'jump', 'attack', 'sprint'] as const;
+export const TOUCH_CONTROLS = ['move', 'jump', 'attack', 'sprint', 'dodge', 'skill1', 'skill2', 'skill3', 'skill4', 'skill5', 'flask1', 'flask2', 'interact'] as const;
 export type TouchControl = (typeof TOUCH_CONTROLS)[number];
 export type Orientation = 'portrait' | 'landscape';
 
@@ -95,30 +95,32 @@ export function defaultKeys(): KeyBindings {
     moveRight: ['KeyD', 'ArrowRight'],
     sprint: ['ShiftLeft', 'ShiftRight'],
     walk: ['AltLeft'],
-    moveTo: ['Mouse2'],
-    jump: ['Space'],
-    attack: ['KeyJ', 'KeyK', 'Enter', 'Mouse0'],
+    moveTo: ['Mouse1'],
+    jump: ['KeyG'],
+    attack: ['Mouse0', 'KeyJ', 'Enter'],
+    dodge: ['Space'],
+    skill1: ['Mouse2', 'KeyK', 'Digit1'],
+    skill2: ['KeyQ', 'Digit2'],
+    skill3: ['KeyR', 'Digit3'],
+    skill4: ['KeyF', 'Digit4'],
+    skill5: ['KeyX', 'Digit5'],
+    flask1: ['KeyZ'],
+    flask2: ['KeyV'],
+    interact: ['KeyE'],
+    inventory: ['KeyI', 'KeyB'],
+    tree: ['KeyP'],
+    character: ['KeyC'],
+    townPortal: ['KeyT'],
     menu: ['Escape'],
-    pause: ['Backquote', 'Pause'],
-    step: ['KeyN'],
-    reset: ['KeyR'],
+    pause: ['Pause'],
+    step: ['F10'],
+    reset: [],
     help: ['KeyH'],
     stats: ['F3'],
-    togglePixel: ['KeyP'],
-    toggleOutlines: ['KeyO'],
-    toggleCreases: ['KeyI'],
-    cyclePalette: ['KeyL'],
-    toggleSnap: ['KeyF'],
-    toggleSmoothScroll: ['KeyC'],
-    toggleStepped: ['KeyT'],
-    toggleDir8: ['KeyY'],
-    toggleSilhouettes: ['KeyV'],
-    toggleColliders: ['KeyG'],
-    toggleShadows: ['KeyB'],
-    animFps6: ['Digit1'],
-    animFps8: ['Digit2'],
-    animFps12: ['Digit3'],
-    animFps24: ['Digit4'],
+    togglePixel: ['F2'],
+    toggleOutlines: ['F6'],
+    cyclePalette: ['F7'],
+    toggleColliders: ['F8'],
   };
 }
 
@@ -132,27 +134,47 @@ function leftHandedKeys(): KeyBindings {
     moveRight: ['ArrowRight', 'KeyL'],
     sprint: ['ShiftRight'],
     walk: ['ControlRight'],
-    jump: ['Space', 'Numpad0'],
-    attack: ['Enter', 'NumpadEnter', 'Semicolon', 'Mouse0'],
-    toggleCreases: ['KeyU'],
-    cyclePalette: ['KeyM'],
+    attack: ['Mouse0', 'Enter', 'NumpadEnter'],
+    dodge: ['Space', 'Numpad0'],
+    skill1: ['Mouse2', 'Numpad1'],
+    skill2: ['KeyU', 'Numpad2'],
+    skill3: ['KeyO', 'Numpad3'],
+    skill4: ['Semicolon', 'Numpad4'],
+    skill5: ['Period', 'Numpad5'],
+    flask1: ['KeyM'],
+    flask2: ['Comma'],
+    interact: ['KeyH', 'Numpad6'],
+    inventory: ['KeyB'],
+    tree: ['KeyP'],
+    character: ['KeyY'],
+    townPortal: ['KeyT'],
+    help: ['F1'],
   };
 }
 
 export function defaultPad(): PadBindings {
   return {
     ...emptyPad(),
-    moveUp: [btn(PAD.UP)],
-    moveDown: [btn(PAD.DOWN)],
-    moveLeft: [btn(PAD.LEFT)],
-    moveRight: [btn(PAD.RIGHT)],
-    sprint: [btn(PAD.RT), btn(PAD.RB)],
-    walk: [btn(PAD.LT)],
-    jump: [btn(PAD.A)],
-    attack: [btn(PAD.X), btn(PAD.Y)],
+    moveUp: [],
+    moveDown: [],
+    moveLeft: [],
+    moveRight: [],
+    sprint: [btn(PAD.L3)],
+    attack: [btn(PAD.X)],
+    dodge: [btn(PAD.B)],
+    interact: [btn(PAD.A)],
+    skill1: [btn(PAD.Y)],
+    skill2: [btn(PAD.RB)],
+    skill3: [btn(PAD.RT)],
+    skill4: [btn(PAD.LB)],
+    skill5: [btn(PAD.LT)],
+    flask1: [btn(PAD.DOWN)],
+    flask2: [btn(PAD.UP)],
+    character: [btn(PAD.LEFT)],
+    tree: [btn(PAD.RIGHT)],
+    inventory: [btn(PAD.BACK)],
+    townPortal: [btn(PAD.R3)],
     menu: [btn(PAD.START)],
-    pause: [btn(PAD.BACK)],
-    togglePixel: [btn(PAD.R3)],
   };
 }
 
@@ -160,12 +182,20 @@ export const defaultPadOptions = (): PadOptions => ({ stick: 'left', deadzone: 0
 export const defaultPrefs = (): Prefs => ({ sprintToggle: false, showHelp: true, showStats: false, pauseOnBlur: true });
 
 export function defaultTouchLayouts(): Record<Orientation, TouchLayout> {
-  const p = (x: number, y: number, scale = 1): TouchPlacement => ({ x, y, scale, visible: true });
+  const p = (x: number, y: number, scale = 1, visible = true): TouchPlacement => ({ x, y, scale, visible });
   return {
-    // 9:16: thumbs near the bottom corners, clear of the top toolbar.
-    portrait: { move: p(0.24, 0.84), attack: p(0.82, 0.82), jump: p(0.62, 0.9), sprint: p(0.86, 0.68, 0.85) },
+    // 9:16: stick bottom-left; attack bottom-right with skills fanned around it (mobile ARPG style).
+    portrait: {
+      move: p(0.22, 0.85), attack: p(0.8, 0.86, 1.15), jump: p(0.6, 0.93, 0.8, false), sprint: p(0.86, 0.6, 0.8, false),
+      dodge: p(0.56, 0.9, 0.85), skill1: p(0.6, 0.77, 0.8), skill2: p(0.7, 0.69, 0.8), skill3: p(0.84, 0.7, 0.8),
+      skill4: p(0.93, 0.76, 0.75), skill5: p(0.93, 0.62, 0.7), flask1: p(0.07, 0.62, 0.7), flask2: p(0.18, 0.62, 0.7), interact: p(0.46, 0.68, 0.7),
+    },
     // 16:9: controls hug the lower left/right edges and leave the middle of the scene free.
-    landscape: { move: p(0.13, 0.72), attack: p(0.9, 0.72), jump: p(0.79, 0.85), sprint: p(0.92, 0.48, 0.85) },
+    landscape: {
+      move: p(0.12, 0.72), attack: p(0.9, 0.76, 1.15), jump: p(0.79, 0.92, 0.8, false), sprint: p(0.93, 0.4, 0.8, false),
+      dodge: p(0.79, 0.88, 0.85), skill1: p(0.78, 0.66, 0.8), skill2: p(0.83, 0.52, 0.8), skill3: p(0.92, 0.5, 0.8),
+      skill4: p(0.7, 0.8, 0.75), skill5: p(0.96, 0.62, 0.7), flask1: p(0.05, 0.45, 0.7), flask2: p(0.12, 0.45, 0.7), interact: p(0.62, 0.86, 0.75),
+    },
   };
 }
 
@@ -176,8 +206,8 @@ export const defaultTouch = (): TouchSettings => ({
 // ---------------------------------------------------------------- templates
 
 export const TEMPLATES = {
-  standard: { label: 'Standard', desc: 'WASD / arrows, Space jump, J or click attack. Pixel art look.' },
-  lefty: { label: 'Left-handed', desc: 'Arrows / IJKL to move, Enter or Numpad actions; mouse in the left hand.' },
+  standard: { label: 'Standard', desc: 'WASD to move, click to attack, right click / Q R F X for skills, Space to dodge, E to interact.' },
+  lefty: { label: 'Left-handed', desc: 'Arrows / IJKL to move, Numpad skills and dodge; mouse in the left hand.' },
   performance: { label: 'Performance', desc: 'Standard controls; fewer pixels, no shadow maps, creases or silhouettes.' },
   smooth3d: { label: 'Smooth 3D', desc: 'Standard controls; plain full-resolution 3D instead of pixel art.' },
 } as const;

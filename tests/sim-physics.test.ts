@@ -117,7 +117,7 @@ describe('combat through Rapier', () => {
     sim.step();
     swing(sim);
     expect(typesOf(sim)).toContain('hit');
-    expect(sim.get('dummy').hp).toBeLessThan(sim.get('dummy').maxHp);
+    expect(sim.get('dummy').life).toBeLessThan(sim.get('dummy').maxLife);
     sim.dispose();
   });
 
@@ -131,7 +131,7 @@ describe('combat through Rapier', () => {
     swing(sim);
     expect(typesOf(sim)).not.toContain('hit');
     expect(typesOf(sim)).toContain('whiff');
-    expect(sim.get('dummy').hp).toBe(sim.get('dummy').maxHp);
+    expect(sim.get('dummy').life).toBe(sim.get('dummy').maxLife);
     sim.dispose();
   });
 

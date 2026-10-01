@@ -1,12 +1,16 @@
 /**
- * One character on screen: Quaternius parts assembled on one skeleton, toon materials,
- * retargeted clips posed from the sim's sprite state, silhouette + blob shadow helpers.
+ * One humanoid on screen: Quaternius parts assembled on one skeleton, toon materials, retargeted
+ * clips posed from the sim's sprite state, silhouette + blob shadow helpers, palette recoloring,
+ * glowing materials, equipment attachments (weapon in the right hand, shield or focus in the
+ * left, helmet on the head), status tints (frozen, burning, shocked, poisoned) and elite auras.
  */
 import * as THREE from 'three';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import { config } from '../config';
 import { PRESETS } from '../content/characters';
+import type { Look } from '../sim/types';
 import { AssetLibrary, firstSkinnedMesh } from './assets';
+import { itemObject, type ItemLookInput } from './itemMeshes';
 import { toonize, writesNormals } from './materials';
 import { LAYER } from './pixelPipeline';
 import { restPoseOf, type RestPose } from './retarget';
@@ -17,6 +21,14 @@ export interface PoseInput {
   prevClip: string | null;
   prevTime: number;
   blend: number;
+}
+
+export interface Equipment {
+  weapon?: ItemLookInput | null;
+  offhand?: ItemLookInput | null;
+  helmet?: ItemLookInput | null;
+  /** Body armour tint for the outfit. */
+  chest?: string | null;
 }
 
 const silhouetteMaterial = writesNormals(new THREE.MeshBasicMaterial({
@@ -36,22 +48,20 @@ const shadowMaterial = writesNormals(
   'fx',
 );
 const shadowGeometry = new THREE.CircleGeometry(0.36, 20);
+const auraGeometry = new THREE.RingGeometry(0.42, 0.56, 24);
 
-function makeSword(): THREE.Group {
-  const g = new THREE.Group();
-  g.name = 'sword';
-  const steel = toonize(new THREE.MeshStandardMaterial({ color: 0xd9dde6 }));
-  const leather = toonize(new THREE.MeshStandardMaterial({ color: 0x5a3a24 }));
-  const brass = toonize(new THREE.MeshStandardMaterial({ color: 0xc9a13b }));
-  const blade = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.78, 0.02), steel);
-  blade.position.y = 0.47;
-  const guard = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.035, 0.05), brass);
-  guard.position.y = 0.08;
-  const grip = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.16, 0.035), leather);
-  grip.position.y = -0.01;
-  g.add(blade, guard, grip);
-  return g;
-}
+/** Legacy weapon looks for presets (monsters, NPCs). */
+const PRESET_WEAPON: Record<string, ItemLookInput> = {
+  sword: { base: 'broad_sword', rarity: 'normal', seed: 3 },
+  staff: { base: 'gnarled_staff', rarity: 'normal', seed: 5 },
+  cleaver: { base: 'war_axe', rarity: 'normal', seed: 9 },
+};
+
+export type StatusTint = 'none' | 'frozen' | 'chilled' | 'burning' | 'shocked' | 'poisoned' | 'shielded' | 'empowered';
+const TINT_EMISSIVE: Record<StatusTint, [number, number, number]> = {
+  none: [0, 0, 0], frozen: [0.25, 0.45, 0.7], chilled: [0.05, 0.15, 0.3], burning: [0.5, 0.15, 0], shocked: [0.45, 0.4, 0.05],
+  poisoned: [0.08, 0.3, 0.02], shielded: [0.5, 0.45, 0.2], empowered: [0.3, 0.1, 0.4],
+};
 
 export class CharacterView {
   readonly root = new THREE.Group();
@@ -60,17 +70,23 @@ export class CharacterView {
   readonly materials: THREE.MeshToonMaterial[] = [];
   readonly meshes: THREE.SkinnedMesh[] = [];
   readonly shadow: THREE.Mesh;
+  readonly aura: THREE.Mesh | null = null;
   private readonly silhouettes: THREE.SkinnedMesh[] = [];
   private readonly mixer: THREE.AnimationMixer;
   private readonly actions = new Map<string, THREE.AnimationAction>();
   private readonly rest: RestPose;
   private readonly restKey: string;
+  private baseEmissive = new Map<THREE.MeshToonMaterial, THREE.Color>();
+  private baseColor = new Map<THREE.MeshToonMaterial, THREE.Color>();
   private lastFlash = -1;
+  private lastTint: StatusTint = 'none';
   private silhouettesOn: boolean | null = null;
+  private attachments: THREE.Object3D[] = [];
+  private equipKey = '';
   /** Last pose applied; the skeleton only changes on sprite ticks, so most frames skip the mixer. */
   private lastPose: PoseInput = { clip: '', time: NaN, prevClip: null, prevTime: NaN, blend: NaN };
 
-  constructor(readonly id: string, readonly preset: string, private lib: AssetLibrary) {
+  constructor(readonly id: string, readonly preset: string, private lib: AssetLibrary, readonly look: Look = {}) {
     const p = PRESETS[preset];
     if (!p) throw new Error(`unknown preset "${preset}"`);
     this.root.name = `character:${id}`;
@@ -99,13 +115,19 @@ export class CharacterView {
       }
     }
 
+    const tints = { ...(p.tint ?? {}), ...(look.tint ?? {}) };
+    const glows = { ...(p.glow ?? {}), ...(look.glow ?? {}) };
     this.model.traverse((o) => {
       const m = o as THREE.SkinnedMesh;
       if (!m.isMesh) return;
       const mats = (Array.isArray(m.material) ? m.material : [m.material]).map((src) => {
         const t = toonize(src);
-        const tint = p.tint?.[src.name];
+        const tint = tints[src.name];
         if (tint) t.color.set(tint);
+        const glow = glows[src.name];
+        if (glow) t.emissive.set(glow).multiplyScalar(0.9);
+        this.baseEmissive.set(t, t.emissive.clone());
+        this.baseColor.set(t, t.color.clone());
         t.stencilWrite = true;
         t.stencilRef = 1;
         t.stencilZPass = THREE.ReplaceStencilOp;
@@ -130,19 +152,8 @@ export class CharacterView {
       }
     });
 
-    if (p.weapon === 'sword') {
-      const hand = this.bones.get('hand_r');
-      if (hand) {
-        const sword = makeSword();
-        sword.traverse((o) => {
-          if ((o as THREE.Mesh).isMesh) this.materials.push((o as THREE.Mesh).material as THREE.MeshToonMaterial);
-        });
-        // Grip in the fist, blade along the thumb side. Tuned by eye against filmstrips.
-        sword.position.set(0.02, 0.09, 0.03);
-        sword.rotation.set(THREE.MathUtils.degToRad(90), 0, THREE.MathUtils.degToRad(-8));
-        hand.add(sword);
-      }
-    }
+    const weapon = look.weapon ?? p.weapon;
+    if (weapon && weapon !== 'none' && PRESET_WEAPON[weapon]) this.attach('hand_r', itemObject(PRESET_WEAPON[weapon]), 'weapon');
 
     this.rest = restPoseOf(baseMesh.skeleton);
     this.restKey = p.base;
@@ -152,7 +163,76 @@ export class CharacterView {
     this.shadow.rotation.x = -Math.PI / 2;
     this.shadow.layers.set(LAYER.FX);
     this.shadow.name = `shadow:${id}`;
+    if (look.aura) {
+      const aura = new THREE.Mesh(auraGeometry, writesNormals(new THREE.MeshBasicMaterial({ color: look.aura, transparent: true, opacity: 0.7, depthWrite: false }), 'fx'));
+      aura.position.z = 0.001;
+      this.shadow.add(aura);
+      aura.layers.set(LAYER.FX);
+      this.aura = aura;
+    }
     this.applyProportions();
+  }
+
+  /** Attach an item object to a bone with a hand-tuned grip transform. */
+  private attach(bone: string, obj: THREE.Object3D, slot: 'weapon' | 'offhand' | 'helmet') {
+    const b = this.bones.get(bone);
+    if (!b) return;
+    obj.traverse((o) => {
+      const mesh = o as THREE.Mesh;
+      if (mesh.isMesh) {
+        const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+        for (const mat of mats) if ((mat as THREE.MeshToonMaterial).isMeshToonMaterial) this.materials.push(mat as THREE.MeshToonMaterial);
+      }
+    });
+    // Bones carry the chunky-proportion scale; undo it so items keep their size.
+    if (slot === 'weapon') {
+      // Grip in the fist, blade along the thumb side. Tuned by eye against filmstrips.
+      obj.position.set(0.02, 0.09, 0.03);
+      obj.rotation.set(THREE.MathUtils.degToRad(90), 0, THREE.MathUtils.degToRad(-8));
+    } else if (slot === 'offhand') {
+      obj.position.set(-0.02, 0.08, 0.06);
+      obj.rotation.set(THREE.MathUtils.degToRad(90), THREE.MathUtils.degToRad(90), 0);
+    } else {
+      obj.position.set(0, 0.12, 0.02);
+    }
+    obj.userData.slot = slot;
+    b.add(obj);
+    this.attachments.push(obj);
+  }
+
+  /** Hero gear visuals; rebuilt only when the equipment key changes. */
+  setEquipment(eq: Equipment) {
+    const key = JSON.stringify(eq);
+    if (key === this.equipKey) return;
+    this.equipKey = key;
+    for (const a of this.attachments) {
+      a.removeFromParent();
+      a.traverse((o) => {
+        const mesh = o as THREE.Mesh;
+        if (!mesh.isMesh) return;
+        const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+        for (const m of mats) {
+          const i = this.materials.indexOf(m as THREE.MeshToonMaterial);
+          if (i >= 0) this.materials.splice(i, 1);
+          m.dispose();
+        }
+      });
+    }
+    this.attachments = [];
+    if (eq.weapon) this.attach('hand_r', itemObject(eq.weapon), 'weapon');
+    if (eq.offhand) this.attach('hand_l', itemObject(eq.offhand), 'offhand');
+    if (eq.helmet) this.attach('Head', itemObject(eq.helmet), 'helmet');
+    // Hide the outfit's hood under a helmet.
+    this.model.traverse((o) => {
+      if (/Hood/i.test(o.name) && (o as THREE.Mesh).isMesh) o.visible = !eq.helmet;
+    });
+    for (const m of this.materials) {
+      const base = this.baseColor.get(m);
+      if (!base || !/Ranger|Peasant/.test(m.name)) continue;
+      m.color.copy(base);
+      if (eq.chest) m.color.lerp(new THREE.Color(eq.chest), 0.45);
+    }
+    this.lastFlash = -1;
   }
 
   applyProportions() {
@@ -197,11 +277,23 @@ export class CharacterView {
     this.mixer.update(0);
   }
 
-  setFlash(on: boolean) {
+  setFlash(on: boolean, tint: StatusTint = 'none') {
     const v = on ? 1 : 0;
-    if (v === this.lastFlash) return;
+    if (v === this.lastFlash && tint === this.lastTint) return;
     this.lastFlash = v;
-    for (const m of this.materials) m.emissive.setScalar(v * 0.85);
+    this.lastTint = tint;
+    const t = TINT_EMISSIVE[tint];
+    for (const m of this.materials) {
+      if (on) m.emissive.setScalar(0.85);
+      else {
+        const base = this.baseEmissive.get(m);
+        if (base) m.emissive.copy(base);
+        else m.emissive.setScalar(0);
+        m.emissive.r += t[0];
+        m.emissive.g += t[1];
+        m.emissive.b += t[2];
+      }
+    }
   }
 
   setSilhouettes(on: boolean) {

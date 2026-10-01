@@ -8,11 +8,12 @@ These instructions apply to the entire repository. Follow the user's task and [d
 
 - Inspect `git status`, relevant source and existing checks before changing files. Preserve unrelated user changes.
 - Define the requested behavior and acceptance checks, then make focused changes. Ask only when missing information blocks progress or materially affects scope.
-- Keep simulation in `src/sim/`, rendering in `src/render/`, and level/preset data in `src/content/`. Preserve seeded RNG and exact simulation frame stepping.
+- Keep simulation in `src/sim/`, rendering in `src/render/`, and level/preset data in `src/content/`. Preserve seeded RNG and exact simulation frame stepping. UI and tools must never consume the sim RNG (use estimates such as `estimateSkill`).
+- Extend the game through its data vocabularies (stats/mods, skills, statuses, monsters, archetypes, palettes, creature genomes, items/affixes/uniques, passive tree tables, themes, props); read [docs/GAME-DESIGN.md](docs/GAME-DESIGN.md) first.
 - Use `npm ci` for reproducible installs. Do not upgrade dependencies or replace the lockfile without a task-related reason.
 - Never commit credentials, `.env` files, dependencies, build caches, test screenshots or Windows `:Zone.Identifier` files. Preserve asset attribution.
 - `public/assets/` and `standalone/3dpixel2d.html` are intentional tracked deliverables. Rebuild the standalone after changing runtime code, the HTML template or assets.
-- Current automation is `window.agent.ready`, `window.agent.step(frames)` and `window.game`; do not assume missing CLI/MCP tools exist. `?agent` mode does not load saved settings profiles or attach human input.
+- Current automation is `window.agent.ready`, `window.agent.step(frames)`, `window.agent.idle()` and `window.game` (`?agent`, `?agent&town`, `?agent&stage=N`); `src/agent/forge.ts` renders procedural creatures. Do not assume tools that are not in the repository exist. `?agent` mode does not load saved settings profiles, saves or attach human input.
 - Do not reset, discard or overwrite unrelated work. Commit/push when requested by the user; do not merge, deploy or send messages to others without authorization.
 
 ## Validation

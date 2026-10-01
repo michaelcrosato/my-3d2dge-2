@@ -58,7 +58,7 @@ describe('normalizeProfile', () => {
     expect(p.padOptions).toMatchObject({ deadzone: 0.6, stick: 'left' });
     expect(p.touch.scale).toBe(0.6);
     expect(p.touch.opacity).toBe(0.85);
-    expect(p.touch.layouts.portrait.jump).toEqual({ x: 0, y: 1, scale: 2, visible: true });
+    expect(p.touch.layouts.portrait.jump).toEqual({ x: 0, y: 1, scale: 2, visible: false }); // invalid 'yes' falls back to the template (jump is hidden by default)
     // Out-of-range values and sim tuning are dropped; values equal to the default are not stored.
     expect(p.graphics).toEqual({ 'render.outlines': false, 'render.palette': 'pico8' });
   });
@@ -76,18 +76,20 @@ describe('normalizeProfile', () => {
 describe('rebinding', () => {
   it('moves a key from its old action and caps bindings per action', () => {
     const p = profileFromTemplate('standard');
-    expect(bindKey(p.keys, 'jump', 'KeyW')).toEqual(['moveUp']);
+    expect(bindKey(p.keys, 'dodge', 'KeyW')).toEqual(['moveUp']);
     expect(p.keys.moveUp).toEqual(['ArrowUp']);
-    expect(p.keys.jump).toEqual(['Space', 'KeyW']);
-    for (const c of ['KeyZ', 'KeyX', 'KeyQ']) bindKey(p.keys, 'jump', c);
-    expect(p.keys.jump).toEqual(['KeyW', 'KeyZ', 'KeyX', 'KeyQ']);
-    expect(() => bindKey(p.keys, 'jump', 'bad code')).toThrow();
+    expect(p.keys.dodge).toEqual(['Space', 'KeyW']);
+    for (const c of ['KeyZ', 'KeyX', 'KeyQ']) bindKey(p.keys, 'dodge', c);
+    expect(p.keys.dodge).toEqual(['KeyW', 'KeyZ', 'KeyX', 'KeyQ']);
+    // Q and X were skill keys: they moved here.
+    expect(p.keys.skill2).toEqual(['Digit2']);
+    expect(() => bindKey(p.keys, 'dodge', 'bad code')).toThrow();
   });
 
   it('moves gamepad inputs the same way, telling axis directions apart', () => {
     const p = profileFromTemplate('standard');
-    expect(bindPad(p.pad, 'attack', { kind: 'button', index: 0 })).toEqual(['jump']);
-    expect(p.pad.jump).toEqual([]);
+    expect(bindPad(p.pad, 'attack', { kind: 'button', index: 0 })).toEqual(['interact']);
+    expect(p.pad.interact).toEqual([]);
     bindPad(p.pad, 'walk', { kind: 'axis', index: 3, dir: 1 });
     expect(bindPad(p.pad, 'sprint', { kind: 'axis', index: 3, dir: -1 })).toEqual([]);
     expect(p.pad.walk).toContainEqual({ kind: 'axis', index: 3, dir: 1 });
@@ -202,7 +204,8 @@ describe('SettingsStore', () => {
       p.touch.scale = 1.4;
     });
     s.resetActive('keys');
-    expect(s.active.keys.jump).toEqual(['Space']);
+    expect(s.active.keys.jump).toEqual(['KeyG']);
+    expect(s.active.keys.dodge).toEqual(['Space']);
     expect(s.active.touch.scale).toBe(1.4);
   });
 });

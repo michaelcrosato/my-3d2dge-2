@@ -1,13 +1,18 @@
 /**
  * Level data. Plain JSON-compatible data: agents can read it with `level.get`, edit it and send it
- * back with `level.set` (the sim and the view rebuild from it).
+ * back with `level.set` (the sim and the view rebuild from it). Hand-made levels (the training
+ * room, the town) and procedural dungeons (content/procgen/dungeon.ts) share this format.
  *
  * Coordinates: meters, Y up, floor at y = 0. The camera looks from +X+Z toward -X-Z, so the
  * (-X,-Z) corner is at the top of the screen. Walls along x = -8 and z = -8 are the back walls
  * (full height); walls along x = +8 and z = +8 face the camera and are cut down to knee height so
  * they never hide anyone.
  */
-export type Brain = 'input' | 'wander' | 'dummy' | 'idle';
+import type { MonsterRarity } from './monsters';
+
+export type Brain = 'input' | 'wander' | 'dummy' | 'idle' | 'monster' | 'npc' | 'minion' | 'bot';
+/** hero: the player and their minions; enemy: monsters; target: training dummies; neutral: townsfolk. */
+export type Team = 'hero' | 'enemy' | 'target' | 'neutral';
 
 export interface WallDef {
   id: string;
@@ -28,6 +33,20 @@ export interface CrateDef {
   pushable?: boolean;
 }
 
+export interface MonsterSpawn {
+  def: string;
+  level: number;
+  rarity: MonsterRarity;
+  palette?: string;
+  affixes?: string[];
+  /** Pack id: members aggro together. */
+  pack?: string;
+  /** Procedural creature genome seed (overrides the def's body seed). */
+  seed?: number;
+  /** Display name override (bosses, rares). */
+  name?: string;
+}
+
 export interface CharacterDef {
   id: string;
   preset: string;
@@ -35,6 +54,54 @@ export interface CharacterDef {
   z: number;
   yawDeg?: number;
   brain: Brain;
+  team?: Team;
+  name?: string;
+  scale?: number;
+  monster?: MonsterSpawn;
+  /** Townsfolk: what talking to them opens, and idle behaviour. */
+  npc?: { role: string; anim?: string; lines?: string[] };
+}
+
+/** Gameplay or decor object placed by a level. `kind` selects sim behaviour and visuals. */
+export interface PropDef {
+  id: string;
+  kind: string;
+  x: number;
+  z: number;
+  y?: number;
+  yawDeg?: number;
+  scale?: number;
+  /** Kind-specific settings (mechanic parameters, links, loot tables). */
+  data?: Record<string, unknown>;
+}
+
+export interface LightDef {
+  x: number;
+  y: number;
+  z: number;
+  color: string;
+  intensity: number;
+  range: number;
+  flicker?: number;
+}
+
+/** Tile map for generated levels: ' ' void, '.' floor, '#' wall. Row-major, `cols` per row. */
+export interface LevelGrid {
+  cols: number;
+  rows: number;
+  cell: number;
+  originX: number;
+  originZ: number;
+  cells: string;
+}
+
+export interface RoomInfo {
+  id: number;
+  x: number;
+  z: number;
+  w: number;
+  h: number;
+  kind: 'start' | 'combat' | 'boss' | 'treasure' | 'mechanic' | 'corridor';
 }
 
 export interface Level {
@@ -51,6 +118,22 @@ export interface Level {
   walls: WallDef[];
   crates: CrateDef[];
   characters: CharacterDef[];
+  kind?: 'sandbox' | 'town' | 'dungeon';
+  title?: string;
+  subtitle?: string;
+  theme?: string;
+  seed?: number;
+  grid?: LevelGrid;
+  props?: PropDef[];
+  lights?: LightDef[];
+  rooms?: RoomInfo[];
+  start?: { x: number; z: number; yawDeg: number };
+  /** Where the exit portal opens once the boss falls. */
+  exit?: { x: number; z: number };
+  mechanics?: string[];
+  monsterLevel?: number;
+  /** Campaign stage (1-based); endless stages continue past the authored ones. */
+  stage?: number;
 }
 
 export const DEFAULT_LEVEL: Level = {
@@ -88,3 +171,17 @@ export const DEFAULT_LEVEL: Level = {
     { id: 'farmer', preset: 'farmer', x: 5.5, z: -6, brain: 'wander' },
   ],
 };
+
+/** Cell lookup helpers shared by the sim (nav), renderer (floor, minimap) and generators. */
+export function gridAt(g: LevelGrid, c: number, r: number): string {
+  if (c < 0 || r < 0 || c >= g.cols || r >= g.rows) return ' ';
+  return g.cells[r * g.cols + c];
+}
+
+export function cellCenter(g: LevelGrid, c: number, r: number): { x: number; z: number } {
+  return { x: g.originX + (c + 0.5) * g.cell, z: g.originZ + (r + 0.5) * g.cell };
+}
+
+export function cellOf(g: LevelGrid, x: number, z: number): [number, number] {
+  return [Math.floor((x - g.originX) / g.cell), Math.floor((z - g.originZ) / g.cell)];
+}

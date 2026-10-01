@@ -11,11 +11,17 @@ import { clamp, h } from './dom';
 
 export interface TouchHandlers {
   move(m: Move): void;
-  press(action: 'jump' | 'attack' | 'sprint'): void;
-  hold(action: 'sprint', on: boolean): void;
+  press(action: TouchControl): void;
+  hold(action: TouchControl, on: boolean): void;
 }
 
-export const CONTROL_LABELS: Record<TouchControl, string> = { move: 'Movement', jump: 'Jump', attack: 'Attack', sprint: 'Sprint' };
+export const CONTROL_LABELS: Record<TouchControl, string> = {
+  move: 'Movement', jump: 'Jump', attack: 'Attack', sprint: 'Sprint', dodge: 'Dodge', skill1: 'Skill 1', skill2: 'Skill 2',
+  skill3: 'Skill 3', skill4: 'Skill 4', skill5: 'Skill 5', flask1: 'Life', flask2: 'Mana', interact: 'Use',
+};
+
+/** Controls that repeat while held (attack combos, channelled skills). */
+const HOLDABLE = new Set<TouchControl>(['attack', 'skill1', 'skill2', 'skill3', 'skill4', 'skill5']);
 
 /** Virtual screen sizes for the layout editors: a small phone in each orientation. */
 export const PREVIEW_SIZE: Record<Orientation, { w: number; h: number }> = { portrait: { w: 360, h: 640 }, landscape: { w: 640, h: 360 } };
@@ -31,6 +37,8 @@ export class TouchControls {
   selected: TouchControl | null = null;
   onSelect?: (c: TouchControl | null) => void;
   onLayoutChange?: () => void;
+  /** Live label for a control (skill names, flask charges); falls back to CONTROL_LABELS. */
+  labelFor?: (c: TouchControl) => string;
   private els = new Map<TouchControl, HTMLElement>();
   private knob: HTMLElement | null = null;
   private arrows: HTMLElement[] = [];
@@ -86,7 +94,7 @@ export class TouchControls {
       const place = layout[c];
       if (!place.visible && !this.editing) continue;
       const d = this.diameter(c, w, hgt);
-      const el = c === 'move' ? this.moveControl(s) : h('div', { class: 'tc', dataset: { action: c } }, CONTROL_LABELS[c]);
+      const el = c === 'move' ? this.moveControl(s) : h('div', { class: `tc tc-${c}`, dataset: { action: c } }, this.labelFor?.(c) ?? CONTROL_LABELS[c]);
       el.dataset.control = c;
       el.setAttribute('role', 'button');
       el.setAttribute('aria-label', c === 'move' ? (s.style === 'dpad' ? 'Direction pad' : 'Movement stick') : CONTROL_LABELS[c]);
@@ -94,7 +102,7 @@ export class TouchControls {
         width: `${d}px`, height: `${d}px`,
         left: `${clamp(place.x * w - d / 2, 0, Math.max(0, w - d))}px`,
         top: `${clamp(place.y * hgt - d / 2, 0, Math.max(0, hgt - d))}px`,
-        fontSize: `${Math.max(11, d * (c === 'move' ? 0.1 : 0.22))}px`,
+        fontSize: `${Math.max(10, d * (c === 'move' ? 0.1 : c.startsWith('skill') || c.startsWith('flask') ? 0.17 : 0.22))}px`,
       });
       el.classList.toggle('selected', this.editing && this.selected === c);
       el.classList.toggle('hidden-control', !place.visible);
@@ -179,6 +187,15 @@ export class TouchControls {
     el.addEventListener('lostpointercapture', release);
   }
 
+  /** Refreshes button labels (skills slotted, flask charges) without rebuilding the overlay. */
+  refreshLabels() {
+    for (const [c, el] of this.els) {
+      if (c === 'move') continue;
+      const text = this.labelFor?.(c) ?? CONTROL_LABELS[c];
+      if (el.textContent !== text) el.textContent = text;
+    }
+  }
+
   private bindButton(el: HTMLElement, c: Exclude<TouchControl, 'move'>) {
     let pointer: number | null = null;
     el.addEventListener('pointerdown', (e) => {
@@ -188,13 +205,17 @@ export class TouchControls {
       pointer = e.pointerId;
       el.classList.add('down');
       if (c === 'sprint' && !this.settings().sprintToggle) this.handlers?.hold('sprint', true);
-      else this.handlers?.press(c);
+      else {
+        this.handlers?.press(c);
+        if (HOLDABLE.has(c)) this.handlers?.hold(c, true);
+      }
     });
     const release = (e: PointerEvent) => {
       if (e.pointerId !== pointer) return;
       pointer = null;
       el.classList.remove('down');
       if (c === 'sprint' && !this.settings().sprintToggle) this.handlers?.hold('sprint', false);
+      else if (HOLDABLE.has(c)) this.handlers?.hold(c, false);
     };
     el.addEventListener('pointerup', release);
     el.addEventListener('pointercancel', release);
