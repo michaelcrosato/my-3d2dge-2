@@ -553,6 +553,98 @@ defineTool({
   },
 });
 
+defineTool({
+  name: 'skill.test', group: 'hero',
+  desc: 'Casts a hero skill at sleeping target dummies in a test room and reports what actually happened: casts, hits, damage by type, crits, ailments, kills, mana spent and anything that blocked a cast. Use it to balance or debug a skill (estimates in skill.inspect only cover one hit).',
+  params: {
+    id: { type: 'string', required: true, desc: 'Hero skill id (catalog.list skills; slash1 is the basic attack).' },
+    heroLevel: { type: 'integer', default: 20, min: 1, max: 500, desc: 'Level of the auto-built hero.' },
+    focus: { type: 'string', default: 'balanced', enum: FOCI, desc: 'Auto-build focus.' },
+    targets: { type: 'integer', default: 3, min: 1, max: 12, desc: 'Dummies, packed around the aim point.' },
+    monster: { type: 'string', default: 'golem', desc: 'Dummy monster id.' },
+    rarity: { type: 'string', default: 'normal', enum: ['normal', 'magic', 'rare', 'unique'], desc: 'Dummy rarity.' },
+    distance: { type: 'number', default: 3, min: 0.5, max: 14, desc: 'Metres from the hero to the pack.' },
+    casts: { type: 'integer', default: 1, min: 1, max: 20, desc: 'Casts to attempt (each when the skill is ready).' },
+    seconds: { type: 'number', default: 4, min: 0.5, max: 30, desc: 'Game seconds to run (lingering zones and ailments keep ticking).' },
+  },
+  example: { id: 'flamesurge', heroLevel: 30, focus: 'spell', targets: 4, casts: 2 },
+  async run(a, ctx) {
+    const s = skillDef(a.id);
+    if (!HOTBAR_SKILLS.includes(s.id) && s.id !== 'slash1') throw new Error(`"${a.id}" is not a hero skill. Hero skills: slash1, ${HOTBAR_SKILLS.join(', ')}`);
+    ensureMonster(a.monster);
+    const hero = autoHero({ level: a.heroLevel, focus: a.focus as BuildFocus });
+    const node = TREE.nodes.find((n) => n.skill === s.id);
+    if (node && !hero.tree.includes(node.id)) hero.tree.push(node.id);
+    if (s.id !== 'slash1') hero.hotbar = [s.id, null, null, null, null];
+    const sim = await probeSim(ctx.clips, hero, 7);
+    try {
+      sim.step(); // Rapier queries see colliders after the first step.
+      const p = sim.player!;
+      const cx = p.pos.x + a.distance, cz = p.pos.z;
+      const dummies = Array.from({ length: a.targets }, (_, k) => {
+        const m = spawnProbeMonster(sim, a.monster, Math.max(1, a.heroLevel), a.rarity as MonsterRarity);
+        m.ai.awake = false;
+        const ang = k * 2.4, r = k ? 0.7 + 0.25 * k : 0;
+        sim.teleport(m.id, cx + Math.cos(ang) * r, cz + Math.sin(ang) * r);
+        return m;
+      });
+      const life0 = new Map(dummies.map((m) => [m.id, m.life]));
+      const mana0 = p.mana;
+      const seq = sim.lastEventSeq;
+      let cast = 0, manaSpent = 0;
+      const frames = Math.round(a.seconds * 60);
+      for (let f = 0; f < frames; f++) {
+        p.input.aim = { x: cx, z: cz };
+        if (cast < a.casts) {
+          if (s.id === 'slash1') p.input.attack = true;
+          else p.input.skill = 0;
+        }
+        const before = p.mana;
+        sim.step();
+        p.input.attack = false;
+        p.input.skill = -1;
+        manaSpent += Math.max(0, before - p.mana);
+        cast = sim.eventsSince(seq).filter((e) => e.type === 'skill' && e.id === 'player' && e.skill === s.id).length;
+      }
+      const ev = sim.eventsSince(seq);
+      // Hits by the hero or its minions, plus damage over time (ailments, lingering zones) on the dummies.
+      const minions = new Set(ev.filter((e) => e.type === 'summon' && e.owner === 'player').map((e) => String(e.id)));
+      const ours = (id: unknown) => id === 'player' || minions.has(String(id));
+      const isDummy = (id: unknown) => dummies.some((m) => m.id === id);
+      const byType: Record<string, number> = {};
+      let total = 0, crits = 0, hits = 0;
+      for (const e of ev) {
+        if (!(e.type === 'hit' ? ours(e.attacker) : e.type === 'dot' && isDummy(e.target))) continue;
+        const d = Number(e.damage) || 0;
+        total += d;
+        byType[String(e.dmgType ?? 'physical')] = Math.round((byType[String(e.dmgType ?? 'physical')] ?? 0) + d);
+        if (e.type === 'hit') {
+          hits++;
+          if (e.crit) crits++;
+        }
+      }
+      const ailments: Record<string, number> = {};
+      for (const e of ev) if (e.type === 'status' && isDummy(e.target)) ailments[String(e.status)] = (ailments[String(e.status)] ?? 0) + 1;
+      const count = (t: string) => ev.filter((e) => e.type === t && ours(e.owner ?? e.id)).length;
+      return {
+        skill: { id: s.id, name: s.name, cost: s.cost ?? 0, cooldown: s.cooldown ?? 0 },
+        hero: { level: a.heroLevel, focus: a.focus, life: Math.round(p.maxLife), mana: Math.round(p.maxMana) },
+        dummies: { monster: a.monster, rarity: a.rarity, count: a.targets, life: Math.round(life0.get(dummies[0].id) ?? 0) },
+        casts: cast, seconds: a.seconds,
+        damage: { total: Math.round(total), perSecond: Math.round(total / a.seconds), byType },
+        hits, crits, ailments,
+        perTarget: dummies.map((m) => ({ id: m.id, damageTaken: Math.round((life0.get(m.id) ?? 0) - Math.max(0, m.life)), dead: m.state === 'dead' })),
+        kills: dummies.filter((m) => m.state === 'dead').length,
+        effects: { strikes: count('strike'), projectiles: count('projectile'), zones: count('zone'), chains: count('chain'), minions: minions.size },
+        manaSpent: Math.round(manaSpent), manaLeft: Math.round(p.mana), manaStart: Math.round(mana0),
+        blocked: [...new Set(ev.filter((e) => e.type === 'skill.blocked' && e.id === 'player').map((e) => String(e.reason)))],
+      };
+    } finally {
+      sim.dispose();
+    }
+  },
+});
+
 // ---------------------------------------------------------------- balance
 
 defineTool({

@@ -19,12 +19,16 @@ interface ModelContext {
   provideContext?(ctx: { tools: ModelContextTool[] }): unknown;
 }
 
-const DEV_ONLY = new Set(['logs.read', 'scene.stats']);
+/** Not offered to in-page agents: developer diagnostics and minutes-long batch runs. */
+export const WEBMCP_EXCLUDED: ReadonlySet<string> = new Set(['logs.read', 'scene.stats', 'balance.campaign']);
 export const WEBMCP_MAX_TOOLS = 40;
 
 /** The tools as WebMCP descriptors (names use underscores, like the MCP server). */
 export function webMcpTools(agent: AgentApi): ModelContextTool[] {
-  return agent.tools().filter((t) => !DEV_ONLY.has(t.name)).slice(0, WEBMCP_MAX_TOOLS).map((t) => ({
+  const offered = agent.tools().filter((t) => !WEBMCP_EXCLUDED.has(t.name));
+  // Over the cap, the last tools would vanish silently: say which, so WEBMCP_EXCLUDED gets updated.
+  if (offered.length > WEBMCP_MAX_TOOLS) console.warn(`WebMCP: ${offered.length} tools, offering ${WEBMCP_MAX_TOOLS}; left out: ${offered.slice(WEBMCP_MAX_TOOLS).map((t) => t.name).join(', ')}`);
+  return offered.slice(0, WEBMCP_MAX_TOOLS).map((t) => ({
     name: t.name.replace(/\./g, '_'),
     description: `${t.desc}${t.example ? ` Example: ${JSON.stringify(t.example)}` : ''}`,
     inputSchema: t.params,

@@ -9,7 +9,7 @@
  */
 import { config } from '../config';
 import type { Team } from '../content/level';
-import { MONSTER_AFFIXES, RARITY_SCALING } from '../content/monsters';
+import { MONSTER_AFFIXES, MONSTERS, RARITY_SCALING } from '../content/monsters';
 import type { HitSpec, SkillDef } from '../content/skills';
 import { statusDef } from '../content/statuses';
 import { ADDED_STAT, DAMAGE_TYPES, ELEMENTS, type DamageType, type Tag } from '../content/stats';
@@ -63,6 +63,9 @@ export function skillTags(skill: SkillDef): Tag[] {
   return [...skill.tags, `skill:${skill.id}` as Tag];
 }
 
+/** Hero minion hits relative to a level-matched spell hit with the same base (tuned with skill.test). */
+const MINION_POWER = 2.2;
+
 /** Damage-type tag set for "increased X damage" lookups. */
 function typeTags(t: DamageType): Tag[] {
   return ELEMENTS.includes(t) ? [t, 'elemental'] : [t];
@@ -87,15 +90,22 @@ export function rollPacket(sim: Sim, a: Character, skill: SkillDef, hit: HitSpec
     ranges[t] = [p[0] + lo, p[1] + hi];
   };
   const build = a.id === sim.heroId ? sim.heroBuild : null;
+  // Hero minions ride the hero's offense curve and the owner's spell and minion damage increases.
+  // Monster numbers are tuned for hitting the hero (and carry enemy pacts), which left Spirit
+  // Wolves at ~3% of their owner's damage.
+  const heroMinion = !!(owner && a.owner && heroSide(a));
+  const curve = () => heroMinion
+    ? spellDamage(a.level) * MINION_POWER * (a.monster ? MONSTERS[a.monster.def]?.damage ?? 1 : 1) * sim.stats(owner!).scale('damage', ['spell', 'minion'])
+    : a.monster || a.owner ? monsterDamage(a.level) * (a.monster ? sim.monsterDamageMult(a) : 1) : null;
   let effectiveness = 1;
   if (build && isAttack && skill.weapon !== undefined) {
     effectiveness = skill.weapon / 100;
     for (const [t, r] of Object.entries(build.weapon.dmg) as Array<[DamageType, [number, number]]>) addRange(t, r[0] * effectiveness, r[1] * effectiveness);
   } else if (skill.base) {
-    const k = a.monster || a.owner ? monsterDamage(a.level) * (a.monster ? sim.monsterDamageMult(a) : 1) : spellDamage(a.level);
+    const k = curve() ?? spellDamage(a.level);
     for (const [t, r] of Object.entries(skill.base) as Array<[DamageType, readonly [number, number]]>) addRange(t, r[0] * k, r[1] * k);
   } else if (isAttack) {
-    const k = a.monster || a.owner ? monsterDamage(a.level) * (a.monster ? sim.monsterDamageMult(a) : 1) : 1;
+    const k = curve() ?? 1;
     addRange('physical', 2 * k, 4 * k);
   }
   // Added damage ("Adds 3 to 7 Fire Damage to Attacks").

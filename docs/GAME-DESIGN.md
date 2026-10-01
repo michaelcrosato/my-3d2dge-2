@@ -176,6 +176,7 @@ and reports level gap, deaths, clear time and boss-fight length; `balance.curve`
 - **Early bosses** (`bossEase`, `bossLifeEase`): the first bosses start at 60% damage and 45%
   life, reaching full strength by levels 13 and 5.
 - **Damage ramp** (`damageRamp`): heroes gather defences faster than the defense curve tracks; without it the Normal campaign sat above 75% life from depth 10 on. Monster damage rises 1.2% per level past 12 (capped at +80%). Melee now dips to a median of 49-69% life per depth, ranged stays safer.
+- **Hero minions** (Spirit Wolves, allied spores): they hit on the hero's spell curve, times the owner's spell and minion damage increases and `MINION_POWER` (2.2), measured with `skill.test` at roughly 30-40% of a spell build's Fireball. They used monster numbers before (about 3% of the owner's damage), and enemy pacts no longer strengthen them.
 - **Experience catch-up** (`xpCatchUp`): monsters above the hero give up to +96% experience,
   so a hero who falls behind (or pushes deeper) closes the gap.
 - **Mechanics never trap**: field pulls are capped at 60% of a character's run speed, bosses
@@ -214,7 +215,8 @@ browser console (`agent.call`), the terminal (`npm run agent`) and MCP (`npm run
   genome edits (legs, horns, wings, spikes, proportions), an archetype, attack modules and a
   palette; `level.generate` remixes any depth with any mechanics; `item.roll` rolls any base.
 - **Measure, don't guess.** `monster.inspect` and `hero.build` produce stat sheets with damage
-  per skill, `balance.curve` tabulates hits-to-kill and hits-to-die by level, `loot.simulate`
+  per skill, `skill.test` casts a skill at dummies and reports what really landed (hits, damage
+  by type, ailments, kills, minions), `balance.curve` tabulates hits-to-kill and hits-to-die by level, `loot.simulate`
   runs thousands of kills through the drop code, and `balance.run` lets the deterministic
   autoplayer (`src/sim/bot.ts`) play a depth with an auto-built hero (`src/sim/autobuild.ts`):
   clear rate, time, deaths, xp and gold, per strategy (`clear` for power-levelling, `rush` for

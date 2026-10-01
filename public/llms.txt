@@ -1,6 +1,6 @@
 # Depthward
 
-> A pixel-art hack-and-slash rendered live from 3D (Three.js, Rapier, TypeScript): fast combat, a ~550-node passive tree, loot, endless procedural depths, a Spore-style creature Workshop, and 42 agent tools built into the engine.
+> A pixel-art hack-and-slash rendered live from 3D (Three.js, Rapier, TypeScript): fast combat, a 575-node passive tree, loot, endless procedural depths, a Spore-style creature Workshop, and 43 agent tools built into the engine.
 
 Depthward is an engine showcase that treats AI agents as first-class developers and players. Every tool in its registry (catalogs, creature genomes and custom species, monster, item, level and passive-tree inspection, loot simulation, balance curves and bot playtests, rendering and live-game control) is reachable four ways: `window.agent.call(name, args)` in the page, WebMCP (`navigator.modelContext`) where the browser supports it, the terminal (`npm run agent -- <tool>`), and a stdio MCP server (`npm run mcp`).
 
