@@ -13,6 +13,7 @@ import { MONSTER_AFFIXES, RARITY_SCALING } from '../content/monsters';
 import type { HitSpec, SkillDef } from '../content/skills';
 import { statusDef } from '../content/statuses';
 import { ADDED_STAT, DAMAGE_TYPES, ELEMENTS, type DamageType, type Tag } from '../content/stats';
+import { fieldAt } from './props';
 import { armorReduction, evadeChance, monsterDamage, spellDamage } from './scaling';
 import type { Sim } from './sim';
 import type { Character, Packet } from './types';
@@ -258,7 +259,7 @@ export function applyPacket(sim: Sim, t: Character, p: Packet, fromX: number, fr
   // Stagger and knockback.
   const dx = t.pos.x - fromX, dz = t.pos.z - fromZ;
   const d = Math.hypot(dx, dz) || 1;
-  const heavyMass = Math.max(1, t.scale * t.scale) * (t.monster?.boss ? 6 : 1);
+  const heavyMass = Math.max(1, t.scale * t.scale) * (t.monster?.boss ? 6 : 1) / (sim.hasFields ? fieldAt(sim, t.pos.x, t.pos.z).knockMult : 1);
   if (p.pull) {
     t.knock = { x: (-dx / d) * p.pull / heavyMass, z: (-dz / d) * p.pull / heavyMass };
   }
@@ -282,7 +283,7 @@ export function applyPacket(sim: Sim, t: Character, p: Packet, fromX: number, fr
   });
   if (t.life <= 0) {
     res.killed = true;
-    sim.kill(t, attacker);
+    sim.kill(t, attacker, false, p.skill === 'env');
   }
   return res;
 }

@@ -106,6 +106,8 @@ export interface Motion {
   ghost?: boolean;
   /** Peak height of a leap's visual arc, m. */
   height?: number;
+  /** Fly over walls (launch pads): no collisions in flight, lands on the nearest free spot. */
+  over?: boolean;
 }
 
 export type CreaturePose = 'bite' | 'claw' | 'slam' | 'spit' | 'charge' | 'roar' | 'spin' | 'cast' | 'leap' | 'burst';
@@ -449,6 +451,12 @@ export const INTERNAL_SKILLS: SkillDef[] = [
   { id: 'a_frost', name: 'Frost Pulse', desc: 'Freezing burst.', icon: 'nova', tags: ['spell', 'area', 'cold'], kind: 'spell', base: { cold: [6, 9] }, time: 0.1, anim: { clip: 'Idle_Loop' }, effects: [], range: 0, aim: 'self', color: '#8fd8ff' },
   { id: 'a_burst', name: 'Death Burst', desc: 'Explodes on death.', icon: 'burst', tags: ['spell', 'area'], kind: 'spell', base: { fire: [10, 14] }, time: 0.1, anim: { clip: 'Idle_Loop' }, effects: [], range: 0, aim: 'self', usesElement: true },
   { id: 'a_explode', name: 'Corpse Explosion', desc: 'Corpses burst.', icon: 'burst', tags: ['spell', 'area', 'fire'], kind: 'spell', base: { fire: [6, 10] }, time: 0.1, anim: { clip: 'Idle_Loop' }, effects: [], range: 0, aim: 'self', color: '#ff8a3d' },
+  {
+    id: 'pad_leap', name: 'Launch', desc: 'Thrown across the level by a launch pad; lands with a shockwave.', icon: 'leap', tags: ['attack', 'area', 'movement'], kind: 'attack',
+    weapon: 120, base: { physical: [6, 9] }, time: 1.15, anim: [{ clip: 'NinjaJump_Start', from: 0.1, to: 0.62, span: 0.4 }, { clip: 'NinjaJump_Idle_Loop', from: 0, to: 0.6, span: 0.4 }, { clip: 'NinjaJump_Land', from: 0, to: 0.6, span: 0.2 }],
+    pose: 'leap', motion: { kind: 'leap', from: 0.05, to: 0.82, distance: 40, toAim: true, ghost: true, over: true, height: 4.5 }, iframes: [0.05, 0.82], cancelAfter: 0.9, range: 40,
+    effects: [{ at: 0.83, type: 'strike', shape: { kind: 'circle', radius: 3.2 }, hit: { knock: 8, stagger: 160, heavy: true } }], aim: 'target',
+  },
   { id: 'env', name: 'Environment', desc: 'Traps, kegs, vents and other level mechanics.', icon: 'burst', tags: ['area'], kind: 'spell', base: { physical: [8, 12] }, time: 0.1, anim: { clip: 'Idle_Loop' }, effects: [], range: 0, aim: 'self' },
 ];
 

@@ -131,6 +131,8 @@ export interface Level {
   /** Where the exit portal opens once the boss falls. */
   exit?: { x: number; z: number };
   mechanics?: string[];
+  /** Near-total darkness: only the hero's lantern, beacons and glowing things light the way. */
+  dark?: boolean;
   monsterLevel?: number;
   /** Campaign stage (1-based); endless stages continue past the authored ones. */
   stage?: number;

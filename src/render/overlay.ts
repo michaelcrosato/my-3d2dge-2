@@ -104,6 +104,15 @@ export class Overlay {
         if (h) this.float(h.pos.x, 2.6, h.pos.z, `LEVEL ${e.level}!`, '#ffe14d', 2, 2);
         break;
       }
+      case 'mechanic.kill':
+        this.float(e.x as number, 1.8, e.z as number, '+50% XP', '#ffe14d', 1, 0.9);
+        break;
+      case 'shrine':
+        this.float(e.x as number, 2.2, e.z as number, String(e.buff).toUpperCase(), '#ffffff', 2, 1.4);
+        break;
+      case 'imp.escape':
+        this.float(e.x as number, 1.6, e.z as number, 'ESCAPED!', '#ffd84a', 1, 1.2);
+        break;
       case 'skill.blocked': {
         const h = sim.characters.get(heroId);
         if (h && e.reason === 'mana' && sim.frame - this.manaWarnAt > 40) {

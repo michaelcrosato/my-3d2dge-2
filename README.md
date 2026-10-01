@@ -9,6 +9,7 @@
   - Humanoid families with recolor palettes.
   - Spore-style procedural creatures: eight body plans, endless seeds and procedural animation.
   - Behaviour archetypes, elite affixes, champion and rare packs, and bosses with phases and enrage.
+- **Level mechanics:** each depth is named after one trick (Blast Kegs, Spike Traps, Shrines, Launch Pads, Black Ice, Lightless, Rolling Boulders, Rift Gates, Fire Vents, Totems, Gravity Wells, Chrono Fields, Loot Imps). You can ignore them and fight, or exploit them for +50% XP trick kills and speedrun routes. Depths 14–24 combine them, and past that the endless generator mixes mechanics, themes, palettes and species forever.
 - **World:** procedural dungeons with themes, iso-aware walls with a hero cutaway, torches and dynamic lights, breakables and chests. Haven is the town hub with animated NPCs, and there is no bottom to the depths.
 - **Difficulty:** pause menu → Difficulty & tuning has hero and enemy damage, life and speed, plus XP, loot and density multipliers.
 

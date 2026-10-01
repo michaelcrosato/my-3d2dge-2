@@ -48,6 +48,7 @@ export const ARCHETYPES: Record<string, Archetype> = {
   guardian: { id: 'guardian', label: 'Guardian', aggro: 10, keep: 2.5, kite: 0, retreat: 0, strafe: false, speed: 0.9, life: 1.4, damage: 0.9, poise: 2, pack: [1, 2], think: 0.7 },
   stalker: { id: 'stalker', label: 'Stalker', aggro: 14, keep: 0, kite: 0, retreat: 1.4, strafe: true, speed: 1.3, life: 0.8, damage: 1.25, poise: 0.7, pack: [2, 3], think: 0.4 },
   boss: { id: 'boss', label: 'Boss', aggro: 16, keep: 0, kite: 0, retreat: 0, strafe: true, speed: 0.95, life: 1, damage: 1, poise: 12, pack: [1, 1], think: 0.45 },
+  fleer: { id: 'fleer', label: 'Fleer', aggro: 9, keep: 99, kite: 99, retreat: 0, strafe: false, speed: 1, life: 1, damage: 0, poise: 0.5, pack: [1, 1], think: 0.3 },
   minion: { id: 'minion', label: 'Minion', aggro: 16, keep: 0, kite: 0, retreat: 0, strafe: false, speed: 1.2, life: 0.5, damage: 0.7, poise: 0.5, pack: [1, 1], think: 0.3 },
 };
 
@@ -165,6 +166,7 @@ export const MONSTERS: Record<string, MonsterDef> = {
   shade: { id: 'shade', name: 'Shade', family: 'spirit', body: H('shade'), archetype: 'stalker', skills: ['m_slash', 'm_leap'], life: 1, damage: 1, speed: 5, size: 0.95, xp: 1.3, palette: 'spectral' },
   mender: { id: 'mender', name: 'Mender', family: 'cult', body: H('mender'), archetype: 'guardian', skills: ['m_mend', 'm_bolt'], life: 1, damage: 0.8, speed: 3.4, size: 1, xp: 1.3, palette: 'moss' },
   minion: { id: 'minion', name: 'Risen Thrall', family: 'undead', body: H('thrall'), archetype: 'minion', skills: ['m_scratch'], life: 0.6, damage: 0.7, speed: 3.6, size: 0.8, xp: 0.2, palette: 'bone' },
+  imp: { id: 'imp', name: 'Loot Imp', family: 'treasure', body: { kind: 'creature', plan: 'slime', seed: 21 }, archetype: 'fleer', skills: [], life: 3.5, damage: 0, speed: 5.6, size: 0.75, xp: 4, palette: 'gilded' },
   sporeling: { id: 'sporeling', name: 'Sporeling', family: 'fungus', body: { kind: 'creature', plan: 'spore', seed: 11 }, archetype: 'minion', skills: ['m_bite'], life: 0.8, damage: 0.9, speed: 5.2, size: 0.6, xp: 0, palette: 'venom' },
   spirit_wolf: { id: 'spirit_wolf', name: 'Spirit Wolf', family: 'spirit', body: { kind: 'creature', plan: 'wolf', seed: 7 }, archetype: 'minion', skills: ['m_bite'], life: 1.4, damage: 1.2, speed: 6, size: 0.9, xp: 0, palette: 'spectral' },
   // ---- campaign bosses (humanoid bodies; procedural creature bosses come from encounters.ts)

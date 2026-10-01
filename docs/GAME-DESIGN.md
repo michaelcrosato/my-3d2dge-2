@@ -46,6 +46,35 @@ Rules of the language:
    primitives in `src/render/geo.ts`; item icons are rendered by the engine itself
    (`src/render/icons.ts`). An agent can read, edit and re-render any asset.
 
+## Level mechanics and the campaign
+
+Every depth is named after its trick (`src/content/mechanics.ts` for placement and tips,
+`src/sim/mechanics.ts` for behaviour, `src/render/propMeshes.ts` for visuals). Each can be
+ignored by a player who just fights, and each rewards exploitation: kills by mechanics give +50%
+experience and count as "trick kills" in the stage summary, and several open speedrun routes.
+
+| Depth | Mechanic | Exploit |
+| --- | --- | --- |
+| 1 | Blast Kegs | chain-detonate kegs into packs |
+| 2 | Spike Traps | knock monsters onto rising plates |
+| 3 | Shrines | chain 20 s buffs (frenzy, power, haste, fortune, conduit, fortify) |
+| 4 | Launch Pads | fly over walls toward the boss; landings are shockwaves |
+| 5 | Black Ice | knockback sends monsters sliding; keep momentum |
+| 6 | Lightless | light beacons to strip monsters' shroud |
+| 7 | Rolling Boulders | hit boulders to bowl them through packs |
+| 8 | Rift Gates | a gate pair always leads from the entrance to near the boss |
+| 9 | Fire Vents | pull monsters over vents before they erupt |
+| 10 | Totems | break totems first; their power flows to you |
+| 11 | Gravity Wells | let wells bunch packs, then AoE |
+| 12 | Chrono Fields | fight from the edge while monsters wade through slowed |
+| 13 | Loot Imps | catch the fleeing imps before they escape for a hoard |
+
+Depths 14–24 combine them (Kegs on Ice, Spikes in the Dark, Boulder Pads, Vented Wells, Totems
+of Time, Shrine Rush, Powder and Gravity, The Gauntlet, Dark Rifts, Frozen Time, Imp Gauntlet).
+From depth 25 the endless generator draws two or three mechanics, a theme biased toward them,
+monster palettes and procedural species from the stage seed, and names the level from the
+mechanics' words ("Frozen Kegs & Wells"). A new mechanic is one `MechanicDef` plus prop kinds.
+
 ## Spore-style creatures
 
 `generateGenome(plan, seed)` builds a species from a body plan (quadruped, hexapod, arachnid,

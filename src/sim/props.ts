@@ -29,12 +29,59 @@ export interface PropSpec {
   friction?: number;
   initial?: string;
   label?: string;
+  /** Standing-area effect (radius scales with the prop's scale): ice, gravity wells, chrono fields. */
+  field?: { radius: number; friction?: number; pull?: number; slow?: number; knockMult?: number };
+  /** Characters inside `radius` trigger the behaviour's `touch` (launch pads, rift gates). */
+  touch?: boolean;
 }
 
 export interface PropBehaviour {
   /** A hit (or, with interact = true, the hero pressing interact). */
   hit?(sim: Sim, p: Prop, by: Character | null, s: SkillDef, hit: HitSpec | undefined, interact: boolean): void;
   step?(sim: Sim, p: Prop): void;
+  /** A character is standing inside the prop's radius (touch props only). */
+  touch?(sim: Sim, p: Prop, ch: Character): void;
+}
+
+/** Level-wide mechanic systems (darkness, imps) that run every step when the level lists them. */
+const SYSTEMS = new Map<string, (sim: Sim) => void>();
+export function registerSystem(mechanic: string, step: (sim: Sim) => void) {
+  SYSTEMS.set(mechanic, step);
+}
+export function stepSystems(sim: Sim) {
+  for (const m of sim.level.mechanics ?? []) SYSTEMS.get(m)?.(sim);
+}
+
+export interface FieldEffect {
+  /** Acceleration multiplier (ice < 1). */
+  control: number;
+  /** Extra velocity toward field centers (gravity wells), m/s. */
+  pushX: number;
+  pushZ: number;
+  /** Knockback multiplier for hits taken here. */
+  knockMult: number;
+}
+
+/** Combined effect of every field prop under a point. */
+export function fieldAt(sim: Sim, x: number, z: number): FieldEffect {
+  const out: FieldEffect = { control: 1, pushX: 0, pushZ: 0, knockMult: 1 };
+  for (const p of sim.props.values()) {
+    if (p.dead) continue;
+    const f = SPECS.get(p.kind)?.field;
+    if (!f) continue;
+    const r = f.radius * p.scale;
+    const dx = p.x - x, dz = p.z - z;
+    const d = Math.hypot(dx, dz);
+    if (d > r) continue;
+    if (f.friction !== undefined) out.control = Math.min(out.control, f.friction);
+    if (f.knockMult) out.knockMult = Math.max(out.knockMult, f.knockMult);
+    if (f.pull && d > 0.25) {
+      const k = f.pull * (0.35 + 0.65 * (1 - d / r));
+      out.pushX += (dx / d) * k;
+      out.pushZ += (dz / d) * k;
+    }
+  }
+  return out;
 }
 
 const SPECS = new Map<string, PropSpec>();
@@ -69,7 +116,14 @@ export function stepProps(sim: Sim) {
       p.z = t.z;
       p.y = t.y - (propSpec(p.kind)!.height * p.scale) / 2;
     }
-    BEHAVIOURS.get(p.kind)?.step?.(sim, p);
+    const b = BEHAVIOURS.get(p.kind);
+    b?.step?.(sim, p);
+    const spec = SPECS.get(p.kind);
+    if (spec?.touch && b?.touch && !p.dead)
+      for (const c of sim.characters.values()) {
+        if (c.state === 'dead') continue;
+        if (Math.hypot(c.pos.x - p.x, c.pos.z - p.z) <= spec.radius * p.scale) b.touch(sim, p, c);
+      }
   }
   for (const [id, p] of sim.props) if (p.dead && p.state === 'gone') sim.props.delete(id);
 }
