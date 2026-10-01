@@ -1,9 +1,18 @@
 /**
- * Triangle budgets for character parts. Characters are drawn ~48 art pixels tall, so the source
+ * Pixel-art budgets for character parts: triangles and texture size. Characters are drawn ~48 art pixels tall, so the source
  * meshes (13k-27k triangles per outfit) carry far more detail than a pixel can show; meshoptimizer
  * collapses edges down to a ratio while keeping skin weights, UVs and the silhouette.
  */
-import { weld, simplify } from '@gltf-transform/functions';
+import { simplify, textureCompress, weld } from '@gltf-transform/functions';
+import sharp from 'sharp';
+
+/** Texture edge in pixels: characters are ~48 art pixels tall, so 256 is already generous. */
+export const TEXTURE_MAX = 256;
+
+/** Shrinks textures larger than TEXTURE_MAX (PNG, lossless). */
+export async function shrinkTextures(doc) {
+  await doc.transform(textureCompress({ encoder: sharp, targetFormat: 'png', resize: [TEXTURE_MAX, TEXTURE_MAX] }));
+}
 import { MeshoptSimplifier } from 'meshoptimizer';
 
 /** Fraction of triangles to keep, by model id prefix. */

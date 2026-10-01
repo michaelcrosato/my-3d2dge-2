@@ -9,7 +9,7 @@
  * - Animation libraries (UAL1, UAL2; in-place variants): meshes removed; scale tracks and every
  *   translation track except `pelvis` removed, so characters keep their own bone lengths and
  *   runtime bone scaling (chunky heads/hands) is not overwritten; redundant keys resampled away.
- * - Character parts: base-color textures only, max 512 px (characters render ~48 px tall);
+ * - Character parts: base-color textures only, max 256 px (characters render ~48 px tall);
  *   normal / ORM / roughness maps dropped (the toon shading ignores them); triangles simplified to
  *   30-60% with meshoptimizer (tools/lib/simplify.mjs; invisible at pixel-art size).
  * - Heads: cut out of the Superhero full-body meshes by skin weight (Head + neck_01), because the
@@ -24,7 +24,7 @@ import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
 import { compactPrimitive, dedup, prune, resample, textureCompress } from '@gltf-transform/functions';
 import sharp from 'sharp';
 import { downloadItchStandard } from './lib/itch.mjs';
-import { countTriangles, keepFor, simplifyModel } from './lib/simplify.mjs';
+import { countTriangles, keepFor, simplifyModel, TEXTURE_MAX } from './lib/simplify.mjs';
 import { listZip, readZipEntry } from './lib/unzip.mjs';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
@@ -32,7 +32,6 @@ const CACHE = path.join(ROOT, '.cache', 'quaternius');
 const SRC = path.join(CACHE, 'extracted');
 const OUT = path.join(ROOT, 'public', 'assets');
 const FORCE = process.argv.includes('--force');
-const TEXTURE_MAX = 512;
 const log = (...a) => console.error('[assets]', ...a);
 
 const PACKS = {
@@ -276,6 +275,7 @@ async function buildModel(io, spec) {
     materials: root.listMaterials().map((m) => m.getName()),
     joints: root.listSkins()[0]?.listJoints().length ?? 0,
     simplified: keepFor(spec.id) < 1 ? keepFor(spec.id) : undefined,
+    textureMax: TEXTURE_MAX,
     triangles: countTriangles(doc),
   };
 }
