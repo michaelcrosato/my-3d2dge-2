@@ -94,10 +94,11 @@ export class TouchControls {
       const place = layout[c];
       if (!place.visible && !this.editing) continue;
       const d = this.diameter(c, w, hgt);
-      const el = c === 'move' ? this.moveControl(s) : h('div', { class: `tc tc-${c}`, dataset: { action: c } }, this.labelFor?.(c) ?? CONTROL_LABELS[c]);
+      const text = c === 'move' ? '' : this.labelFor?.(c) ?? CONTROL_LABELS[c];
+      const el = c === 'move' ? this.moveControl(s) : h('div', { class: `tc tc-${c}`, dataset: { action: c } }, text);
       el.dataset.control = c;
       el.setAttribute('role', 'button');
-      el.setAttribute('aria-label', c === 'move' ? (s.style === 'dpad' ? 'Direction pad' : 'Movement stick') : CONTROL_LABELS[c]);
+      el.setAttribute('aria-label', c === 'move' ? (s.style === 'dpad' ? 'Direction pad' : 'Movement stick') : text === CONTROL_LABELS[c] ? text : `${text}, ${CONTROL_LABELS[c]}`);
       Object.assign(el.style, {
         width: `${d}px`, height: `${d}px`,
         left: `${clamp(place.x * w - d / 2, 0, Math.max(0, w - d))}px`,
@@ -192,7 +193,11 @@ export class TouchControls {
     for (const [c, el] of this.els) {
       if (c === 'move') continue;
       const text = this.labelFor?.(c) ?? CONTROL_LABELS[c];
-      if (el.textContent !== text) el.textContent = text;
+      if (el.textContent !== text) {
+        el.textContent = text;
+        // The accessible name starts with the visible text (screen readers and voice control).
+        el.setAttribute('aria-label', text === CONTROL_LABELS[c] ? text : `${text}, ${CONTROL_LABELS[c]}`);
+      }
     }
   }
 

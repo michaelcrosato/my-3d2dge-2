@@ -1,0 +1,35 @@
+{
+  "specVersion": "1.0",
+  "entries": [
+    {
+      "identifier": "urn:air:depthward:game:agent-tools",
+      "displayName": "Depthward agent tools (MCP server)",
+      "type": "application/mcp-server-card+json",
+      "description": "42 tools to build, generate, render and inspect a pixel-art ARPG: creature genomes and custom species, monsters, items and loot simulation, procedural levels with maps, the passive tree, balance curves and bot playtests, and live-game control and capture.",
+      "data": {
+        "name": "depthward",
+        "description": "Depthward engine tools over MCP (stdio). Run from a clone of the repository.",
+        "transport": "stdio",
+        "command": "node",
+        "args": ["tools/mcp-server.mjs"],
+        "repository": "https://github.com/michaelcrosato/my-3d2dge-2"
+      },
+      "representativeQueries": [
+        "render a procedural creature sprite sheet",
+        "generate a dungeon level with mechanics and show its map",
+        "simulate loot drops and balance a hack and slash game",
+        "design a custom monster species from body parts"
+      ]
+    },
+    {
+      "identifier": "urn:air:depthward:game:llms-guide",
+      "displayName": "Depthward guide for language models",
+      "type": "text/markdown; profile=\"urn:air:agent-skills\"",
+      "url": "https://github.com/michaelcrosato/my-3d2dge-2/blob/main/public/llms.txt",
+      "representativeQueries": [
+        "how do agents play and inspect Depthward",
+        "what agent tools does the Depthward engine provide"
+      ]
+    }
+  ]
+}
