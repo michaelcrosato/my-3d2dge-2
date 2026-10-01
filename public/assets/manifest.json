@@ -708,7 +708,9 @@
     "M_Main",
     "M_Joints"
    ],
-   "joints": 65
+   "joints": 65,
+   "simplified": 0.35,
+   "triangles": 4809
   },
   {
    "id": "mannequin_f",
@@ -721,7 +723,9 @@
     "M_Main",
     "M_Joints"
    ],
-   "joints": 65
+   "joints": 65,
+   "simplified": 0.35,
+   "triangles": 5112
   },
   {
    "id": "head_m",
@@ -737,7 +741,9 @@
     "MI_Eyes",
     "MI_Superhero_Male"
    ],
-   "joints": 65
+   "joints": 65,
+   "simplified": 0.45,
+   "triangles": 2063
   },
   {
    "id": "head_f",
@@ -753,7 +759,9 @@
     "MI_Eyes",
     "MI_Superhero_Female"
    ],
-   "joints": 65
+   "joints": 65,
+   "simplified": 0.45,
+   "triangles": 2368
   },
   {
    "id": "outfit_ranger_m",
@@ -774,7 +782,9 @@
     "MI_Ranger",
     "MI_Regular_Male"
    ],
-   "joints": 65
+   "joints": 65,
+   "simplified": 0.3,
+   "triangles": 9031
   },
   {
    "id": "outfit_ranger_f",
@@ -795,7 +805,9 @@
     "MI_Ranger",
     "MI_Regular_Female"
    ],
-   "joints": 65
+   "joints": 65,
+   "simplified": 0.3,
+   "triangles": 9093
   },
   {
    "id": "outfit_peasant_m",
@@ -811,7 +823,9 @@
     "MI_Peasant",
     "MI_Regular_Male"
    ],
-   "joints": 65
+   "joints": 65,
+   "simplified": 0.3,
+   "triangles": 3885
   },
   {
    "id": "outfit_peasant_f",
@@ -826,7 +840,9 @@
    "materials": [
     "MI_Peasant"
    ],
-   "joints": 65
+   "joints": 65,
+   "simplified": 0.3,
+   "triangles": 4082
   },
   {
    "id": "hair_beard",
@@ -838,7 +854,9 @@
    "materials": [
     "MI_Hair_1"
    ],
-   "joints": 65
+   "joints": 65,
+   "simplified": 0.6,
+   "triangles": 620
   },
   {
    "id": "hair_buns",
@@ -850,7 +868,9 @@
    "materials": [
     "MI_Hair_2"
    ],
-   "joints": 65
+   "joints": 65,
+   "simplified": 0.6,
+   "triangles": 1970
   },
   {
    "id": "hair_buzzed",
@@ -862,7 +882,9 @@
    "materials": [
     "MI_Hair_1"
    ],
-   "joints": 65
+   "joints": 65,
+   "simplified": 0.6,
+   "triangles": 498
   },
   {
    "id": "hair_buzzed_f",
@@ -874,7 +896,9 @@
    "materials": [
     "MI_Hair_1"
    ],
-   "joints": 65
+   "joints": 65,
+   "simplified": 0.6,
+   "triangles": 497
   },
   {
    "id": "hair_long",
@@ -886,7 +910,9 @@
    "materials": [
     "MI_Hair_2"
    ],
-   "joints": 65
+   "joints": 65,
+   "simplified": 0.6,
+   "triangles": 1742
   },
   {
    "id": "hair_parted",
@@ -898,7 +924,9 @@
    "materials": [
     "MI_Hair_1"
    ],
-   "joints": 65
+   "joints": 65,
+   "simplified": 0.6,
+   "triangles": 779
   }
  ]
 }

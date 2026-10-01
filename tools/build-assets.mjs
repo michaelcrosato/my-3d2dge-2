@@ -10,7 +10,8 @@
  *   translation track except `pelvis` removed, so characters keep their own bone lengths and
  *   runtime bone scaling (chunky heads/hands) is not overwritten; redundant keys resampled away.
  * - Character parts: base-color textures only, max 512 px (characters render ~48 px tall);
- *   normal / ORM / roughness maps dropped (the toon shading ignores them).
+ *   normal / ORM / roughness maps dropped (the toon shading ignores them); triangles simplified to
+ *   30-60% with meshoptimizer (tools/lib/simplify.mjs; invisible at pixel-art size).
  * - Heads: cut out of the Superhero full-body meshes by skin weight (Head + neck_01), because the
  *   outfits are meant to be worn with a head only (full bodies clip through the clothes).
  * - public/assets/manifest.json: every clip (duration, loop flag, root-motion speed measured on the
@@ -23,6 +24,7 @@ import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
 import { compactPrimitive, dedup, prune, resample, textureCompress } from '@gltf-transform/functions';
 import sharp from 'sharp';
 import { downloadItchStandard } from './lib/itch.mjs';
+import { countTriangles, keepFor, simplifyModel } from './lib/simplify.mjs';
 import { listZip, readZipEntry } from './lib/unzip.mjs';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
@@ -254,6 +256,8 @@ async function buildModel(io, spec) {
   disposeAnimations(root);
   if (spec.headOnly) cutToBones(doc, ['Head', 'neck_01']);
   simplifyMaterials(doc);
+  // Characters render ~48 art pixels tall: keep a fraction of the triangles (tools/lib/simplify.mjs).
+  await simplifyModel(doc, spec.id);
   await doc.transform(
     prune({ keepLeaves: true }),
     dedup(),
@@ -271,6 +275,8 @@ async function buildModel(io, spec) {
     meshes: root.listMeshes().map((m) => m.getName()),
     materials: root.listMaterials().map((m) => m.getName()),
     joints: root.listSkins()[0]?.listJoints().length ?? 0,
+    simplified: keepFor(spec.id) < 1 ? keepFor(spec.id) : undefined,
+    triangles: countTriangles(doc),
   };
 }
 
