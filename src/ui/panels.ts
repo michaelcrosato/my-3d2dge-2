@@ -28,6 +28,7 @@ import { heroSkills, treePoints, type Hero } from '../sim/hero';
 import * as ops from '../sim/heroOps';
 import { craftBlocked, craftCost, describeItem, itemValue, salvageValue, type Craft } from '../sim/items';
 import { xpToNext } from '../sim/scaling';
+import { decode } from '../replays';
 import { h } from './dom';
 import { skillIconNode } from './skillIcons';
 import { TreeView } from './treeView';
@@ -530,6 +531,20 @@ export class Panels {
     )];
   }
 
+  /** Plays a replay file someone shared (or one saved from the replay bar). */
+  private replayFileButton(): HTMLElement {
+    const input = h('input', { type: 'file', accept: '.dwr,.json,text/plain', hidden: true, 'aria-hidden': 'true' }) as HTMLInputElement;
+    input.addEventListener('change', async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      const replay = await decode(await file.text());
+      if (!replay) return this.toast('Not a replay this version of the game can play', '#ff8a8a');
+      this.close();
+      void this.game.playReplay(replay);
+    });
+    return h('div', { class: 'actions' }, input, h('button', { class: 'ui-btn small', onclick: () => input.click() }, 'Watch a replay file…'));
+  }
+
   /** ▶ for a depth with a stored best-run replay (watching it changes nothing). */
   private replayButton(key: string): HTMLElement | null {
     const store = this.game.replays, slot = this.game.heroSlot;
@@ -593,6 +608,7 @@ export class Panels {
     return [trialBox, pactBox ?? h('section', {}, h('h3', {}, 'Pacts'), h('p', { class: 'note' }, `Reach depth ${locked?.minDepth ?? 3} to make pacts: harder depths for richer rewards.`)),
       h('section', { class: 'stagelist' },
         h('h3', {}, 'Choose a depth'),
+        this.replayFileButton(),
         h('p', { class: 'note' }, 'Each depth is named after its trick: use it, or ignore it and swing harder. Clear the boss to unlock the next. Past depth 24 new depths combine tricks forever.'),
         ...rows)];
   }

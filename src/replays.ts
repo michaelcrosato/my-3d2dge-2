@@ -5,6 +5,27 @@
  */
 import { REPLAY_VERSION, type Replay } from './sim/replay';
 
+/** Shape check for replays from storage or files (they come from outside the code). */
+function isReplay(r: unknown): r is Replay {
+  const x = r as Partial<Replay> | null;
+  return !!x && x.v === REPLAY_VERSION && typeof x.key === 'string' && typeof x.title === 'string' && typeof x.seed === 'number'
+    && typeof x.frames === 'number' && x.frames > 0 && typeof x.time === 'number' && typeof x.hash === 'string'
+    && !!x.level && typeof x.level === 'object' && !!x.hero && typeof x.hero === 'object' && Array.isArray(x.input) && Array.isArray(x.cmds);
+}
+
+/** Offers a replay as a file download (share a run). */
+export async function downloadReplay(r: Replay) {
+  const blob = new Blob([await encode(r)], { type: 'text/plain' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  const t = (r.time / 60).toFixed(1).replace('.', '_');
+  a.download = `depthward-${r.key.replace(/[^\w-]+/g, '-')}-${t}s.dwr`;
+  document.body.append(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
 export interface ReplayMeta {
   key: string;
   title: string;
@@ -17,7 +38,8 @@ export interface ReplayMeta {
 const PREFIX = '3dpixel2d.replay.v1';
 export const MAX_PER_SLOT = 12;
 
-async function encode(r: Replay): Promise<string> {
+/** A replay as text: gzip + base64 when the browser can, plain JSON otherwise (also the file format). */
+export async function encode(r: Replay): Promise<string> {
   const json = JSON.stringify(r);
   if (typeof CompressionStream === 'undefined') return `js:${json}`;
   const stream = new Blob([json]).stream().pipeThrough(new CompressionStream('gzip'));
@@ -27,14 +49,21 @@ async function encode(r: Replay): Promise<string> {
   return `gz:${btoa(bin)}`;
 }
 
-async function decode(text: string): Promise<Replay | null> {
+/** Reads stored or shared replay text; null when it is not a replay this version can play. */
+export async function decode(text: string): Promise<Replay | null> {
   try {
-    if (text.startsWith('js:')) return JSON.parse(text.slice(3)) as Replay;
-    if (!text.startsWith('gz:') || typeof DecompressionStream === 'undefined') return null;
-    const bin = atob(text.slice(3));
-    const bytes = Uint8Array.from(bin, (c) => c.charCodeAt(0));
-    const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
-    return JSON.parse(await new Response(stream).text()) as Replay;
+    text = text.trim();
+    let r: unknown;
+    if (text.startsWith('js:')) r = JSON.parse(text.slice(3));
+    else if (text.startsWith('{')) r = JSON.parse(text);
+    else {
+      if (!text.startsWith('gz:') || typeof DecompressionStream === 'undefined') return null;
+      const bin = atob(text.slice(3));
+      const bytes = Uint8Array.from(bin, (c) => c.charCodeAt(0));
+      const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
+      r = JSON.parse(await new Response(stream).text());
+    }
+    return isReplay(r) ? r : null;
   } catch {
     return null;
   }
