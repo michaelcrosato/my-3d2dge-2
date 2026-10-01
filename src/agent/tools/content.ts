@@ -667,7 +667,7 @@ defineTool({
     const rows: Array<Record<string, unknown>> = [];
     withTune(a.difficulty, a.tune, () => {
       for (let n = a.from; n <= Math.min(a.to, a.from + 39); n++) {
-        let cleared = false, attempts = 0, seconds = 0, deaths = 0, kills = 0, picked = 0, mk = 0, boss: number | null = null;
+        let cleared = false, attempts = 0, seconds = 0, deaths = 0, kills = 0, picked = 0, mk = 0, boss: number | null = null, lowest = 1;
         const startLevel = hero.level;
         while (!cleared && attempts <= a.retries) {
           attempts++;
@@ -683,6 +683,7 @@ defineTool({
             picked += r.itemsPicked;
             mk += r.mechanicKills;
             boss = r.bossSeconds;
+            lowest = Math.min(lowest, r.lowestLife);
             if (cleared) {
               const key = String(n);
               if (!(key in hero.progress.cleared)) hero.progress.cleared[key] = r.frames;
@@ -698,7 +699,7 @@ defineTool({
               const best = sheet.skills.reduce((x, y) => (y.perSecond > x.perSecond ? y : x));
               rows.push({
                 depth: n, title: stageTitle(n), monsterLevel: level.monsterLevel, heroLevel: `${startLevel}->${hero.level}`, gap: hero.level - (level.monsterLevel ?? 1),
-                cleared, attempts, seconds: r1(seconds), bossSeconds: boss, deaths, kills, mechanicKills: mk, itemsPicked: picked, upgrades: upgrades.length,
+                cleared, attempts, seconds: r1(seconds), bossSeconds: boss, deaths, lowestLife: lowest, kills, mechanicKills: mk, itemsPicked: picked, upgrades: upgrades.length,
                 life: sheet.life, best: `${best.name} ${best.perSecond}/s`, power: Math.round(heroPower(sim)), gold: hero.gold,
               });
             }

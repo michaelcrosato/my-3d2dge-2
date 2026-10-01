@@ -175,6 +175,7 @@ and reports level gap, deaths, clear time and boss-fight length; `balance.curve`
   linearly with level. Without the ramp, hero damage outgrew monster life ~30x by level 85.
 - **Early bosses** (`bossEase`, `bossLifeEase`): the first bosses start at 60% damage and 45%
   life, reaching full strength by levels 13 and 5.
+- **Damage ramp** (`damageRamp`): heroes gather defences faster than the defense curve tracks; without it the Normal campaign sat above 75% life from depth 10 on. Monster damage rises 1.2% per level past 12 (capped at +80%). Melee now dips to a median of 49-69% life per depth, ranged stays safer.
 - **Experience catch-up** (`xpCatchUp`): monsters above the hero give up to +96% experience,
   so a hero who falls behind (or pushes deeper) closes the gap.
 - **Mechanics never trap**: field pulls are capped at 60% of a character's run speed, bosses
