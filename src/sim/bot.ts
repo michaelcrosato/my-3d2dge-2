@@ -13,6 +13,7 @@ import { skill as skillDef, type SkillDef } from '../content/skills';
 import { blockedReason, inShape } from './actions';
 import { estimateSkill, hostile } from './combat';
 import type { P2 } from './nav';
+import { PYLON_RANGE, segDist } from './mechanics';
 import { propSpec } from './props';
 import { Rng } from './rng';
 import { emptyInput, type Sim } from './sim';
@@ -87,6 +88,7 @@ export class Bot {
     const target = this.pickTarget(p, enemies);
     if (target) {
       if (this.opts.mechanics && this.useKeg(p, input, enemies)) return this.setGoal('mechanic', 'keg');
+      if (this.opts.mechanics && this.usePylons(p, input, enemies)) return this.setGoal('mechanic', 'pylons');
       if (this.opts.mechanics && this.breakTotem(p, input, target)) return this.setGoal('mechanic', 'totem');
       this.fight(p, input, target, enemies);
       return this.setGoal('fight', target.name);
@@ -263,6 +265,28 @@ export class Bot {
       else this.moveToward(p, input, { x: k.x, z: k.z }, 1.6);
       return true;
     }
+    return false;
+  }
+
+  /** Charges a pylon pair when two or more monsters stand on the line between them. */
+  private usePylons(p: Character, input: CharacterInput, enemies: Character[]): boolean {
+    const pylons = [...this.sim.props.values()].filter((q) => q.kind === 'pylon' && !q.dead);
+    for (let i = 0; i < pylons.length; i++)
+      for (let j = i + 1; j < pylons.length; j++) {
+        const a = pylons[i], b = pylons[j];
+        if (Math.hypot(a.x - b.x, a.z - b.z) > PYLON_RANGE) continue;
+        // Charged and not about to fade: the beam is already working.
+        const needs = [a, b].filter((q) => q.state !== 'charged' || q.timer < 45);
+        if (!needs.length) continue;
+        if (enemies.filter((e) => segDist(e.pos.x, e.pos.z, a.x, a.z, b.x, b.z) < 1.2).length < 2) continue;
+        const q = needs.sort((x, y) => Math.hypot(x.x - p.pos.x, x.z - p.pos.z) - Math.hypot(y.x - p.pos.x, y.z - p.pos.z))[0];
+        const d = Math.hypot(q.x - p.pos.x, q.z - p.pos.z);
+        if (d > 7) continue;
+        input.aim = { x: q.x, z: q.z };
+        if (d <= 1.9) input.attackHeld = true;
+        else this.moveToward(p, input, q, 1.4);
+        return true;
+      }
     return false;
   }
 
@@ -524,7 +548,7 @@ export function runBot(sim: Sim, opts: BotOptions & { maxFrames?: number } = {},
     goals: {}, timeline: [], mechanicEvents: {},
   };
   // Mechanics the hero used (ambient cycles such as spikes rising are left out).
-  const used = new Set(['keg.lit', 'beacon.lit', 'launch', 'rift', 'shrine', 'totem.break', 'imp.escape', 'mechanic.kill']);
+  const used = new Set(['keg.lit', 'beacon.lit', 'launch', 'rift', 'shrine', 'totem.break', 'imp.escape', 'pylon.charge', 'mechanic.kill']);
   let seq = sim.lastEventSeq;
   let bossFirstHit = -1;
   const t = () => Math.round((r.frames / 60) * 10) / 10;

@@ -328,7 +328,7 @@ registerProp('pylon', { radius: 0.38, height: 2.1, solid: true, hittable: true, 
 });
 
 /** Distance from (px, pz) to the segment a-b. */
-function segDist(px: number, pz: number, ax: number, az: number, bx: number, bz: number) {
+export function segDist(px: number, pz: number, ax: number, az: number, bx: number, bz: number) {
   const dx = bx - ax, dz = bz - az, len2 = dx * dx + dz * dz || 1;
   const t = Math.max(0, Math.min(1, ((px - ax) * dx + (pz - az) * dz) / len2));
   return Math.hypot(px - (ax + dx * t), pz - (az + dz * t));
