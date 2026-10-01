@@ -62,6 +62,7 @@ The ⚙ button opens Settings. Everything is stored per **profile**; Standard, L
 | `npm run agent -- <tool> [args]` | Call an agent tool from the terminal (`help` lists them) |
 | `npm run mcp` | Stdio MCP server exposing the agent tools |
 | `npm run assets` | Download source packs and rebuild runtime assets (requires network) |
+| `node tools/pack-assets.mjs` | Pack the committed GLBs losslessly in place (meshopt buffers, WebP textures; decoded bit-identical by `GLTFLoader`) |
 
 ## Layout
 

@@ -8,14 +8,13 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import { NodeIO } from '@gltf-transform/core';
-import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
+import { isPacked, packDocument, packIO } from './lib/pack.mjs';
 import { countTriangles, keepFor, shrinkTextures, simplifyModel, TEXTURE_MAX } from './lib/simplify.mjs';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 const DIR = path.join(ROOT, 'public', 'assets', 'models');
 const MANIFEST = path.join(ROOT, 'public', 'assets', 'manifest.json');
-const io = new NodeIO().registerExtensions(ALL_EXTENSIONS);
+const io = await packIO();
 const manifest = JSON.parse(fs.readFileSync(MANIFEST, 'utf8'));
 let before = 0, after = 0;
 for (const m of manifest.models) {
@@ -34,6 +33,7 @@ for (const m of manifest.models) {
   if (needsTex) await shrinkTextures(doc);
   const t1 = countTriangles(doc);
   after += t1;
+  if (!isPacked(doc)) await packDocument(doc);
   await io.write(file, doc);
   if (needsMesh) m.simplified = keepFor(m.id);
   m.textureMax = TEXTURE_MAX;

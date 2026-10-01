@@ -14,16 +14,17 @@
  *   30-60% with meshoptimizer (tools/lib/simplify.mjs; invisible at pixel-art size).
  * - Heads: cut out of the Superhero full-body meshes by skin weight (Head + neck_01), because the
  *   outfits are meant to be worn with a head only (full bodies clip through the clothes).
+ * - Packing (tools/lib/pack.mjs): buffers meshopt-coded and textures lossless WebP, so files are
+ *   ~30% smaller (models ~45%) and still decode bit-identical.
  * - public/assets/manifest.json: every clip (duration, loop flag, root-motion speed measured on the
  *   _RM variants) and every model (meshes, materials). Read by the runtime, the sim and agents.
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import { NodeIO } from '@gltf-transform/core';
-import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
 import { compactPrimitive, dedup, prune, resample, textureCompress } from '@gltf-transform/functions';
 import sharp from 'sharp';
 import { downloadItchStandard } from './lib/itch.mjs';
+import { packDocument, packIO } from './lib/pack.mjs';
 import { countTriangles, keepFor, simplifyModel, TEXTURE_MAX } from './lib/simplify.mjs';
 import { listZip, readZipEntry } from './lib/unzip.mjs';
 
@@ -234,6 +235,7 @@ async function buildAnimLibrary(io, spec) {
   }));
   fs.mkdirSync(path.dirname(out), { recursive: true });
   if (!isFresh(out, input)) {
+    await packDocument(doc);
     await io.write(out, doc);
     log(`anims/${spec.id}.glb: ${clips.length} clips, ${removed} channels stripped, ${(fs.statSync(out).size / 1e6).toFixed(2)} MB`);
   }
@@ -264,6 +266,7 @@ async function buildModel(io, spec) {
   );
   fs.mkdirSync(path.dirname(out), { recursive: true });
   if (!isFresh(out, input)) {
+    await packDocument(doc);
     await io.write(out, doc);
     log(`models/${spec.id}.glb: ${(fs.statSync(out).size / 1e6).toFixed(2)} MB`);
   }
@@ -282,7 +285,7 @@ async function buildModel(io, spec) {
 
 async function main() {
   await ensurePacks();
-  const io = new NodeIO().registerExtensions(ALL_EXTENSIONS);
+  const io = await packIO();
   const clips = [];
   for (const spec of ANIMS) clips.push(...(await buildAnimLibrary(io, spec)));
   const models = [];
