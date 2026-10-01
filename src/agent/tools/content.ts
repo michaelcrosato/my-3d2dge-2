@@ -6,6 +6,7 @@
  */
 import { applyDifficulty, config, CONFIG_SPEC, DIFFICULTY_PRESETS, describeConfig, setConfig, type ConfigKey } from '../../config';
 import { AFFIXES } from '../../content/affixes';
+import { DESIGN_ARCHETYPES, DESIGN_BODIES, DESIGN_SKILLS, designProblems, designStats, monsterId, registerDesign, releasedSpecies, setReleased, type SpeciesDesign } from '../../content/bestiary';
 import { AUTHORED, campaignStage, stageMechanics, stageTitle } from '../../content/campaign';
 import { PRESETS } from '../../content/characters';
 import { BASES, ITEM_BASES, type ItemRarity, type SlotKind } from '../../content/items';
@@ -159,6 +160,55 @@ defineTool({
     };
     const stored = registerMonster(def);
     return { id: stored.id, def: stored, next: [`monster.inspect {"id":"${stored.id}","level":10}`, `monster.render {"id":"${stored.id}"}`, `monster.spawn {"id":"${stored.id}"}`] };
+  },
+});
+
+defineTool({
+  name: 'species.design', group: 'creature',
+  desc: 'Designs a species the way the in-game Workshop does: body + genome edits + palette + archetype + up to three attacks, with life, damage and speed derived from the parts under a threat budget. Registers custom:<id> (and custom:<id>-boss). In the live game, save=true adds it to the player\'s bestiary and release=true sends it into the depths.',
+  params: {
+    id: { type: 'string', required: true, desc: 'Short id (lowercase letters, digits, _ -).' },
+    name: { type: 'string', desc: 'Display name (default: generated).' },
+    body: { type: 'string', required: true, enum: DESIGN_BODIES, desc: 'Body plan or preset.' },
+    seed: { type: 'integer', default: 1, desc: 'Genome seed.' },
+    genome: { type: 'object', desc: 'Genome edits (see creature.genome).' },
+    archetype: { type: 'string', enum: DESIGN_ARCHETYPES, desc: 'Behaviour (default: from the body kit).' },
+    skills: { type: 'array', items: { type: 'string', enum: DESIGN_SKILLS }, desc: 'Up to three attacks (default: from the body kit).' },
+    palette: { type: 'string', default: 'moss', enum: Object.keys(PALETTES), desc: 'Palette.' },
+    size: { type: 'number', default: 1, min: 0.6, max: 1.8, desc: 'Overall scale.' },
+    save: { type: 'boolean', default: false, desc: 'Save to the bestiary (live game with saves).' },
+    release: { type: 'boolean', default: false, desc: 'Release into the depths (implies save).' },
+  },
+  example: { id: 'thornback', body: 'boar', seed: 7, genome: { spikes: { count: 10 }, horns: { count: 2 } }, archetype: 'charger', skills: ['m_charge', 'm_bite'], palette: 'venom' },
+  run(a, ctx) {
+    const plan = planOf(a.body);
+    const d: SpeciesDesign = {
+      id: a.id, name: a.name ?? speciesName(plan, a.seed), body: a.body, seed: a.seed, genome: a.genome as GenomeEdits | undefined,
+      archetype: a.archetype ?? PLAN_KIT[plan].archetypes.find((x) => DESIGN_ARCHETYPES.includes(x)) ?? 'skirmisher',
+      skills: a.skills ?? PLAN_KIT[plan].skills.slice(0, 2), palette: a.palette, size: a.size, released: a.release || undefined,
+    };
+    const problems = designProblems(d);
+    if (problems.length) throw new Error(problems.join('; '));
+    const def = registerDesign(d);
+    let saved: string | null = null;
+    const saves = ctx.game?.saves;
+    if ((a.save || a.release) && saves) {
+      const err = saves.saveDesign(d);
+      if (err) throw new Error(err);
+      setReleased(saves.file.bestiary);
+      saved = a.release ? 'saved and released into the depths' : 'saved to the bestiary';
+    }
+    return { id: def.id, bossId: monsterId(d, true), stats: designStats(d), design: d, saved, next: [`monster.render {"id":"${def.id}"}`, `monster.inspect {"id":"${def.id}","level":20}`] };
+  },
+});
+
+defineTool({
+  name: 'bestiary.list', group: 'creature',
+  desc: 'Species in the player\'s Workshop bestiary (live game) and which of them roam the depths.',
+  params: {},
+  run(_a, ctx) {
+    const list = ctx.game?.saves?.file.bestiary ?? [];
+    return { released: releasedSpecies(), species: list.map((d) => ({ id: monsterId(d), name: d.name, body: d.body, palette: d.palette, archetype: d.archetype, skills: d.skills, released: !!d.released, stats: designStats(d) })) };
   },
 });
 

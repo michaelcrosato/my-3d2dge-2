@@ -5,6 +5,7 @@
 - **Combat:** a three-hit sword combo you can hold down, dodge rolls with i-frames, 17 active skills (melee, movement, spells, minions), telegraphed boss attacks, ailments (ignite, chill, freeze, shock, poison, bleed), stagger, knockback, hitstop and screen shake.
 - **Progression:** XP and levels, gold, and loot with normal, magic, rare and unique rarities. Affixes keep scaling with item level, and flasks refill from kills. The merchant buys, sells and gambles, and the blacksmith upgrades, reforges, augments, tempers, hones and salvages.
 - **Passive tree:** about 550 nodes in six attribute sectors. It has notables, 18 keystones, skill nodes with enhancements, jewel sockets and repeatable masteries for endless points.
+- **Creature Workshop:** a Spore-style editor (Sela the Beastwright in town, or the title screen). Pick a body plan and reshape it: proportions, legs, arms and pincers, head, eyes, horns, tail and tip, spikes, plates, wings and tentacles. Then colour it and give it a behaviour and up to three attacks, with a live pixel-art preview. Life, damage and speed come from the parts under a threat budget. Save species to the bestiary, test-fight them in the Proving Grounds, and release them into the depths, where they join the encounter pools.
 - **Monsters:**
   - Humanoid families with recolor palettes.
   - Spore-style procedural creatures: eight body plans, endless seeds and procedural animation.
@@ -69,7 +70,7 @@ The ⚙ button opens Settings. Everything is stored per **profile**; Standard, L
 
 ## Agent tools
 
-The engine ships its own tools for AI agents: 38 typed, documented tools for building, generating, rendering and inspecting the game's assets and systems. They live in `src/agent/` and run in three places:
+The engine ships its own tools for AI agents: 40 typed, documented tools for building, generating, rendering and inspecting the game's assets and systems. They live in `src/agent/` and run in three places:
 
 - **Browser console:** `await agent.call('help')`, `await agent.call('creature.render', { plan: 'spider', seed: 9 })`, `agent.tools()` (names, descriptions, JSON Schemas). Present in every mode.
 - **Terminal:** `npm run agent -- help`, `npm run agent -- level.generate stage=30 'mechanics=["kegs","ice"]'`, `npm run agent -- --script steps.json`, `npm run agent -- repl`. Images are written to `.agent/out/` (git-ignored) and their paths are printed.
@@ -80,7 +81,7 @@ The CLI and the MCP server start Vite in-process and drive headless Chromium (`-
 | Group | Tools |
 | --- | --- |
 | meta, catalog | `help`, `catalog.list` (skills, monsters, archetypes, palettes, affixes, body plans, bases, uniques, mechanics, themes, statuses, stats, presets) |
-| creature | `creature.genome`, `species.create` (assemble a monster from body + genome edits + archetype + attacks + palette), `monster.inspect`, `encounter.roll` |
+| creature | `creature.genome`, `species.design` (Workshop rules: stats from parts, threat budget; save and release into the depths), `species.create` (free-form monster from parts), `bestiary.list`, `monster.inspect`, `encounter.roll` |
 | item | `item.roll`, `loot.simulate` (thousands of kills through the real drop code) |
 | level | `campaign.list`, `level.generate` (any depth or a remix of theme / layout / mechanics, with a map image and critical path) |
 | tree, hero | `tree.inspect`, `tree.path`, `tree.render`, `hero.build` (auto-built hero of any level), `skill.inspect` |

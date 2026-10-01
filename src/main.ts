@@ -17,6 +17,7 @@ import type { TouchControl } from './input/profile';
 import { SettingsStore } from './input/store';
 import { AssetLibrary } from './render/assets';
 import { SaveStore } from './save';
+import { registerDesign, setReleased } from './content/bestiary';
 import { SKILLS } from './content/skills';
 import { newHero } from './sim/hero';
 import { focusNav, h } from './ui/dom';
@@ -24,6 +25,7 @@ import { GameHud } from './ui/gameHud';
 import { installGameStyles } from './ui/gameStyles';
 import { hudText } from './ui/hud';
 import { PauseMenu, TitleScreen } from './ui/menus';
+import { Workshop } from './ui/workshop';
 import { Panels, type PanelId } from './ui/panels';
 import { SettingsMenu } from './ui/settings';
 import { installStyles } from './ui/styles';
@@ -61,7 +63,8 @@ function setupHuman(game: Game, saves: SaveStore) {
   let panels: Panels | null = null;
   let pause: PauseMenu | null = null;
   let title: TitleScreen | null = null;
-  const anyOpen = () => !!menu?.open || !!panels?.open || !!pause?.open || !!title?.open || editing;
+  let workshop: Workshop | null = null;
+  const anyOpen = () => !!menu?.open || !!panels?.open || !!pause?.open || !!title?.open || !!workshop?.open || editing;
   const togglePanel = (p: PanelName | PanelId) => {
     if (!game.hero || game.mode === 'sandbox' || game.mode === 'title') return;
     if (pause?.open) pause.hide();
@@ -72,6 +75,7 @@ function setupHuman(game: Game, saves: SaveStore) {
     toggleMenu: () => {
       if (editing) return stopEdit();
       if (menu?.open) return menu.hide();
+      if (workshop?.open) return workshop.close();
       if (panels?.open) return panels.close();
       if (title?.open) return;
       pause?.toggle();
@@ -79,6 +83,7 @@ function setupHuman(game: Game, saves: SaveStore) {
     menuNav: (cmd) => {
       if (editing) return cmd === 'back' && stopEdit();
       if (menu?.open) return menu.nav(cmd);
+      if (workshop?.open) return focusNav(workshop.el, cmd, () => workshop?.close());
       const box = panels?.open ? panels.el : pause?.open ? pause.el : title?.open ? title.el : null;
       if (box) focusNav(box, cmd, () => (panels?.open ? panels.close() : pause?.hide()));
     },
@@ -191,10 +196,31 @@ function setupHuman(game: Game, saves: SaveStore) {
 
   panels = new Panels(game, gtoast);
   const ghud = new GameHud(game, gtoast, () => togglePanel('character'));
+  // The bestiary: Workshop species are registered at boot; released ones join the depths.
+  for (const d of saves.file.bestiary) registerDesign(d);
+  setReleased(saves.file.bestiary);
+  let workshopFromTitle = false;
+  workshop = new Workshop(game, saves, {
+    toast: (t, c) => gtoast(t, c),
+    testFight: (d) => {
+      if (!game.hero) return;
+      gtoast(`Entering the Proving Grounds: ${d.name}`, '#7ab8ff');
+      void game.enterArena(d).then(() => syncTouch());
+    },
+    closed: () => {
+      if (workshopFromTitle && game.mode === 'title') title?.show();
+      workshopFromTitle = false;
+      syncTouch();
+    },
+  });
   const hooks = {
     openSettings: () => menu?.show(),
     openPanel: (p: PanelId) => togglePanel(p),
     toast: (t: string) => gtoast(t),
+    openWorkshop: () => {
+      workshopFromTitle = game.mode === 'title';
+      workshop?.show();
+    },
   };
   pause = new PauseMenu(game, saves, hooks);
   title = new TitleScreen(game, saves, { ...hooks, started: () => syncTouch() });
@@ -205,7 +231,8 @@ function setupHuman(game: Game, saves: SaveStore) {
     const role = String(e.role);
     const map: Record<string, PanelId> = { merchant: 'merchant', smith: 'smith', sage: 'sage', stash: 'stash', waypoint: 'waypoint', shrine_respec: 'shrine_respec', anvil: 'smith' };
     const p = map[role];
-    if (p) panels?.show(p);
+    if (role === 'workshop') workshop?.show();
+    else if (p) panels?.show(p);
     else gtoast(`${e.name}: “${role === 'guard' ? 'Every depth has its own trick. Learn it, or ignore it and swing harder.' : 'Lovely day for not going into the dungeon.'}”`);
   });
   window.addEventListener('game:title', () => {
