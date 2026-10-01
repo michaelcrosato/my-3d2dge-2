@@ -87,3 +87,22 @@ describe('designs in the game', () => {
     expect(normalizeDesign({ id: 'x', body: 'wolf', archetype: 'nope', palette: 'moss', skills: [] })).toBeNull();
   });
 });
+
+describe('save slots', () => {
+  it('drops the untouched backdrop hero older builds left in a slot, keeps real ones', async () => {
+    const { newHero } = await import('../src/sim/hero');
+    const { SaveStore: Store, isPhantom } = await import('../src/save');
+    const phantom = newHero();
+    const named = newHero('Ranger');
+    named.totals.kills = 3;
+    const fresh = newHero('Mira');
+    expect(isPhantom(phantom)).toBe(true);
+    expect(isPhantom(named)).toBe(false);
+    expect(isPhantom(fresh)).toBe(false);
+    const mem = new Map<string, string>();
+    const storage = { getItem: (k: string) => mem.get(k) ?? null, setItem: (k: string, v: string) => void mem.set(k, v), removeItem: (k: string) => void mem.delete(k) } as unknown as Storage;
+    mem.set('3dpixel2d.save.v1', JSON.stringify({ version: 1, slots: [phantom, named, fresh], active: 0, tune: {} }));
+    const s = new Store(storage);
+    expect(s.file.slots.map((h) => h?.name ?? null)).toEqual([null, 'Ranger', 'Mira']);
+  });
+});

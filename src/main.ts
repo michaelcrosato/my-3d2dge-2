@@ -27,6 +27,9 @@ import { GameHud } from './ui/gameHud';
 import { installGameStyles } from './ui/gameStyles';
 import { hudText } from './ui/hud';
 import { PauseMenu, TitleScreen } from './ui/menus';
+import { Hints } from './ui/hints';
+import { codeLabel, padLabel } from './input/resolve';
+import type { Action } from './input/actions';
 import { Workshop } from './ui/workshop';
 import { Panels, type PanelId } from './ui/panels';
 import { SettingsMenu } from './ui/settings';
@@ -202,6 +205,17 @@ function setupHuman(game: Game, saves: SaveStore) {
 
   panels = new Panels(game, gtoast);
   const ghud = new GameHud(game, gtoast, () => togglePanel('character'));
+  // First-steps hints name the control for the device in use.
+  const controlLabel = (a: Action): string => {
+    const p = store.active;
+    if (input.device === 'gamepad' && p.pad[a]?.[0]) return padLabel(p.pad[a][0]);
+    if (document.body.classList.contains('touchui')) {
+      const toolbar: Partial<Record<Action, string>> = { inventory: 'Bag', tree: 'Tree', character: 'Char', townPortal: '☰ → Return to town' };
+      return toolbar[a] ?? (CONTROL_LABELS as Record<string, string>)[a] ?? a;
+    }
+    return p.keys[a]?.[0] ? codeLabel(p.keys[a][0]) : a;
+  };
+  const hints = new Hints(game, controlLabel);
   // Synthesized sound effects and ambience (starts on the first click / key / touch).
   audio = new AudioEngine(game);
   Object.assign(window, { audio });
@@ -286,6 +300,7 @@ function setupHuman(game: Game, saves: SaveStore) {
         if (hud.textContent !== debug) hud.textContent = debug;
       } else if (hud.textContent) hud.textContent = '';
       ghud.update(p, input.device, dt, game.mode === 'sandbox' ? '' : debug);
+      hints.update(dt);
       const toolbar = document.getElementById('toolbar')!;
       toolbar.hidden = game.mode === 'title';
       // Sit under the pixel minimap (its size depends on the integer upscale).
@@ -340,11 +355,14 @@ async function boot() {
   const seed = Number(params.get('seed') ?? 1);
   game.seed = seed;
   const stageParam = params.get('stage');
+  // Quick starts and the title backdrop use throwaway heroes that never touch the save slots.
   if (stageParam) {
     game.hero = newHero();
+    game.ephemeralHero = true;
     await game.enterStage(Math.max(1, Number(stageParam) || 1));
   } else if (params.has('town')) {
     game.hero = newHero();
+    game.ephemeralHero = true;
     await game.enterTown();
   } else if (agentMode || params.has('sandbox')) {
     await game.reset({ seed });
@@ -352,6 +370,7 @@ async function boot() {
   } else {
     // Title screen over the town as a living backdrop.
     game.hero = newHero();
+    game.ephemeralHero = true;
     await game.enterTown();
     game.hero = null;
     game.mode = 'title';
