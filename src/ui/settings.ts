@@ -16,7 +16,7 @@ import { CONTROL_LABELS, PREVIEW_SIZE, TouchControls } from './touch';
 import { toast } from './toast';
 
 type Tab = 'profiles' | 'graphics' | 'keyboard' | 'gamepad' | 'touch';
-const TABS: Array<[Tab, string]> = [['profiles', 'Profiles'], ['graphics', 'Graphics'], ['keyboard', 'Keyboard & mouse'], ['gamepad', 'Gamepad'], ['touch', 'Touch']];
+const TABS: Array<[Tab, string]> = [['profiles', 'Profiles'], ['graphics', 'Graphics & audio'], ['keyboard', 'Keyboard & mouse'], ['gamepad', 'Gamepad'], ['touch', 'Touch']];
 
 const GRAPHICS_LABELS: Record<GraphicsKey, string> = {
   'render.pixelMode': 'Pixel art mode', 'render.targetLines': 'Resolution (lines)', 'render.pixelsPerMeter': 'Pixels per meter',
@@ -27,6 +27,7 @@ const GRAPHICS_LABELS: Record<GraphicsKey, string> = {
   'render.colliders': 'Collider overlay', 'render.headScale': 'Head scale', 'render.handScale': 'Hand scale',
   'anim.stepped': 'Stepped animation', 'anim.fps': 'Animation fps', 'anim.dir8': '8-way facing', 'anim.blend': 'Blend time (s)',
   'sim.timeScale': 'Game speed',
+  'audio.master': 'Master volume', 'audio.sfx': 'Sound effects', 'audio.ambience': 'Ambience', 'audio.mute': 'Mute',
 };
 
 const FOCUSABLE = 'button:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -334,6 +335,7 @@ export class SettingsMenu {
     const groups: Array<[string, GraphicsKey[]]> = [
       ['Rendering', GRAPHICS_KEYS.filter((k) => k.startsWith('render.'))],
       ['Animation', GRAPHICS_KEYS.filter((k) => k.startsWith('anim.'))],
+      ['Audio', GRAPHICS_KEYS.filter((k) => k.startsWith('audio.'))],
       ['Gameplay', ['sim.timeScale']],
     ];
     const out: Node[] = [h('p', { class: 'note' }, 'Applies live and is saved to the active profile. Keyboard shortcuts (P, O, I…) change the same settings.')];

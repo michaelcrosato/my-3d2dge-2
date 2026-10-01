@@ -11,6 +11,7 @@
 import type { Game } from '../game';
 import { clipTable } from '../render/assets';
 import { callTool, describeTools } from './registry';
+import './tools/audio';
 import './tools/content';
 import './tools/render';
 import './tools/world';

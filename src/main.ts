@@ -9,6 +9,7 @@
  */
 import * as THREE from 'three';
 import { createAgentApi } from './agent/api';
+import { AudioEngine } from './audio/engine';
 import { installLogCapture } from './agent/logs';
 import { setConfig } from './config';
 import { Game } from './game';
@@ -64,11 +65,13 @@ function setupHuman(game: Game, saves: SaveStore) {
   let pause: PauseMenu | null = null;
   let title: TitleScreen | null = null;
   let workshop: Workshop | null = null;
+  let audio: AudioEngine | null = null;
   const anyOpen = () => !!menu?.open || !!panels?.open || !!pause?.open || !!title?.open || !!workshop?.open || editing;
   const togglePanel = (p: PanelName | PanelId) => {
     if (!game.hero || game.mode === 'sandbox' || game.mode === 'title') return;
     if (pause?.open) pause.hide();
     panels?.toggle(p as PanelId);
+    audio?.play({ id: panels?.open ? 'ui_open' : 'ui_close' });
   };
   const input = new InputController(game, store, {
     menuOpen: anyOpen,
@@ -196,6 +199,9 @@ function setupHuman(game: Game, saves: SaveStore) {
 
   panels = new Panels(game, gtoast);
   const ghud = new GameHud(game, gtoast, () => togglePanel('character'));
+  // Synthesized sound effects and ambience (starts on the first click / key / touch).
+  audio = new AudioEngine(game);
+  Object.assign(window, { audio });
   // The bestiary: Workshop species are registered at boot; released ones join the depths.
   for (const d of saves.file.bestiary) registerDesign(d);
   setReleased(saves.file.bestiary);
