@@ -14,7 +14,7 @@ const css = /* css */ `
   background: #14121bee; color: #f3ead6; border: 1px solid #7ab8ff; border-radius: 6px; padding: 5px 10px; font: 600 13px/1.3 system-ui, sans-serif; box-shadow: 0 6px 24px #000a; }
 #replaybar[hidden] { display: none; }
 /* A replay ignores input: on touch screens its bar takes the controls' place at the bottom. */
-body.replaying #touch, body.replaying #toolbar { display: none !important; }
+body.replaying #touch, body.replaying #toolbar, body.on-title #touch { display: none !important; }
 body.touchui #replaybar { top: auto; bottom: calc(max(12px, env(safe-area-inset-bottom)) + 12px); }
 #ghud { position: fixed; inset: 0; pointer-events: none; z-index: 6; font: 600 12px/1.25 ui-monospace, Consolas, monospace; color: var(--gp-text); }
 #ghud[hidden] { display: none; }

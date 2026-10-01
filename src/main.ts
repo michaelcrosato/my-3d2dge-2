@@ -335,6 +335,8 @@ function setupHuman(game: Game, saves: SaveStore) {
       updateReplayBar();
       const toolbar = document.getElementById('toolbar')!;
       toolbar.hidden = game.mode === 'title';
+      // The title screen has its own buttons: no touch controls behind it.
+      document.body.classList.toggle('on-title', game.mode === 'title');
       // Sit under the pixel minimap (its size depends on the integer upscale).
       const mm = game.overlay.minimapRect;
       const rect = game.canvas.getBoundingClientRect();

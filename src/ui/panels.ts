@@ -596,7 +596,8 @@ export class Panels {
     // Daily Trial: the same seeded challenge for everyone today, at this hero's frontier.
     const trial = dailyTrial(dateKey(), hero.progress.unlocked);
     const best = hero.progress.trials[trial.key];
-    const trialBox = h('section', {},
+    // New heroes see the campaign first; the trial (depth 3+, with pacts) opens with depth 3.
+    const trialBox = hero.progress.unlocked < 3 ? h('section', {}, h('h3', {}, 'Daily Trial'), h('p', { class: 'note' }, 'Reach depth 3 to take the Daily Trial: the same seeded challenge for everyone each day.')) : h('section', {},
       h('h3', {}, 'Daily Trial'),
       h('div', { class: 'row' },
         h('div', { class: 'grow' },
@@ -605,12 +606,14 @@ export class Panels {
         this.replayButton(`trial:${trial.key}`),
         h('button', { class: 'ui-btn small primary', onclick: () => { this.close(); void this.game.enterTrial(trial.key); } }, best ? 'Again' : 'Enter')),
       h('p', { class: 'note' }, best ? 'Race your best time. New mechanics and pacts tomorrow.' : 'Same mechanics and pacts for everyone today. The first clear pays a hoard; no campaign progress.'));
-    return [trialBox, pactBox ?? h('section', {}, h('h3', {}, 'Pacts'), h('p', { class: 'note' }, `Reach depth ${locked?.minDepth ?? 3} to make pacts: harder depths for richer rewards.`)),
-      h('section', { class: 'stagelist' },
-        h('h3', {}, 'Choose a depth'),
-        this.replayFileButton(),
-        h('p', { class: 'note' }, 'Each depth is named after its trick: use it, or ignore it and swing harder. Clear the boss to unlock the next. Past depth 25 new depths combine tricks forever.'),
-        ...rows)];
+    const pacts = pactBox ?? h('section', {}, h('h3', {}, 'Pacts'), h('p', { class: 'note' }, `Reach depth ${locked?.minDepth ?? 3} to make pacts: harder depths for richer rewards.`));
+    const depths = h('section', { class: 'stagelist' },
+      h('h3', {}, 'Choose a depth'),
+      h('p', { class: 'note' }, 'Each depth is named after its trick: use it, or ignore it and swing harder. Clear the boss to unlock the next. Past depth 25 new depths combine tricks forever.'),
+      ...rows,
+      this.replayFileButton());
+    // A new hero's first choice is depth 1; veterans see today's trial first.
+    return hero.progress.unlocked < 3 ? [depths, trialBox, pacts] : [trialBox, pacts, depths];
   }
 }
 
