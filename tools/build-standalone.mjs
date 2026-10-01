@@ -17,7 +17,6 @@ const result = await build({
   define: { 'import.meta.env.BASE_URL': JSON.stringify('./') },
   build: {
     target: 'es2022', write: false, minify: true,
-    rollupOptions: { output: { inlineDynamicImports: true } },
     lib: { entry: path.join(root, 'src/main.ts'), name: 'PixelEngine', formats: ['iife'] },
   },
 });

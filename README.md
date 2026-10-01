@@ -1,55 +1,60 @@
-# Emberdeep · my-3D2dge
+# my-3d2dge-2
 
-An agent-operated 3D pixel hack-and-slash engine and its complete run-based showcase game. The ranger returns with responsive three-hit melee, invulnerable rolls, eight abilities, a deep skill tree, XP, gold, loot, town services, phased bosses, and endless seeded encounters. No story gates: clear a room, gather the spoils, shape a build, and descend again.
+A browser game demo that renders 3D characters as pixel art, built with TypeScript, Three.js r186, Rapier 0.20 physics and Vite. Includes rebindable keyboard/mouse, gamepad and touch controls, switchable settings profiles, a plain 3D view, deterministic simulation stepping, and a self-contained HTML build.
 
-Three.js **0.186.1 (r186)** renders through **WebGPU first**, with WebGL2 fallback. Rapier **0.20.0** supplies the fixed-step world, character controllers, shape queries, collisions, and line-of-sight checks. The custom TSL pipeline combines integer pixel blocks, depth/normal edges, color quantization, and vignette. New game characters use primitive geometry and mathematical animation; they require no external character meshes or clips.
-
-## Run
+The application lives at the repository root. Run application commands from the root. Node.js 22.12+ (Node 22 recommended) and npm are required.
 
 ```sh
 npm ci
-npm run dev
+npm run dev -- --host 127.0.0.1
 ```
 
-Open the local URL for Cinderhaven. Use `?agent&seed=32` for agent operation, `?depth=4` for a boss room, `?auto` for an automated showcase run, `?plain` for full-resolution 3D, and `?demo` for the preserved original character/animation demo. The tracked `standalone/3dpixel2d.html` runs offline and retains the original attributed demo assets.
+Open http://localhost:5173. Default controls: WASD or arrow keys move, Shift sprints, Alt walks, Space jumps, J or left click attacks, right click walks to the pointer. Esc opens Settings (and pauses), `` ` `` pauses, R resets, P switches pixel/3D, F3 shows performance stats. Gamepads use the left stick, A to jump, X to attack, RT to sprint and Menu for Settings. Phones and tablets get an on-screen stick (or 8-way pad) with Jump, Attack and Sprint buttons.
 
-## Game systems
+## Settings and controls
 
-- Six modular body rigs: ranger, husk/duelist, brute, crawler, wisp, and slime. Joint pivots support idle breathing, alternating locomotion, weapon strikes, hit reactions, falls, rolling, cape motion, and NPC work cycles.
-- Eight abilities: Cleave, Whirlwind, Frost Nova, Sundering Lunge, Chain Storm, Starfall, Soul Siphon, and Blade Ward. Timed enemy warnings reward dodge timing. Damage, mana, stamina, armor, critical hits, life steal, cooldowns, and repeatable skill mastery form the combat build.
-- 54 skill nodes across Blade, Ward, and Arcane. Nodes have five ranks and path prerequisites. Three keystones change build tradeoffs. Assign four active abilities; gain two points per level; refund in town for free.
-- Three item slots and four rarity tiers. Seeded affixes improve stats; legendary items add echo, frost, or siphon powers. Equip, salvage, and temper weapons. Persistent XP, gold, inventory, skills, deepest depth, and potions survive failed runs.
-- Cinderhaven has Orin’s forge, Vela’s skill sanctuary, and Mara’s potion supplies. Geometry, rigs, lighting, and work animations are procedural.
-- Twelve levels introduce Powder Kegs, Gale Lanes, Frost Sigils, Ember Forges, Time Wells, Storm Pylons, Brood Nests, Blood Altars, Echo Mirrors, Gravity Runes, Launch Plates, and Gilded Seals. Mechanics help skilled play without acting as mandatory puzzles.
-- Later rooms combine mechanics, behavior archetypes, elites, themes, layouts, and recurring bosses with health phases, slams, summons, and radial attacks. Content registries and bounded generation allow repeatable extension to depth 1,000,000 without storing millions of levels.
-- Isometric, side, and top-down cameras can be chosen or assigned per depth. The pause menu has a difficulty slider and seven individual tuning controls, autoplay, invulnerability, pixel mode, and single-frame stepping.
+The ⚙ button (or Esc / gamepad Menu) opens Settings. Everything is stored per **profile**; Standard, Left-handed, Performance and Smooth 3D profiles are built in, and profiles can be created from a template, duplicated, renamed, deleted, exported to JSON and imported again. Changes apply immediately and are saved in the browser's local storage when it is available.
 
-Optional showcase controls: WASD/arrows move, mouse/J strikes, Space/Shift rolls, 1–4 abilities, Q potion, E interact, K skills, I inventory, V camera, T town, Escape pause. Touch controls and common gamepad controls are included. Agents do not need these controls.
+- **Graphics**: every rendering and animation option, plus game speed.
+- **Keyboard & mouse**: up to four keys or mouse buttons per action; binding a key that another action uses moves it. Sprint can hold or toggle.
+- **Gamepad**: rebind buttons and stick directions, choose the movement stick, deadzone, analog speed and vibration; a live tester shows sticks and buttons. The D-pad, A, B, LB and RB navigate Settings.
+- **Touch**: show controls automatically, always or never; analog stick (optionally floating) or 8-way pad; size, opacity, sprint toggle and vibration. The 9:16 portrait and 16:9 landscape layouts are separate and edited by dragging controls in the previews, or on screen with **Edit on screen**.
 
-## Agent operation
+`?agent` mode ignores saved settings and human input so automated runs always start from the documented defaults.
 
-```js
-await new Promise(resolve => {
-  const poll = () => window.agent?.ready ? resolve() : requestAnimationFrame(poll);
-  poll();
-});
-agent.act({ type: 'enter', depth: 1 });
-agent.act({ type: 'input', value: { x: 0, z: -1, attack: true } });
-agent.step(60);
-agent.observe();
-```
+## Commands
 
-The [agent contract](docs/EMBERDEEP-AGENT-CONTRACT.md) specifies commands, observations, saves, complete JSON checkpoints, replay baselines, limits, and module extension points. The [validation report](docs/EMBERDEEP-VALIDATION.md) records actual checks and platform limits. `tools/agent.mjs` is a JSON batch client for browser agents. `Run` also operates headlessly in Node after `initPhysics()`.
+| Command (from the repository root) | Purpose |
+| --- | --- |
+| `npm run typecheck` | Strict TypeScript validation |
+| `npm run test` | Vitest unit tests (Rapier physics and queries, input profiles, bindings and input math) |
+| `npm run check` | TypeScript validation, production build and unit tests; also runs in CI |
+| `npm run build` | Build the web app into `dist/` |
+| `npm run build:standalone` | Rebuild the committed single-file game |
+| `npm run verify:standalone` | Exercise the offline game in Chromium, WebKit and Firefox; requires Python Playwright and installed browsers |
+| `npm run assets` | Download source packs and rebuild runtime assets (requires network) |
 
-## Verify
+Unit tests live in `tests/` and run in Node as part of `npm run check`. The browser interaction verifier (touch controls, settings, rebinding, rendering modes, offline loading in three engines) is separate from CI.
 
-```sh
-npm run check
-npm run build:standalone
-npm run verify:standalone
-npm run test:game
-```
+## Layout
 
-The fixed-step suite checks physics, input profiles, skill prerequisites, encounter generation, combat rewards, rolls, and exact mid-combat restore. Browser tests check replay, autonomous progression, loot, all perspectives, deep procedural rooms, five viewport sizes, visible scene pixels, pause tuning, and browser errors. Offline checks block external requests and load all 14 preserved demo models. See the contract for browser executable/driver environment variables.
+- `src/sim/`: simulation, Rapier physics and queries, navigation and seeded RNG.
+- `src/render/`: assets, character animation, stage and pixel rendering.
+- `src/content/`: character presets and level data.
+- `src/input/`: actions, settings profiles and storage, input math and the keyboard/mouse/gamepad/touch controller.
+- `src/ui/`: settings dialog, touch overlay and layout editor, HUD, toasts and styles.
+- `src/main.ts`, `src/game.ts`, `src/config.ts`: boot, game coordination and configuration.
+- `tests/`: Vitest unit tests.
+- `public/assets/`: committed runtime models, animations and manifest.
+- `tools/`: asset preparation, standalone bundling and browser verification.
+- `standalone/`: shareable HTML game and usage notes.
 
-Retained asset attribution is in [public/assets/LICENSE-quaternius.txt](public/assets/LICENSE-quaternius.txt). Agent working instructions are in [AGENTS.md](AGENTS.md).
+For browser automation, open `/?agent&seed=1`, wait for `window.agent.ready`, and call `window.agent.step(frames)`. This mode starts paused with human input disabled. `window.game` exposes the game object; inspect the source for supported methods. A broader agent CLI or MCP server is not implemented.
+
+The standalone HTML embeds runtime libraries and assets; see [standalone instructions](standalone/README.md). Keep it in sync after runtime or asset changes.
+
+## Contributing with agents
+
+Read [AGENTS.md](AGENTS.md) first and follow the [agent coding SOP](docs/AGENTIC-CODING-SOP.md). CI checks pushes and pull requests on `main`.
+
+Quaternius models and animations carry the included [CC0 asset notice](public/assets/LICENSE-quaternius.txt). This repository does not declare a separate license for its application source.

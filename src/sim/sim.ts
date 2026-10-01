@@ -86,7 +86,6 @@ export interface Character {
   hitDone: boolean;
   pushing: number;
   speed: number;
-  speedMultiplier?: number;
   flash: number;
   knock: P2;
   spawn: { x: number; z: number; yaw: number };
@@ -628,7 +627,7 @@ export class Sim {
     const dt = this.dt;
     ch.stateTime += dt;
     let wantX = 0, wantZ = 0;
-    const gaitSpeed = { walk: config['sim.walkSpeed'], run: config['sim.runSpeed'], sprint: config['sim.sprintSpeed'] }[intent.gait] * (ch.speedMultiplier ?? 1);
+    const gaitSpeed = { walk: config['sim.walkSpeed'], run: config['sim.runSpeed'], sprint: config['sim.sprintSpeed'] }[intent.gait];
     const mag = Math.min(1, Math.hypot(intent.moveX, intent.moveZ));
     const moving = mag > 0.05;
     if (moving) {
@@ -641,7 +640,7 @@ export class Sim {
       case 'dead':
         wantX = wantZ = 0;
         control = 0;
-        if (PRESETS[ch.preset].respawn !== false && ch.stateTime >= config['sim.respawnSeconds']) this.respawn(ch);
+        if (ch.stateTime >= config['sim.respawnSeconds']) this.respawn(ch);
         break;
       case 'forced':
         wantX = wantZ = 0;

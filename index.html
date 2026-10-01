@@ -3,8 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>Emberdeep · The Endless Descent</title>
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Cpath fill=%22%23dca16e%22 d=%22M16 2L29 16 16 30 3 16Z%22/%3E%3C/svg%3E" />
+    <title>3dpixel2d</title>
     <style>
       html, body { margin: 0; height: 100%; overflow: hidden; background: #0d0c11; }
       #view { display: block; width: 100vw; height: 100vh; height: 100dvh; touch-action: none; }
@@ -17,20 +16,18 @@
       body { overscroll-behavior: none; }
       button { color: #fff4db; background: #242334e6; border: 1px solid #a9a1b9; border-radius: 12px; font: bold 13px system-ui; min-height: 44px; padding: 8px 12px; touch-action: none; user-select: none; -webkit-user-select: none; }
       button:active { background: #696080; }
-      #toolbar[hidden] { display: none; }
       #toolbar { position: fixed; z-index: 15; top: max(88px, env(safe-area-inset-top)); right: max(10px, env(safe-area-inset-right)); display: flex; gap: 6px; }
       #toolbar #settings-open { font-size: 20px; padding: 4px 10px; }
       #loading { position: fixed; inset: 40% 20px auto; color: #fff4db; text-align: center; font: 16px system-ui; }
       .agent-mode #toolbar, .agent-mode #touch { display: none; }
-      @media (max-height: 450px) { #toolbar[hidden] { display: none; }
-      #toolbar { top: max(8px, env(safe-area-inset-top)); } #hud { font-size: 10px; max-width: 48vw; } }
+      @media (max-height: 450px) { #toolbar { top: max(8px, env(safe-area-inset-top)); } #hud { font-size: 10px; max-width: 48vw; } }
       @media (max-width: 380px) { #toolbar button { padding: 8px 9px; font-size: 12px; } }
     </style>
   </head>
   <body>
     <canvas id="view"></canvas>
     <pre id="hud"></pre>
-    <div id="loading" role="status">Lighting the forge…</div>
+    <div id="loading" role="status">Loading engine, models and animations…</div>
     <nav id="toolbar" aria-label="Engine controls"><button id="mode">Pixel / 3D</button><button id="pause">Pause</button><button id="reset">Reset</button><button id="settings-open" aria-label="Settings" aria-haspopup="dialog" title="Settings">⚙</button></nav>
     <div id="touch" role="group" aria-label="Game controls" hidden></div>
     <div id="toast" role="status" aria-live="polite"></div>
