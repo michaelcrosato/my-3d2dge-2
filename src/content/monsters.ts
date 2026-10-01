@@ -122,7 +122,7 @@ export const RARITY_SCALING: Record<MonsterRarity, { life: number; damage: numbe
   normal: { life: 1, damage: 1, xp: 1, affixes: [0, 0], loot: 1, size: 1 },
   magic: { life: 2.2, damage: 1.2, xp: 2.5, affixes: [1, 1], loot: 2.5, size: 1.08 },
   rare: { life: 4.5, damage: 1.45, xp: 6, affixes: [2, 3], loot: 6, size: 1.18 },
-  unique: { life: 11, damage: 1.5, xp: 40, affixes: [0, 0], loot: 18, size: 1 },
+  unique: { life: 15, damage: 1.5, xp: 25, affixes: [0, 0], loot: 18, size: 1 },
 };
 
 // ---------------------------------------------------------------- monster bodies + attack sets

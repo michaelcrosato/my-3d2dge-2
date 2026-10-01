@@ -13,6 +13,7 @@ import { skill as skillDef, type SkillDef } from '../content/skills';
 import { blockedReason, inShape } from './actions';
 import { estimateSkill, hostile } from './combat';
 import type { P2 } from './nav';
+import { propSpec } from './props';
 import { Rng } from './rng';
 import { emptyInput, type Sim } from './sim';
 import type { Character, CharacterInput, Prop } from './types';
@@ -86,6 +87,7 @@ export class Bot {
     const target = this.pickTarget(p, enemies);
     if (target) {
       if (this.opts.mechanics && this.useKeg(p, input, enemies)) return this.setGoal('mechanic', 'keg');
+      if (this.opts.mechanics && this.breakTotem(p, input, target)) return this.setGoal('mechanic', 'totem');
       this.fight(p, input, target, enemies);
       return this.setGoal('fight', target.name);
     }
@@ -264,6 +266,25 @@ export class Bot {
     return false;
   }
 
+  /** A boss or elite standing by a totem is warded and healed: break the totem first. */
+  private breakTotem(p: Character, input: CharacterInput, target: Character): boolean {
+    if (!target.monster || (target.monster.rarity === 'normal' && !target.monster.boss)) return false;
+    let best: Prop | null = null, bd = 10;
+    for (const q of this.sim.props.values()) {
+      if (q.dead || q.kind !== 'totem' || Math.hypot(q.x - target.pos.x, q.z - target.pos.z) > 9) continue;
+      const d = Math.hypot(q.x - p.pos.x, q.z - p.pos.z);
+      if (d < bd) {
+        bd = d;
+        best = q;
+      }
+    }
+    if (!best) return false;
+    input.aim = { x: best.x, z: best.z };
+    if (bd <= 1.9) input.attackHeld = true;
+    else this.moveToward(p, input, best, 1.4);
+    return true;
+  }
+
   // ---------------------------------------------------------------- loot, mechanics, exploring
 
   private loot(p: Character, input: CharacterInput): boolean {
@@ -374,6 +395,26 @@ export class Bot {
 
   // ---------------------------------------------------------------- movement
 
+  /**
+   * Steers around launch pads and rift gates that are not the destination (stepping on one would
+   * fling the hero away from its goal). Stops avoiding when stuck, since a pad may fill a corridor.
+   */
+  private avoidTraps(p: Character, dir: P2, to: P2): P2 {
+    if (this.stuck > 90) return dir;
+    const ax = p.pos.x + dir.x * 1.1, az = p.pos.z + dir.z * 1.1;
+    for (const q of this.sim.props.values()) {
+      if (q.dead || !TRAPS.has(q.kind)) continue;
+      if (Math.hypot(q.x - to.x, q.z - to.z) < 1.5) continue;
+      const r = (q.kind === 'rift' ? 0.8 : 0.7) * q.scale + p.radius + 0.3;
+      if (Math.hypot(q.x - ax, q.z - az) > r) continue;
+      // Turn 70 degrees toward the side away from the trap's centre.
+      const side = Math.sign((q.x - p.pos.x) * dir.z - (q.z - p.pos.z) * dir.x) || 1;
+      const a = Math.atan2(dir.z, dir.x) + side * 1.2;
+      return { x: Math.cos(a), z: Math.sin(a) };
+    }
+    return dir;
+  }
+
   private moveToward(p: Character, input: CharacterInput, to: P2, stopAt: number) {
     const d = Math.hypot(to.x - p.pos.x, to.z - p.pos.z);
     if (d <= stopAt) return;
@@ -393,6 +434,33 @@ export class Bot {
       dir = this.sim.follow(p, this.path);
     }
     if (!dir) return;
+    dir = this.avoidTraps(p, dir, to);
+    // Boxed in by urns or crates: smash the one in the way (a player would).
+    if (this.stuck > 30) {
+      let block: Prop | null = null, bd = 2;
+      for (const q of this.sim.props.values()) {
+        if (q.dead || !propSpec(q.kind)?.hittable || !propSpec(q.kind)?.solid) continue;
+        const d = Math.hypot(q.x - p.pos.x, q.z - p.pos.z);
+        const ahead = (q.x - p.pos.x) * dir.x + (q.z - p.pos.z) * dir.z;
+        if (d < bd && ahead > -0.2) {
+          bd = d;
+          block = q;
+        }
+      }
+      if (block) {
+        input.aim = { x: block.x, z: block.z };
+        input.attackHeld = true;
+        return;
+      }
+    }
+    // Pinned (a crowd, a gravity well): roll out along the way forward.
+    if (this.stuck > 40 && this.cooldown.dodge === 0 && !blockedReason(this.sim, p, 'dodge')) {
+      input.moveX = dir.x;
+      input.moveZ = dir.z;
+      input.dodge = true;
+      this.cooldown.dodge = 45;
+      return;
+    }
     // Wriggle free when pinned against something.
     if (this.stuck > 25) {
       const a = Math.atan2(dir.z, dir.x) + (this.rng.chance(0.5) ? 1 : -1) * 1.2;
@@ -403,6 +471,8 @@ export class Bot {
     input.gait = 'run';
   }
 }
+
+const TRAPS = new Set(['launchpad', 'rift']);
 
 // ---------------------------------------------------------------- reports
 
@@ -426,6 +496,8 @@ export interface BotReport {
   damageTaken: number;
   /** Lowest life fraction reached (1 = never hurt). */
   lowestLife: number;
+  /** Seconds from the boss's first wound to its death (null if it never died). */
+  bossSeconds: number | null;
   roomsVisited: number;
   rooms: number;
   /** Seconds spent per goal. */
@@ -448,12 +520,13 @@ export function runBot(sim: Sim, opts: BotOptions & { maxFrames?: number } = {},
   const r: BotReport = {
     frames: 0, seconds: 0, cleared: false, exited: false, bossDead: false, kills: 0, elites: 0, mechanicKills: 0, deaths: 0,
     heroLevel: { start: start.level, end: start.level }, xp: 0, gold: 0, itemsDropped: 0, itemsPicked: 0, flasks: 0,
-    damageDealt: 0, damageTaken: 0, lowestLife: 1, roomsVisited: 0, rooms: (sim.level.rooms ?? []).filter((x) => x.kind !== 'corridor').length,
+    damageDealt: 0, damageTaken: 0, lowestLife: 1, bossSeconds: null, roomsVisited: 0, rooms: (sim.level.rooms ?? []).filter((x) => x.kind !== 'corridor').length,
     goals: {}, timeline: [], mechanicEvents: {},
   };
   // Mechanics the hero used (ambient cycles such as spikes rising are left out).
   const used = new Set(['keg.lit', 'beacon.lit', 'launch', 'rift', 'shrine', 'totem.break', 'imp.escape', 'mechanic.kill']);
   let seq = sim.lastEventSeq;
+  let bossFirstHit = -1;
   const t = () => Math.round((r.frames / 60) * 10) / 10;
   for (let f = 0; f < maxFrames; f++) {
     bot.think();
@@ -465,6 +538,7 @@ export function runBot(sim: Sim, opts: BotOptions & { maxFrames?: number } = {},
     for (const e of sim.eventsSince(seq)) {
       switch (e.type) {
         case 'hit':
+          if (bossFirstHit < 0 && sim.characters.get(String(e.target))?.monster?.boss) bossFirstHit = r.frames;
           if (e.target === sim.heroId) r.damageTaken += Number(e.damage ?? 0);
           else if (e.attacker === sim.heroId || sim.characters.get(String(e.attacker))?.owner === sim.heroId) r.damageDealt += Number(e.damage ?? 0);
           break;
@@ -485,6 +559,7 @@ export function runBot(sim: Sim, opts: BotOptions & { maxFrames?: number } = {},
           break;
         case 'boss.dead':
           r.timeline.push({ t: t(), event: `boss down: ${e.name}` });
+          if (bossFirstHit >= 0) r.bossSeconds = Math.round(((r.frames - bossFirstHit) / 60) * 10) / 10;
           break;
         case 'portal.enter':
           r.timeline.push({ t: t(), event: `portal to ${e.to}` });

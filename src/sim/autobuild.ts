@@ -4,13 +4,17 @@
  * filled from what the tree unlocked. Balance sweeps, bot runs and the agent `hero.build` tool
  * use it to answer "how does a typical level-N character fare at depth M?".
  */
-import { HOTBAR_SKILLS } from '../content/skills';
+import { HOTBAR_SKILLS, skill as skillDef } from '../content/skills';
 import { BASES, EQUIP_SLOTS, SLOT_KIND, type EquipSlot, type ItemRarity } from '../content/items';
 import type { Mod } from '../content/stats';
 import { TREE, type TreeNode } from '../content/tree';
+import { cooldownOf } from './actions';
+import { estimateSkill } from './combat';
 import { newHero, type Hero } from './hero';
+import { equip } from './heroOps';
 import { rollItem } from './items';
 import { Rng } from './rng';
+import type { Sim } from './sim';
 
 export type BuildFocus = 'melee' | 'spell' | 'balanced';
 
@@ -132,4 +136,57 @@ export function autoHero(o: AutoHeroOptions): Hero {
   if (o.tree !== false) spendPoints(hero, level - 1, focus);
   hero.flasks = [30, 30];
   return hero;
+}
+
+// ---------------------------------------------------------------- gear choices (campaign sims)
+
+/**
+ * One number for "how strong is this hero": sustained damage of the best hotbar skill (or slash)
+ * blended with effective life (resistances included). Used to decide upgrades the way a player
+ * would: equip it if the hero gets stronger.
+ */
+export function heroPower(sim: Sim): number {
+  const ch = sim.player, hero = sim.hero;
+  if (!ch || !hero) return 0;
+  const st = sim.stats(ch);
+  let dps = 0;
+  for (const id of ['slash1', ...hero.hotbar.filter((s): s is string => !!s)]) {
+    const s = skillDef(id);
+    const e = estimateSkill(sim, ch, s);
+    const cd = cooldownOf(sim, ch, s);
+    dps = Math.max(dps, cd > 0 ? Math.min(e.perSecond, e.hit / cd) : e.perSecond);
+  }
+  const res = (['resFire', 'resCold', 'resLightning'] as const).reduce((a, k) => a + Math.min(75, st.get(k)), 0) / 3;
+  const ehp = ch.maxLife / Math.max(0.25, 1 - res / 100) * (1 + st.get('armor') / 2000);
+  return Math.pow(Math.max(1, dps), 0.6) * Math.pow(Math.max(1, ehp), 0.4);
+}
+
+/** Equips every inventory item that makes the hero stronger (rings try both hands). Returns names. */
+export function autoEquip(sim: Sim): string[] {
+  const hero = sim.hero;
+  if (!hero) return [];
+  const equipped: string[] = [];
+  let best = heroPower(sim);
+  for (let i = 0; i < hero.inventory.length; i++) {
+    const item = hero.inventory[i];
+    if (!item) continue;
+    const kind = BASES[item.base]?.slot;
+    if (!kind || kind === 'jewel' || kind === 'flask') continue;
+    const slots = EQUIP_SLOTS.filter((s) => SLOT_KIND[s] === kind);
+    for (const slot of slots) {
+      const snapshot = { equipment: { ...hero.equipment }, inventory: [...hero.inventory] };
+      if (equip(hero, { area: 'inventory', index: i }, slot)) continue;
+      sim.refreshHero();
+      const p = heroPower(sim);
+      if (p > best * 1.01) {
+        best = p;
+        equipped.push(item.name);
+        break;
+      }
+      hero.equipment = snapshot.equipment;
+      hero.inventory = snapshot.inventory;
+      sim.refreshHero();
+    }
+  }
+  return equipped;
 }

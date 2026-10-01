@@ -32,7 +32,7 @@ import { FlowField, NavGrid, type P2 } from './nav';
 import { fieldAt, mechanicHit, propSpec, stepProps, stepSystems } from './props';
 import { impTreasure } from './mechanics';
 import { Rng } from './rng';
-import { defense, monsterLife, monsterXp, xpPenalty } from './scaling';
+import { bossEase, bossLifeEase, defense, monsterLife, monsterXp, xpCatchUp, xpPenalty } from './scaling';
 import { StatBlock } from './stats';
 import type {
   ActionState, AnimState, Character, CharacterInput, ClipMeta, ClipTable, Crate, Gait, Pickup, Projectile, Prop, SimEvent, SpriteState, V3, Zone,
@@ -461,7 +461,7 @@ export class Sim {
   monsterDamageMult(ch: Character): number {
     if (!ch.monster) return 1;
     const md = MONSTERS[ch.monster.def];
-    return md.damage * this.archetypeOf(ch).damage * RARITY_SCALING[ch.monster.rarity].damage;
+    return md.damage * this.archetypeOf(ch).damage * RARITY_SCALING[ch.monster.rarity].damage * (ch.monster.boss ? bossEase(ch.level) : 1);
   }
 
   private setupMonster(ch: Character, m: MonsterSpawn, md: (typeof MONSTERS)[string]) {
@@ -471,7 +471,7 @@ export class Sim {
     const L = m.level;
     const affixes = m.affixes ?? [];
     const mods: Mod[] = [
-      mod('life', 'flat', monsterLife(L) * md.life * arch.life * rar.life),
+      mod('life', 'flat', monsterLife(L) * md.life * arch.life * rar.life * (md.boss ? bossLifeEase(L) : 1)),
       mod('armor', 'flat', 6 * (md.armor ?? 0.5) * defense(L) * (md.boss ? 2 : 1)),
       mod('evasion', 'flat', 5 * defense(L) * (arch.speed > 1.1 ? 2 : 1)),
       mod('manaRegen', 'flat', 0),
@@ -1217,8 +1217,12 @@ export class Sim {
       const f = fieldAt(this, ch.pos.x, ch.pos.z);
       if (f.control < 1 && control < 3) control *= f.control;
       else if (f.control < 1 && ch.state === 'hit') control = f.control * 2;
-      wantX += f.pushX;
-      wantZ += f.pushZ;
+      // Pulls (overlapping wells add up) never exceed 60% of the character's own run speed, so
+      // anyone can always walk out of a mechanic; idle monsters still drift in.
+      const pull = Math.hypot(f.pushX, f.pushZ), cap = this.runSpeed(ch) * 0.6;
+      const k = pull > cap ? cap / pull : 1;
+      wantX += f.pushX * k;
+      wantZ += f.pushZ * k;
     }
     // Horizontal velocity: accelerate toward the wanted velocity.
     const accel = config['sim.accel'] * control * dt;
@@ -1530,7 +1534,7 @@ export class Sim {
       }
     }
     // Mechanic kills are worth half again: the reward for playing the level's trick.
-    const xp = t.monster!.xp * xpPenalty(hero.level, t.level) * ((st?.get('xpGain') ?? 100) / 100) * config['tune.xp'] * (viaEnv ? 1.5 : 1);
+    const xp = t.monster!.xp * xpPenalty(hero.level, t.level) * xpCatchUp(hero.level, t.level) * ((st?.get('xpGain') ?? 100) / 100) * config['tune.xp'] * (viaEnv ? 1.5 : 1);
     this.stage.xp += xp;
     const levels = gainXp(hero, xp);
     this.emit('xp', { amount: Math.round(xp), from: t.id });
