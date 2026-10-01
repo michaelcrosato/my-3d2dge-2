@@ -494,8 +494,17 @@ export function elementColor(p: Packet): string {
 
 export function addZone(sim: Sim, ch: Character, s: SkillDef, spec: ZoneSpec, x: number, z: number, yaw: number, areaK = 1): Zone {
   const packet = rollPacket(sim, ch, s, spec.hit, null);
+  let shape = scaleShape(spec.shape, areaK);
+  // Lingering lines (Flame Surge) stop at the first wall instead of burning through it. Cast at
+  // chest height so knee-high walls don't cut them short. Instant lines keep their full reach, so
+  // telegraphs never promise less than the attack does.
+  if (shape.kind === 'line' && spec.duration > 0) {
+    const fx = Math.sin(yaw), fz = Math.cos(yaw);
+    const hit = sim.castBlockers(x, 1, z, fx * shape.length, 0, fz * shape.length);
+    if (hit !== null) shape = { ...shape, length: Math.max(0.5, hit) };
+  }
   const zone: Zone = {
-    id: sim.nextId(), owner: ch.id, team: ch.team, skill: s.id, spec, shape: scaleShape(spec.shape, areaK), packet,
+    id: sim.nextId(), owner: ch.id, team: ch.team, skill: s.id, spec, shape, packet,
     x, z, yaw, delay: spec.delay, life: spec.duration, tickIn: spec.tick ?? 0.5, resolved: false,
     follow: spec.follow ? ch.id : null, angle: 0, color: s.color ?? elementColor(packet), dead: false,
   };

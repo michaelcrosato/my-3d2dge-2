@@ -11,7 +11,7 @@
  * Monster attack modules and boss patterns are built from these same pieces, so a new skill is
  * one table entry, and the agent tools can list, preview and simulate any of them.
  */
-import type { DamageRange, Tag } from './stats';
+import type { DamageRange, DamageType, Tag } from './stats';
 
 export interface AnimSpec {
   clip: string;
@@ -146,6 +146,8 @@ export interface SkillDef {
   color?: string;
   /** Monsters: convert this fraction of physical damage to the monster's element. */
   elemental?: number;
+  /** Hero attacks: share of physical (weapon) damage converted to these types (Molten Strike). */
+  convert?: Partial<Record<DamageType, number>>;
   /** Damage type override for monsters by palette (spells cast by an ember cultist burn). */
   usesElement?: boolean;
 }
@@ -302,6 +304,42 @@ export const HERO_SKILLS: SkillDef[] = [
     tags: ['spell', 'projectile', 'cold'], kind: 'spell', base: { cold: [10, 15] }, cost: 8, time: 0.4, anim: { clip: 'Spell_Simple_Shoot' },
     cancelAfter: 0.6, range: 14, color: '#bfeaff',
     effects: [{ at: 0.45, type: 'projectile', projectile: { speed: 22, radius: 0.3, range: 16, pierce: 2, hit: { knock: 2, stagger: 35, ailments: { chill: 60, freeze: 10 } }, visual: 'icespear' } }],
+    aim: 'target',
+  },
+  {
+    id: 'lacerate', name: 'Lacerate', desc: 'Two quick, wide cuts that open bleeding wounds.', icon: 'lacerate',
+    tags: ['attack', 'melee', 'area'], kind: 'attack', weapon: 75, cost: 7, time: 0.62,
+    anim: [{ clip: 'Sword_Regular_A', span: 0.45 }, { clip: 'Sword_Regular_B', span: 0.55 }],
+    motion: { kind: 'lunge', from: 0, to: 0.3, speed: 1.8 }, cancelAfter: 0.8, range: 2.4, color: '#ff5a6a',
+    effects: [
+      { at: 0.25, type: 'strike', shape: { kind: 'cone', radius: 2.7, arc: 150 }, hit: { knock: 1.5, stagger: 30, ailments: { bleed: 45 } } },
+      { at: 0.72, type: 'strike', shape: { kind: 'cone', radius: 2.7, arc: 150 }, hit: { knock: 3, stagger: 45, ailments: { bleed: 45 } } },
+    ],
+    aim: 'target',
+  },
+  {
+    id: 'kniferain', name: 'Knife Rain', desc: 'Toss a fistful of knives high; they rain down around the target and cause bleeding.', icon: 'kniferain',
+    tags: ['attack', 'area'], kind: 'attack', weapon: 55, cost: 9, time: 0.5, anim: { clip: 'OverhandThrow', from: 0.1, to: 0.85 },
+    cancelAfter: 0.55, range: 9,
+    effects: [{ at: 0.35, type: 'zone', where: 'aim', count: 6, scatter: 2.4, zone: { shape: { kind: 'circle', radius: 1.2 }, delay: 0.4, duration: 0, hit: { knock: 1, stagger: 25, ailments: { bleed: 30 } }, visual: 'vortex' } }],
+    aim: 'target',
+  },
+  {
+    id: 'flamesurge', name: 'Flame Surge', desc: 'A line of fire erupts ahead of you and keeps burning.', icon: 'flamewall',
+    tags: ['spell', 'area', 'fire'], kind: 'spell', base: { fire: [8, 12] }, cost: 11, time: 0.45, anim: { clip: 'Spell_Simple_Shoot' },
+    cancelAfter: 0.6, range: 7, color: '#ff6a2a',
+    effects: [{ at: 0.5, type: 'zone', where: 'front', zone: { shape: { kind: 'line', length: 8, width: 1.8 }, delay: 0.12, duration: 3, tick: 0.4, tickMult: 0.3, hit: { knock: 2, stagger: 40, ailments: { ignite: 35 } }, visual: 'molten' } }],
+    aim: 'target',
+  },
+  {
+    id: 'moltenstrike', name: 'Molten Strike', desc: 'A blazing overhead blow (mostly fire) that hurls molten globs past the target.', icon: 'molten',
+    tags: ['attack', 'melee', 'projectile', 'area', 'fire'], kind: 'attack', weapon: 120, cost: 9, time: 0.58,
+    anim: { clip: 'Sword_Attack', from: 0.12, to: 1.0 }, motion: { kind: 'lunge', from: 0, to: 0.35, speed: 1.4 }, cancelAfter: 0.72, range: 2.6, color: '#ff8a3d',
+    convert: { fire: 0.6 },
+    effects: [
+      { at: 0.45, type: 'strike', shape: { kind: 'cone', radius: 2.5, arc: 100 }, hit: { knock: 3, stagger: 70, ailments: { ignite: 30 } } },
+      { at: 0.47, type: 'projectile', count: 3, spread: 80, projectile: { speed: 11, radius: 0.3, range: 5.5, explode: 1.3, lob: true, hit: { mult: 0.35, knock: 2, stagger: 25, ailments: { ignite: 20 } }, visual: 'fireball' } },
+    ],
     aim: 'target',
   },
 ];
