@@ -65,14 +65,10 @@ export interface Preset {
   tint?: Record<string, string>;
   weapon?: 'sword';
   hp: number;
-  respawn?: boolean;
   anims?: Partial<AnimSet>;
 }
 
 export const PRESETS: Record<string, Preset> = {
-  ember_ranger: { label: 'Emberdeep ranger', base: '', parts: [], weapon: 'sword', hp: 120, respawn: false },
-  ember_monster: { label: 'Procedural monster', base: '', parts: [], hp: 40, respawn: false },
-  ember_npc: { label: 'Town resident', base: '', parts: [], hp: 120, respawn: false },
   ranger: { label: 'Ranger (player)', base: 'outfit_ranger_m', parts: ['head_m'], weapon: 'sword', hp: 10 },
   ranger_f: { label: 'Ranger, female', base: 'outfit_ranger_f', parts: ['head_f'], weapon: 'sword', hp: 10 },
   villager: { label: 'Villager', base: 'outfit_peasant_f', parts: ['head_f', 'hair_buns'], hp: 3 },
