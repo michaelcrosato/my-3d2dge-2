@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "Agent-operated demo: live-rendered 3D characters that read as pixel-art sprites (three.js r186 + Rapier 0.20). See AGENTS.md.",
+  "description": "Agent-operated Emberdeep: a modular 3D pixel hack-and-slash with Three.js r186, WebGPU, and Rapier 0.20.",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
@@ -12,7 +12,9 @@
     "assets": "node tools/build-assets.mjs",
     "build:standalone": "node node_modules/typescript/bin/tsc --noEmit && node tools/build-standalone.mjs",
     "verify:standalone": "python3 tools/verify-standalone.py",
-    "test": "vitest run"
+    "test": "vitest run",
+    "agent": "node tools/agent.mjs",
+    "test:game": "node tools/verify-emberdeep.mjs"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "0.20.0",

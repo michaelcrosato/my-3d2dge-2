@@ -1,0 +1,38 @@
+name: Refresh standalone
+on:
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'index.html'
+      - 'package*.json'
+      - 'public/assets/**'
+      - 'tools/build-standalone.mjs'
+      - '.github/workflows/standalone.yml'
+permissions:
+  contents: write
+jobs:
+  rebuild:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      - run: npm run build:standalone
+      - name: Push the rebuilt offline game to the pull request branch
+        env:
+          PR_BRANCH: ${{ github.head_ref }}
+        run: |
+          git add standalone/3dpixel2d.html
+          if git diff --cached --quiet; then exit 0; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Rebuild the Emberdeep standalone'
+          git push origin "HEAD:$PR_BRANCH"
+          git hash-object standalone/3dpixel2d.html
