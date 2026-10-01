@@ -5,7 +5,8 @@ import { probeSim, spawnProbeMonster } from '../src/agent/probe';
 import { HERO_SKILLS, HOTBAR_SKILLS, SKILLS } from '../src/content/skills';
 import { TREE } from '../src/content/tree';
 import { autoHero } from '../src/sim/autobuild';
-import { estimateSkill } from '../src/sim/combat';
+import { callTool } from '../src/agent/registry';
+import { estimateSkill, rollPacket } from '../src/sim/combat';
 import { buildStageLevel } from '../src/agent/tools/content';
 import { initPhysics, Sim, type ClipTable } from '../src/sim/sim';
 import { hasIconRecipe } from '../src/ui/skillIcons';
@@ -115,5 +116,31 @@ it('Molten Strike turns most of the blow to fire and throws globs', async () => 
   expect(est.hit).toBeGreaterThan(cleave.hit);
   expect(est.byType.fire ?? 0).toBeGreaterThan(est.byType.physical ?? 0);
   expect(estimateSkill(sim, sim.player!, SKILLS.lacerate).hit).toBeCloseTo(cleave.hit, -1);
+  sim.dispose();
+});
+
+it('Spirit Wolves deal a real share of their owner\'s damage and ignore enemy pacts', async () => {
+  const env = { game: null, clips };
+  const test = async (id: string) => {
+    const r = await callTool('skill.test', { id, heroLevel: 30, focus: 'spell', casts: 20, targets: 1, rarity: 'unique', seconds: 10 }, env);
+    if (!r.ok) throw new Error(r.error);
+    return r.data as { damage: { perSecond: number }; effects: { minions: number } };
+  };
+  const wolves = await test('spiritwolves');
+  const fireball = await test('fireball');
+  expect(wolves.effects.minions).toBe(2);
+  // Before: ~3% of Fireball (monster damage numbers); now a quarter to a half.
+  expect(wolves.damage.perSecond / fireball.damage.perSecond).toBeGreaterThan(0.2);
+  expect(wolves.damage.perSecond / fireball.damage.perSecond).toBeLessThan(0.6);
+
+  // A pact that makes enemies hit harder does not make your wolves hit harder.
+  const hero = autoHero({ level: 30, focus: 'spell' });
+  const sim = await probeSim(clips, hero, 3);
+  const [wolf] = sim.summon(sim.player!, 'spirit_wolf', 1, 10);
+  const bite = SKILLS.m_bite;
+  const roll = () => Object.values(rollPacket(sim, wolf, bite, undefined, null, 1, { next: () => 0.5 }, true).dmg).reduce((a, v) => a + (v ?? 0), 0);
+  const plain = roll();
+  (sim.pact as { enemyDamage: number }).enemyDamage = 1;
+  expect(roll()).toBeCloseTo(plain, 6);
   sim.dispose();
 });

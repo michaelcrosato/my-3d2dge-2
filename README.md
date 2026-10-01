@@ -92,7 +92,7 @@ The CLI and the MCP server start Vite in-process and drive headless Chromium (`-
 | creature | `creature.genome`, `species.design` (Workshop rules: stats from parts, threat budget; save and release into the depths), `species.create` (free-form monster from parts), `bestiary.list`, `monster.inspect`, `encounter.roll` |
 | item | `item.roll`, `loot.simulate` (thousands of kills through the real drop code) |
 | level | `campaign.list`, `level.generate` (any depth or a remix of theme / layout / mechanics, with a map image and critical path) |
-| tree, hero | `tree.inspect`, `tree.path`, `tree.render`, `hero.build` (auto-built hero of any level), `skill.inspect` |
+| tree, hero | `tree.inspect`, `tree.path`, `tree.render`, `hero.build` (auto-built hero of any level), `skill.inspect`, `skill.test` (cast at dummies, report hits, damage, ailments, kills) |
 | balance | `balance.curve` (power curves by level), `balance.run` (the autoplayer bot plays a depth headless at ~60x speed: clear rate, time, deaths), `balance.campaign` (one hero plays depth after depth, equipping drops and spending points: the progression curve) |
 | config, audio | `config.get`, `config.set`, `difficulty.set`, `audio.list`, `audio.inspect` (renders a sound or bars of music offline: waveform + spectrogram image, loudness, brightness) |
 | render (live) | `creature.render`, `creature.lineup`, `monster.render`, `item.icon`, `scene.capture` (exact pixels, HUD, labelled boxes, full map), `scene.stats`, `logs.read` |
