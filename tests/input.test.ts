@@ -1,6 +1,6 @@
 /** Control profiles, rebinding, input math and the settings store (no DOM). */
 import { beforeEach, describe, expect, it } from 'vitest';
-import { config, resetConfig, setConfig } from '../src/config';
+import { activeDifficulty, applyDifficulty, config, DIFFICULTY_NOTES, DIFFICULTY_PRESETS, resetConfig, setConfig } from '../src/config';
 import { ACTIONS, MAX_BINDINGS } from '../src/input/actions';
 import {
   bindKey, bindPad, defaultSettings, normalizeProfile, normalizeSettings, profileFromTemplate, TEMPLATE_IDS, type Profile,
@@ -35,6 +35,20 @@ describe('default profiles', () => {
   it('keeps normalized defaults unchanged', () => {
     const p = profileFromTemplate('lefty', 'Lefty', 'id-1');
     expect(normalizeProfile(structuredClone(p))).toEqual(p);
+  });
+});
+
+describe('difficulty presets', () => {
+  it('knows which preset is active and when the sliders were customised', () => {
+    expect(activeDifficulty()).toBe('Normal');
+    for (const name of Object.keys(DIFFICULTY_PRESETS)) {
+      expect(DIFFICULTY_NOTES[name]?.length, name).toBeGreaterThan(10);
+      applyDifficulty(name);
+      expect(activeDifficulty()).toBe(name);
+    }
+    setConfig('tune.enemyLife', 1.23);
+    expect(activeDifficulty()).toBeNull();
+    expect(config['tune.enemyLife']).toBe(1.23);
   });
 });
 

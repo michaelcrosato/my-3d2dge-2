@@ -3,7 +3,7 @@
  * settings, return to town, save & quit) with the debug difficulty sliders: player and enemy
  * damage, life and speed, plus experience, loot and density multipliers for fast playtesting.
  */
-import { CONFIG_SPEC, DIFFICULTY_PRESETS, applyDifficulty, config, setConfig, type ConfigKey } from '../config';
+import { CONFIG_SPEC, DIFFICULTY_NOTES, DIFFICULTY_PRESETS, activeDifficulty, applyDifficulty, config, setConfig, type ConfigKey } from '../config';
 import type { Game } from '../game';
 import type { SaveStore } from '../save';
 import { TUNE_KEYS } from '../save';
@@ -72,6 +72,22 @@ export class PauseMenu {
   private render() {
     const g = this.game;
     const btn = (label: string, fn: () => void, cls = '') => h('button', { class: `ui-btn ${cls}`, onclick: fn }, label);
+    const presetNote = h('p', { class: 'note', style: { color: 'var(--gp-dim)', fontSize: '12px', margin: '4px 0 6px' }, 'aria-live': 'polite' });
+    const presetButtons = Object.keys(DIFFICULTY_PRESETS).map((name) => h('button', {
+      class: 'ui-btn small', title: DIFFICULTY_NOTES[name], onclick: () => {
+        applyDifficulty(name);
+        this.render();
+        this.hooks.toast(`Difficulty: ${name}`);
+      },
+    }, name));
+    const syncPresets = () => {
+      const active = activeDifficulty();
+      Object.keys(DIFFICULTY_PRESETS).forEach((name, i) => {
+        presetButtons[i].classList.toggle('primary', name === active);
+        presetButtons[i].setAttribute('aria-pressed', String(name === active));
+      });
+      presetNote.textContent = active ? `${active}: ${DIFFICULTY_NOTES[active]}` : 'Custom: the sliders below no longer match a preset.';
+    };
     const sliders = TUNE_KEYS.map((k) => {
       const spec = CONFIG_SPEC[k] as { min?: number; max?: number };
       const out = h('span', {}, `${(config[k] as number).toFixed(2)}×`);
@@ -80,10 +96,12 @@ export class PauseMenu {
         oninput: () => {
           setConfig(k, Number(input.value));
           out.textContent = `${Number(input.value).toFixed(2)}×`;
+          syncPresets();
         },
       });
       return h('label', {}, TUNE_LABELS[k] ?? k, input, out);
     });
+    syncPresets();
     this.box.replaceChildren(
       h('h2', {}, 'Paused'),
       h('div', { class: 'stack' },
@@ -91,6 +109,7 @@ export class PauseMenu {
         g.hero && g.mode !== 'sandbox' ? btn('Inventory (I)', () => { this.hide(); this.hooks.openPanel('inventory'); }) : null,
         g.hero && g.mode !== 'sandbox' ? btn('Passive tree (P)', () => { this.hide(); this.hooks.openPanel('tree'); }) : null,
         g.hero && g.mode !== 'sandbox' ? btn('Character & skills (C)', () => { this.hide(); this.hooks.openPanel('character'); }) : null,
+        g.mode === 'dungeon' || g.mode === 'town' ? btn(g.mapOpen ? 'Hide map (Tab)' : 'Map (Tab)', () => { this.hide(); g.toggleMap(); }) : null,
         btn('Settings & controls', () => { this.hide(); this.hooks.openSettings(); }),
         g.mode === 'dungeon' ? btn(g.autopilot.on ? 'Autopilot: on (stop)' : 'Autopilot (watch the bot play)', () => {
           g.setAutopilot(g.autopilot.on ? null : { strategy: 'clear' });
@@ -103,13 +122,8 @@ export class PauseMenu {
       ),
       h('div', { class: 'tune' },
         h('h2', { style: { fontSize: '14px', textAlign: 'left' } }, 'Difficulty & tuning'),
-        h('div', { class: 'stack', style: { flexDirection: 'row', flexWrap: 'wrap' } }, ...Object.keys(DIFFICULTY_PRESETS).map((name) => h('button', {
-          class: 'ui-btn small', onclick: () => {
-            applyDifficulty(name);
-            this.render();
-            this.hooks.toast(`Difficulty: ${name}`);
-          },
-        }, name))),
+        h('div', { class: 'stack', style: { flexDirection: 'row', flexWrap: 'wrap' } }, ...presetButtons),
+        presetNote,
         ...sliders,
         h('p', { class: 'note', style: { color: 'var(--gp-dim)', fontSize: '12px' } }, 'Changes apply instantly, to monsters already alive too. Density applies to newly generated depths.'),
       ),

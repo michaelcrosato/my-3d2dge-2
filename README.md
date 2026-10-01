@@ -40,7 +40,7 @@ Open http://localhost:5173. On the title screen pick a save slot (three slots, s
 | Life / mana flask | Z / V | D-pad ↓ / ↑ | flask buttons |
 | Inventory, passive tree, character | I, P, C | View, D-pad →, D-pad ← | Bag, Tree, Char |
 | Town portal | T | R3 | — |
-| Full map (explored area, portals, chests, shrines) | Tab, or click the minimap | bindable in Settings | tap the minimap |
+| Full map (explored area, portals, chests, shrines) | Tab, or click the minimap | Menu → Map (or bind a button) | tap the minimap |
 | Pause menu | Esc | Menu | ☰ |
 
 The right stick aims on gamepads. Engine debug toggles have moved to function keys: F2 switches pixel and plain 3D, F3 shows stats, F6 toggles outlines, F7 cycles palettes, F8 shows colliders. Every binding is rebindable in Settings (⚙). Settings also holds the profiles, graphics, gamepad options and the touch layout editors (portrait and landscape are separate).
