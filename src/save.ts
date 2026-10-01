@@ -6,7 +6,9 @@
 import { CONFIG_SPEC, config, setConfig, type ConfigKey } from './config';
 import { designProblems, type SpeciesDesign } from './content/bestiary';
 import { BASES, EQUIP_SLOTS, type EquipSlot, type Item } from './content/items';
+import { PINNACLE_IDS } from './content/pinnacles';
 import { TREE } from './content/tree';
+import { UNIQUE_BY_ID } from './content/uniques';
 import { HOTBAR_SKILLS } from './content/skills';
 import { HOTBAR_SIZE, INVENTORY_SIZE, newHero, STASH_SIZE, type Hero } from './sim/hero';
 
@@ -73,6 +75,14 @@ function items(raw: unknown, size: number): Array<Item | null> {
   return out;
 }
 
+function normalizeCodex(raw: unknown): Hero['progress']['codex'] {
+  const c = isObj(raw) ? raw : {};
+  const kills: Record<string, number> = {};
+  if (isObj(c.kills)) for (const [k, v] of Object.entries(c.kills).slice(0, 5000)) if (typeof v === 'number' && v > 0 && k.length <= 64) kills[k] = Math.round(Math.min(v, 1e12));
+  const strs = (v: unknown, ok: (s: string) => boolean) => (Array.isArray(v) ? [...new Set(v.filter((x): x is string => typeof x === 'string' && ok(x)))] : []);
+  return { kills, uniques: strs(c.uniques, (u) => !!UNIQUE_BY_ID[u]), pinnacles: strs(c.pinnacles, (x) => PINNACLE_IDS.includes(x)) };
+}
+
 export function normalizeHero(raw: unknown): Hero {
   const base = newHero();
   if (!isObj(raw)) return base;
@@ -107,7 +117,7 @@ export function normalizeHero(raw: unknown): Hero {
     tree,
     jewels,
     flasks: Array.isArray(raw.flasks) ? [num(raw.flasks[0], 0, 1000, 30), num(raw.flasks[1], 0, 1000, 30)] : base.flasks,
-    progress: { unlocked: Math.round(num(p.unlocked, 1, 100000, 1)), cleared, endlessBest: Math.round(num(p.endlessBest, 0, 100000, 0)) },
+    progress: { unlocked: Math.round(num(p.unlocked, 1, 100000, 1)), cleared, endlessBest: Math.round(num(p.endlessBest, 0, 100000, 0)), codex: normalizeCodex(p.codex) },
     totals: {
       kills: num(t.kills, 0, 1e12, 0), deaths: num(t.deaths, 0, 1e12, 0), gold: num(t.gold, 0, 1e15, 0),
       frames: num(t.frames, 0, 1e15, 0), elites: num(t.elites, 0, 1e12, 0), bosses: num(t.bosses, 0, 1e12, 0),

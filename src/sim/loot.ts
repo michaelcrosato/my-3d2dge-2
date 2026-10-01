@@ -123,6 +123,11 @@ export function pickupItem(sim: Sim, p: Pickup): boolean {
     p.dead = true;
     sim.stage.items++;
     sim.emit('pickup', { kind: 'item', name: p.item.name, rarity: p.item.rarity, base: p.item.base, x: p.x, z: p.z });
+    const u = p.item.unique;
+    if (u && hero && !hero.progress.codex.uniques.includes(u)) {
+      hero.progress.codex.uniques.push(u);
+      sim.emit('codex.unique', { unique: u, name: p.item.name });
+    }
     return true;
   }
   return false;

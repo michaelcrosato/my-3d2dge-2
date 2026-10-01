@@ -92,6 +92,14 @@ body.touchui #ghud .buffs { top: max(92px, calc(env(safe-area-inset-top) + 88px)
 .tip .better { color: #6af08a; } .tip .worse { color: #ff6a6a; }
 .gp .actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .gp .pacts { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 8px; }
+.codex .ccards { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 6px; margin-bottom: 10px; }
+.codex .ccard { display: flex; align-items: center; gap: 8px; background: #0b0a10; border: 1px solid #3a3448; padding: 4px 8px 4px 4px; min-width: 0; }
+.codex .ccard img, .codex .ccard .ph { width: 54px; height: 54px; flex: none; image-rendering: pixelated; }
+.codex .ccard .ph { display: flex; align-items: center; justify-content: center; color: var(--gp-dim); font: 800 20px system-ui; background: #14121b; }
+.codex .ccard b { display: block; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.codex .ccard small { color: var(--gp-dim); font-size: 11px; }
+.codex .ccard.locked { opacity: 0.6; }
+.codex .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); gap: 4px; margin-bottom: 10px; }
 .gp .row { display: flex; align-items: center; gap: 8px; padding: 5px 0; border-bottom: 1px solid #ffffff10; flex-wrap: wrap; }
 .gp .row > .grow { flex: 1 1 160px; min-width: 0; }
 .gp .stat { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; font: 12px ui-monospace, monospace; }
