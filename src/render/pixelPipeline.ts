@@ -131,22 +131,43 @@ void main() {
 
 const upscaleFragment = /* glsl */ `
 uniform sampler2D tPost;
+uniform sampler2D tOverlay;
+uniform float overlayOn;
 uniform vec2 lowRes;
 uniform float scale;
 uniform vec2 offset;
+uniform vec2 overlayOffset;
 uniform vec3 background;
 void main() {
   vec2 p = floor((gl_FragCoord.xy + offset) / scale);
   vec4 c = texture2D(tPost, (p + 0.5) / lowRes);
-  gl_FragColor = vec4(mix(background, c.rgb, c.a), 1.0);
+  vec3 col = mix(background, c.rgb, c.a);
+  if (overlayOn > 0.5) {
+    // The overlay is anchored to the screen grid (not the sub-pixel scroll), so HUD text never wobbles.
+    vec2 q = floor((gl_FragCoord.xy + overlayOffset) / scale);
+    vec4 o = texture2D(tOverlay, (q + 0.5) / lowRes);
+    col = mix(col, o.rgb, o.a);
+  }
+  gl_FragColor = vec4(col, 1.0);
 }`;
 
 const copyFragment = /* glsl */ `
 uniform sampler2D tColor;
+uniform sampler2D tOverlay;
+uniform float overlayOn;
+uniform vec2 lowRes;
+uniform float scale;
+uniform vec2 overlayOffset;
 varying vec2 vUv;
 void main() {
   vec3 c = clamp(texture2D(tColor, vUv).rgb, 0.0, 1.0);
-  gl_FragColor = vec4(mix(c * 12.92, 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055, step(0.0031308, c)), 1.0);
+  c = mix(c * 12.92, 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055, step(0.0031308, c));
+  if (overlayOn > 0.5) {
+    vec2 q = floor((gl_FragCoord.xy + overlayOffset) / scale);
+    vec4 o = texture2D(tOverlay, (q + 0.5) / lowRes);
+    c = mix(c, o.rgb, o.a);
+  }
+  gl_FragColor = vec4(c, 1.0);
 }`;
 
 export interface RenderOptions {
@@ -154,6 +175,8 @@ export interface RenderOptions {
   subPixel?: { x: number; y: number };
   /** Draw edges/palette. false = raw low-res (used for plain-mode comparisons). */
   post?: boolean;
+  /** Low-res overlay (damage numbers, labels, minimap) composited over the frame. */
+  overlay?: THREE.Texture | null;
 }
 
 export class PixelPipeline {
@@ -195,6 +218,7 @@ export class PixelPipeline {
       uniforms: {
         tPost: { value: null }, lowRes: { value: new THREE.Vector2() }, scale: { value: 1 },
         offset: { value: new THREE.Vector2() }, background: { value: new THREE.Vector3() },
+        tOverlay: { value: null }, overlayOn: { value: 0 }, overlayOffset: { value: new THREE.Vector2() },
       },
       depthTest: false,
       depthWrite: false,
@@ -202,7 +226,10 @@ export class PixelPipeline {
     this.copyMaterial = new THREE.ShaderMaterial({
       vertexShader: quadVertex,
       fragmentShader: copyFragment,
-      uniforms: { tColor: { value: null } },
+      uniforms: {
+        tColor: { value: null }, tOverlay: { value: null }, overlayOn: { value: 0 }, lowRes: { value: new THREE.Vector2() },
+        scale: { value: 1 }, overlayOffset: { value: new THREE.Vector2() },
+      },
       depthTest: false,
       depthWrite: false,
     });
@@ -280,11 +307,18 @@ export class PixelPipeline {
   /** Full frame for the main view. */
   render(scene: THREE.Scene, camera: THREE.OrthographicCamera, opts: RenderOptions = {}) {
     const r = this.renderer;
+    const ovOffX = (this.width * this.scale - this.deviceW) / 2, ovOffY = (this.height * this.scale - this.deviceH) / 2;
     if (!config['render.pixelMode']) {
       r.setRenderTarget(this.full);
       r.clear(true, true, true);
       r.render(scene, camera);
-      this.copyMaterial.uniforms.tColor.value = this.full.texture;
+      const cu = this.copyMaterial.uniforms;
+      cu.tColor.value = this.full.texture;
+      cu.tOverlay.value = opts.overlay ?? null;
+      cu.overlayOn.value = opts.overlay ? 1 : 0;
+      cu.lowRes.value.set(this.width, this.height);
+      cu.scale.value = this.scale;
+      cu.overlayOffset.value.set(ovOffX, ovOffY);
       this.quad.material = this.copyMaterial;
       r.setRenderTarget(null);
       this.quad.render(r);
@@ -302,6 +336,9 @@ export class PixelPipeline {
     );
     const bg = this.background;
     u.background.value.set(bg.r, bg.g, bg.b);
+    u.tOverlay.value = opts.overlay ?? null;
+    u.overlayOn.value = opts.overlay ? 1 : 0;
+    u.overlayOffset.value.set(ovOffX, ovOffY);
     this.quad.material = this.upscaleMaterial;
     r.setRenderTarget(null);
     this.quad.render(r);

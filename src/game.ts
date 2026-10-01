@@ -1,20 +1,54 @@
-/** Owns the sim, the stage and the pixel pipeline; the real-time loop, the agent API and input all go through it. */
+/**
+ * Owns the sim, the stage and the pixel pipeline, plus the run: which mode we're in (title,
+ * town, dungeon, sandbox), the hero, the current stage, transitions through portals, progress and
+ * saving. The real-time loop, the agent API, UI panels and input all go through it.
+ *
+ * UI listens on `game.listeners` for both sim events (hits, loot, level-ups, NPC talks) and game
+ * events (mode changes, stage cleared, saved).
+ */
 import * as THREE from 'three';
 import { config, configListeners } from './config';
+import { campaignStage } from './content/campaign';
 import { PRESETS } from './content/characters';
 import { DEFAULT_LEVEL, type CharacterDef, type Level } from './content/level';
+import { ensureMonster } from './content/monsters';
+import { generateDungeon } from './content/procgen/dungeon';
+import { townLevel } from './content/town';
 import { AssetLibrary, clipTable } from './render/assets';
+import { Overlay, type OverlayOptions } from './render/overlay';
 import { PixelPipeline } from './render/pixelPipeline';
 import { Stage } from './render/stage';
-import { Sim } from './sim/sim';
+import type { SaveStore } from './save';
+import { newHero, type Hero } from './sim/hero';
+import { Sim, type SimEvent } from './sim/sim';
+
+export type Mode = 'title' | 'town' | 'dungeon' | 'sandbox';
+
+export interface GameEvent {
+  type: string;
+  [key: string]: unknown;
+}
 
 export class Game {
   sim!: Sim;
   readonly stage: Stage;
   readonly pipeline: PixelPipeline;
+  readonly overlay = new Overlay();
   level: Level = structuredClone(DEFAULT_LEVEL);
   seed = 1;
   paused = false;
+  mode: Mode = 'sandbox';
+  hero: Hero | null = null;
+  heroSlot = 0;
+  /** Dungeon stage being played (0 in town / sandbox). */
+  stageNo = 0;
+  /** Town visits (vendor restocks each visit). */
+  visits = 0;
+  saves: SaveStore | null = null;
+  /** True while a level is loading (stepping is suspended). */
+  busy = false;
+  readonly listeners = new Set<(e: GameEvent | SimEvent) => void>();
+  overlayOptions: OverlayOptions = { interactKey: 'E', minimap: true, heroId: 'player', hover: null };
   renderFrames = 0;
   fps = 0;
   /** Draw calls / triangles / milliseconds of the last rendered frame (all passes). */
@@ -27,6 +61,10 @@ export class Game {
   private lastAlpha = 1;
   private sizeDirty = true;
   private backgroundKey = '';
+  private lastSeq = 0;
+  private lastRealDt = 1 / 60;
+  private transition: Promise<void> | null = null;
+  private saveTimer = 0;
 
   constructor(readonly renderer: THREE.WebGLRenderer, readonly lib: AssetLibrary, readonly canvas: HTMLCanvasElement) {
     this.stage = new Stage(lib);
@@ -43,11 +81,27 @@ export class Game {
     configListeners.add((key) => {
       this.needsRender = true;
       if (key === 'render.targetLines') this.sizeDirty = true;
+      if (key.startsWith('tune.') && this.sim) this.sim.retune();
     });
   }
 
-  /** Loads every model a preset needs. */
-  async ensurePresets(presets: string[]) {
+  emit(e: GameEvent) {
+    for (const fn of this.listeners) fn(e);
+  }
+
+  /** Loads every model the level's characters (and their summons) need. */
+  async ensurePresets(defs: CharacterDef[]) {
+    const presets = new Set<string>(['ranger', 'thrall']);
+    for (const d of defs) {
+      if (d.monster) {
+        const md = ensureMonster(d.monster.def);
+        if (md.body.kind === 'humanoid') presets.add(md.body.preset);
+        if (md.minion) {
+          const mm = ensureMonster(md.minion);
+          if (mm.body.kind === 'humanoid') presets.add(mm.body.preset);
+        }
+      } else if (PRESETS[d.preset]) presets.add(d.preset);
+    }
     const ids = new Set<string>();
     for (const p of presets) {
       const def = PRESETS[p];
@@ -58,32 +112,140 @@ export class Game {
     await Promise.all([...ids].map((id) => this.lib.loadModel(id)));
   }
 
-  async reset(opts: { level?: Level; seed?: number } = {}) {
+  /** Rebuilds the sim and the scene from `level` (agents use this directly). */
+  async reset(opts: { level?: Level; seed?: number; hero?: Hero | null } = {}) {
     if (opts.level) this.level = structuredClone(opts.level);
     if (opts.seed !== undefined) this.seed = opts.seed;
-    await this.ensurePresets(this.level.characters.map((c) => c.preset));
+    if (opts.hero !== undefined) this.hero = opts.hero;
+    await this.ensurePresets(this.level.characters);
     this.sim?.dispose();
-    this.sim = await Sim.create(this.level, clipTable(this.lib.manifest), this.seed);
+    const useHero = this.level.kind === 'town' || this.level.kind === 'dungeon' ? this.hero : null;
+    this.sim = await Sim.create(this.level, clipTable(this.lib.manifest), this.seed, { hero: useHero });
     for (const v of this.stage.views.values()) v.dispose();
     this.stage.views.clear();
+    this.stage.hero = useHero;
     this.stage.buildLevel(this.level);
     this.stage.syncRoster(this.sim);
+    this.lastSeq = this.sim.lastEventSeq;
     this.acc = 0;
     this.sizeDirty = true;
     this.render(1);
   }
 
-  async spawn(def: CharacterDef) {
-    await this.ensurePresets([def.preset]);
-    const ch = this.sim.spawn(def);
-    this.stage.syncRoster(this.sim);
-    return ch;
+  // ---------------------------------------------------------------- run flow
+
+  /** Starts a fresh hero in a save slot and walks into town. */
+  async newGame(slot = 0, name = 'Ranger') {
+    this.hero = newHero(name);
+    this.heroSlot = slot;
+    this.save();
+    await this.enterTown();
   }
 
-  despawn(id: string) {
-    this.sim.despawn(id);
-    this.stage.syncRoster(this.sim);
+  async loadGame(slot: number) {
+    const hero = this.saves?.file.slots[slot];
+    if (!hero) throw new Error(`save slot ${slot + 1} is empty`);
+    this.hero = hero;
+    this.heroSlot = slot;
+    await this.enterTown();
   }
+
+  async enterTown() {
+    if (!this.hero) this.hero = newHero();
+    this.busy = true;
+    try {
+      this.mode = 'town';
+      this.stageNo = 0;
+      this.visits++;
+      // Flasks refill in town.
+      this.hero.flasks = [999, 999];
+      await this.reset({ level: townLevel(), seed: this.seed });
+      this.hero.flasks = [30, 30];
+      this.sim.refreshHero();
+      this.save();
+      this.emit({ type: 'mode', mode: 'town', title: this.level.title, subtitle: this.level.subtitle });
+    } finally {
+      this.busy = false;
+    }
+  }
+
+  async enterStage(n: number) {
+    if (!this.hero) this.hero = newHero();
+    this.busy = true;
+    try {
+      const spec = campaignStage(n);
+      const level = generateDungeon(spec.dungeon);
+      spec.place?.(level);
+      // A way home near the entrance.
+      const s = level.start!;
+      level.props = [...(level.props ?? []), { id: 'town_portal', kind: 'portal', x: s.x - 1.6, z: s.z - 1.6, data: { to: 'town' } }];
+      this.mode = 'dungeon';
+      this.stageNo = n;
+      await this.reset({ level, seed: spec.dungeon.seed });
+      this.emit({ type: 'mode', mode: 'dungeon', stage: n, title: level.title, subtitle: level.subtitle, mechanics: level.mechanics ?? [], tip: spec.tip });
+    } finally {
+      this.busy = false;
+    }
+  }
+
+  async startSandbox() {
+    this.mode = 'sandbox';
+    this.stageNo = 0;
+    await this.reset({ level: DEFAULT_LEVEL });
+    this.emit({ type: 'mode', mode: 'sandbox', title: 'Training Room' });
+  }
+
+  save() {
+    if (!this.hero || !this.saves) return;
+    this.saves.saveHero(this.heroSlot, this.hero);
+    this.emit({ type: 'saved' });
+  }
+
+  /** Resolves when no level transition is in flight (agents await this after stepping). */
+  async idle() {
+    while (this.transition) await this.transition;
+  }
+
+  private go(fn: () => Promise<void>) {
+    if (this.transition) return;
+    this.transition = fn().catch((e) => console.error(e)).finally(() => (this.transition = null));
+  }
+
+  /** Reacts to sim events: portals, stage clears, deaths. Forwards everything to listeners. */
+  private pump() {
+    const sim = this.sim;
+    if (sim.lastEventSeq === this.lastSeq) return;
+    for (const e of sim.eventsSince(this.lastSeq)) {
+      for (const fn of this.listeners) fn(e);
+      switch (e.type) {
+        case 'portal.enter':
+          if (e.to === 'town') this.go(() => this.enterTown());
+          else if (e.to === 'next') this.go(() => this.enterStage(this.stageNo + 1));
+          break;
+        case 'boss.dead': {
+          const hero = this.hero;
+          if (!hero || this.mode !== 'dungeon') break;
+          const key = String(this.stageNo);
+          const first = !(key in hero.progress.cleared);
+          hero.progress.cleared[key] = Math.min(hero.progress.cleared[key] ?? Infinity, sim.stage.time);
+          hero.progress.unlocked = Math.max(hero.progress.unlocked, this.stageNo + 1);
+          hero.progress.endlessBest = Math.max(hero.progress.endlessBest, this.stageNo);
+          sim.stage.cleared = true;
+          if (first) sim.refreshHero();
+          this.save();
+          this.emit({ type: 'stage.clear', stage: this.stageNo, first, time: sim.stage.time, kills: sim.stage.kills, gold: sim.stage.gold, xp: Math.round(sim.stage.xp), items: sim.stage.items, mechanicKills: sim.stage.mechanicKills });
+          break;
+        }
+        case 'levelup':
+          this.save();
+          break;
+      }
+    }
+    this.lastSeq = sim.lastEventSeq;
+    if (this.stage.views.size !== sim.characters.size || [...sim.characters.keys()].some((id) => !this.stage.views.has(id))) this.stage.syncRoster(sim);
+  }
+
+  // ---------------------------------------------------------------- loop
 
   /** Canvas backing store in DEVICE pixels, so integer upscaling stays exact under OS display scaling. */
   resize() {
@@ -94,6 +256,16 @@ export class Game {
     const h = Math.max(1, Math.round(this.canvas.clientHeight * dpr));
     if (this.canvas.width !== w || this.canvas.height !== h) this.renderer.setSize(w, h, false);
     this.pipeline.setSize(w, h);
+  }
+
+  /** Client (CSS pixel) position -> low-res target pixel. */
+  toLowRes(clientX: number, clientY: number): { x: number; y: number } | null {
+    const rect = this.canvas.getBoundingClientRect();
+    if (!rect.width || !rect.height) return null;
+    const p = this.pipeline;
+    const dx = ((clientX - rect.left) / rect.width) * this.canvas.width;
+    const dy = ((clientY - rect.top) / rect.height) * this.canvas.height;
+    return { x: Math.floor((dx + (p.width * p.scale - p.deviceW) / 2) / p.scale), y: Math.floor((dy + (p.height * p.scale - p.deviceH) / 2) / p.scale) };
   }
 
   /**
@@ -119,11 +291,14 @@ export class Game {
     const cam = this.stage.camera;
     const origin = new THREE.Vector3(ndcX, ndcY, -1).unproject(cam);
     const dir = cam.getWorldDirection(new THREE.Vector3());
-    return this.sim.raycast(origin, dir);
+    // Aim at chest height plane first (feels right for skills), fall back to the physics floor.
+    const hit = this.sim.raycast(origin, dir);
+    return hit;
   }
 
   /** Real-time loop tick. */
   advance(realDt: number) {
+    this.lastRealDt = Math.min(0.1, realDt);
     this.fpsAcc += realDt;
     this.fpsFrames++;
     if (this.fpsAcc >= 0.5) {
@@ -131,7 +306,7 @@ export class Game {
       this.fpsAcc = 0;
       this.fpsFrames = 0;
     }
-    if (!this.paused) {
+    if (!this.paused && !this.busy) {
       this.acc += Math.min(realDt, 0.1) * config['sim.timeScale'];
       let n = 0;
       while (this.acc >= this.sim.dt && n < 6) {
@@ -140,29 +315,41 @@ export class Game {
         n++;
       }
       if (n === 6) this.acc = 0;
+      if (n) this.pump();
+      this.saveTimer += realDt;
+      if (this.saveTimer > 30) {
+        this.saveTimer = 0;
+        this.save();
+      }
     }
-    this.render(this.paused ? 1 : this.acc / this.sim.dt);
+    this.render(this.paused ? 1 : this.acc / this.sim.dt, this.paused ? 0 : this.lastRealDt);
   }
 
   /** Advance exactly n sim frames (deterministic, independent of wall-clock), then draw. */
   step(n = 1) {
-    for (let i = 0; i < n; i++) this.sim.step();
+    for (let i = 0; i < n; i++) {
+      this.sim.step();
+      if (i % 30 === 29) this.pump();
+    }
+    this.pump();
     this.acc = 0;
-    this.render(1);
+    this.render(1, n / 60);
   }
 
-  render(alpha = this.lastAlpha) {
+  render(alpha = this.lastAlpha, dt = 0) {
     const t0 = performance.now();
     this.lastAlpha = alpha;
     this.renderer.info.reset();
     this.resize();
-    this.stage.update(this.sim, alpha, this.pipeline);
+    this.stage.update(this.sim, alpha, this.pipeline, dt);
     if (this.backgroundKey !== this.level.background) {
       // The upscale pass mixes this into sRGB-encoded pixels, so keep the hex's raw components.
       this.backgroundKey = this.level.background;
       this.pipeline.background.setStyle(this.level.background, THREE.LinearSRGBColorSpace);
     }
-    this.pipeline.render(this.stage.scene, this.stage.camera, { subPixel: this.stage.subPixel });
+    const sandbox = this.mode === 'sandbox';
+    if (!sandbox) this.overlay.update(this.sim, this.stage, this.pipeline.width, this.pipeline.height, dt, this.overlayOptions);
+    this.pipeline.render(this.stage.scene, this.stage.camera, { subPixel: this.stage.subPixel, overlay: sandbox ? null : this.overlay.texture });
     this.renderFrames++;
     this.needsRender = false;
     const info = this.renderer.info.render;

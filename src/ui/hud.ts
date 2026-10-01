@@ -6,16 +6,15 @@ import type { Profile } from '../input/profile';
 import { codeLabel, padLabel } from '../input/resolve';
 
 function keyHints(p: Profile): string[] {
-  const k = (a: Action) => (p.keys[a][0] ? codeLabel(p.keys[a][0]) : '');
+  const k = (a: Action) => (p.keys[a][0] ? codeLabel(p.keys[a][0]).replace('Left click', 'LMB').replace('Right click', 'RMB').replace('Middle click', 'MMB') : '');
   const hint = (a: Action, text: string) => (k(a) ? `${k(a)} ${text}` : '');
   const dirs = (['moveUp', 'moveLeft', 'moveDown', 'moveRight'] as const).map(k);
   const move = dirs.every((d) => d.length === 1) ? `${dirs.join('')} move` : dirs.some(Boolean) ? `${dirs.join('/')} move` : '';
-  const fps = [k('animFps6'), k('animFps24')].filter(Boolean).join('-');
+  const skills = (['skill1', 'skill2', 'skill3', 'skill4', 'skill5'] as const).map(k).filter(Boolean).join('/');
   const lines = [
-    [move, hint('sprint', 'sprint'), hint('walk', 'walk'), hint('jump', 'jump'), hint('attack', 'attack'), hint('moveTo', 'go to')],
-    [hint('menu', 'settings'), hint('pause', 'pause'), hint('step', 'step'), hint('reset', 'reset'), hint('help', 'help'), hint('stats', 'stats')],
-    [hint('togglePixel', 'pixel/3D'), hint('toggleOutlines', 'outlines'), hint('toggleCreases', 'creases'), hint('cyclePalette', 'palette'), hint('toggleSnap', 'snap'), hint('toggleSmoothScroll', 'smooth')],
-    [hint('toggleStepped', 'stepped'), hint('toggleDir8', '8-dir'), hint('toggleSilhouettes', 'silhouettes'), hint('toggleColliders', 'colliders'), hint('toggleShadows', 'shadows'), fps ? `${fps} anim fps` : ''],
+    [move, hint('attack', 'attack'), skills ? `${skills} skills` : '', hint('dodge', 'roll'), hint('interact', 'use'), hint('flask1', 'life'), hint('flask2', 'mana')],
+    [hint('inventory', 'bag'), hint('tree', 'tree'), hint('character', 'char'), hint('townPortal', 'town'), hint('menu', 'menu'), hint('help', 'help'), hint('stats', 'stats')],
+    [hint('togglePixel', 'pixel/3D'), hint('toggleOutlines', 'outlines'), hint('cyclePalette', 'palette'), hint('toggleColliders', 'colliders'), hint('pause', 'freeze'), hint('step', 'step')],
   ];
   return lines.map((l) => l.filter(Boolean).join('  ')).filter(Boolean);
 }
@@ -25,8 +24,9 @@ function padHints(p: Profile): string[] {
   const hint = (a: Action, text: string) => (b(a) ? `${b(a)} ${text}` : '');
   const stick = p.padOptions.stick === 'left' ? 'Left stick' : 'Right stick';
   return [
-    [`${stick} move`, hint('jump', 'jump'), hint('attack', 'attack'), hint('sprint', 'sprint')].filter(Boolean).join('  '),
-    [hint('menu', 'settings'), hint('pause', 'pause'), hint('togglePixel', 'pixel/3D')].filter(Boolean).join('  '),
+    [`${stick} move`, 'other stick aims', hint('attack', 'attack'), hint('dodge', 'roll'), hint('interact', 'use')].filter(Boolean).join('  '),
+    [hint('skill1', 's1'), hint('skill2', 's2'), hint('skill3', 's3'), hint('skill4', 's4'), hint('skill5', 's5'), hint('flask1', 'life'), hint('flask2', 'mana')].filter(Boolean).join('  '),
+    [hint('menu', 'menu'), hint('inventory', 'bag'), hint('tree', 'tree'), hint('character', 'char')].filter(Boolean).join('  '),
   ];
 }
 
@@ -42,7 +42,7 @@ export function hudText(game: Game, p: Profile, device: Device, touchVisible: bo
   }
   if (p.prefs.showHelp) {
     if (device === 'gamepad') lines.push(...padHints(p));
-    else if (device === 'touch' || (device === 'none' && touchVisible)) lines.push('Stick moves • Jump / Attack / Sprint', '⚙ settings • Pixel / 3D switches rendering');
+    else if (device === 'touch' || (device === 'none' && touchVisible)) lines.push('Stick moves • Attack, Roll and skill buttons • tap NPCs and loot', '☰ menu • Bag / Tree / Char • ⚙ settings');
     else lines.push(...keyHints(p));
   }
   return lines.join('\n');

@@ -18,3 +18,31 @@ export function h<K extends keyof HTMLElementTagNameMap>(tag: K, props: Props = 
 }
 
 export const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v));
+
+const FOCUSABLE = 'button:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+/** Gamepad / D-pad navigation inside any dialog: moves focus, nudges sliders, clicks. */
+export function focusNav(root: HTMLElement, cmd: 'up' | 'down' | 'left' | 'right' | 'confirm' | 'back' | 'prevTab' | 'nextTab', back: () => void) {
+  const list = [...root.querySelectorAll<HTMLElement>(FOCUSABLE)].filter((e) => e.offsetParent !== null);
+  const active = document.activeElement as HTMLElement | null;
+  const i = active ? list.indexOf(active) : -1;
+  const move = (d: number) => {
+    const next = list[i < 0 ? 0 : (i + d + list.length) % list.length];
+    next?.focus();
+    next?.scrollIntoView({ block: 'nearest' });
+  };
+  switch (cmd) {
+    case 'up': case 'prevTab': move(-1); break;
+    case 'down': case 'nextTab': move(1); break;
+    case 'left': case 'right': {
+      const d = cmd === 'left' ? -1 : 1;
+      if (active instanceof HTMLInputElement && active.type === 'range') {
+        active.value = String(Number(active.value) + d * Number(active.step || 1));
+        active.dispatchEvent(new Event('input', { bubbles: true }));
+      } else move(d);
+      break;
+    }
+    case 'confirm': active?.click(); break;
+    case 'back': back(); break;
+  }
+}

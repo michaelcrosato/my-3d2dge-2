@@ -60,6 +60,15 @@ export const CONFIG_SPEC = {
   'sim.crateKnock': { value: 0.6, min: 0, max: 3, desc: "Sword hits shove pushable crates: speed given = the attack's knockback x this (Rapier impulse). 0 = crates ignore swords." },
   'sim.respawnSeconds': { value: 4, min: 0.5, max: 30, desc: 'Seconds before a dead character respawns.' },
   'sim.timeScale': { value: 1, min: 0, max: 4, desc: 'Real-time playback speed. Ignored by agent step(), which always advances exact frames.' },
+  'tune.playerDamage': { value: 1, min: 0.1, max: 10, desc: 'Difficulty: multiplier on all damage the hero (and minions) deal.' },
+  'tune.playerLife': { value: 1, min: 0.1, max: 10, desc: 'Difficulty: multiplier on the hero\'s maximum life.' },
+  'tune.playerSpeed': { value: 1, min: 0.3, max: 3, desc: 'Difficulty: multiplier on the hero\'s movement, attack and cast speed.' },
+  'tune.enemyDamage': { value: 1, min: 0.1, max: 10, desc: 'Difficulty: multiplier on all damage monsters deal.' },
+  'tune.enemyLife': { value: 1, min: 0.1, max: 10, desc: 'Difficulty: multiplier on monster maximum life.' },
+  'tune.enemySpeed': { value: 1, min: 0.3, max: 3, desc: 'Difficulty: multiplier on monster movement, attack and cast speed.' },
+  'tune.xp': { value: 1, min: 0, max: 20, desc: 'Experience multiplier (playtesting).' },
+  'tune.loot': { value: 1, min: 0, max: 20, desc: 'Item drop quantity multiplier (playtesting).' },
+  'tune.density': { value: 1, min: 0.2, max: 4, desc: 'Monster pack density multiplier for newly generated levels.' },
 } as const satisfies Record<string, Spec>;
 
 type Widen<T> = T extends boolean ? boolean : T extends number ? number : T extends string ? string : never;
