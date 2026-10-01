@@ -162,3 +162,25 @@ describe('autoplayer bot', () => {
     expect(d.summary.seconds).toBeGreaterThan(5);
   });
 });
+
+describe('balance guard (bot campaign)', () => {
+  it('a fresh hero clears the opening depths and the first boss is a real fight', async () => {
+    const d = (await call('balance.campaign', { from: 1, to: 4 })).data as { failedDepths: number[]; totalDeaths: number; rows: Array<{ bossSeconds: number; gap: number }> };
+    expect(d.failedDepths).toEqual([]);
+    expect(d.totalDeaths).toBeLessThanOrEqual(2);
+    // The first boss neither melts nor walls a new hero.
+    expect(d.rows[0].bossSeconds).toBeGreaterThan(8);
+    expect(d.rows[0].bossSeconds).toBeLessThan(60);
+    // The hero stays within a few levels of the monsters.
+    for (const r of d.rows) expect(Math.abs(r.gap)).toBeLessThanOrEqual(5);
+  });
+
+  it('monster life keeps pace with a level-appropriate hero', async () => {
+    const d = (await call('balance.curve', { levels: [10, 40, 80] })).data as { rows: Array<{ secondsToKill: number }> };
+    // A normal monster takes a beat, never a fraction of a frame or a slog.
+    for (const r of d.rows) {
+      expect(r.secondsToKill).toBeGreaterThan(0.08);
+      expect(r.secondsToKill).toBeLessThan(3);
+    }
+  });
+});

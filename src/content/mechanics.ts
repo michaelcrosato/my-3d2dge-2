@@ -263,7 +263,7 @@ export const MECHANICS: Record<string, MechanicDef> = {
   },
   totems: {
     id: 'totems', name: 'Totems', noun: 'Totems', adjective: 'Warded', themes: ['ruins', 'temple', 'abyss'],
-    tip: 'Totems empower and heal monsters nearby. Break one (8 hits) and its power flows into you.',
+    tip: 'Totems ward and heal monsters nearby (bosses only slowly). Break one (8 hits) and its power flows into you.',
     place(level, rng, k) {
       const pl = new Placer(level);
       for (const room of combatRooms(level)) {

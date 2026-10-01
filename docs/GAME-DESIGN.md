@@ -112,6 +112,25 @@ materials quantize the falloff into crisp bands.
 damage/life/speed, experience, loot quantity, monster density. They apply live (monster pools
 are rescaled) and are saved with the game. Presets: Story, Normal, Hard, Nightmare.
 
+The curves (`src/sim/scaling.ts`) are tuned with the agent tools, not by feel. `balance.campaign`
+lets one bot hero play depth after depth (equipping upgrades and spending points between depths)
+and reports level gap, deaths, clear time and boss-fight length; `balance.curve` and
+`balance.run` probe single levels and depths. What the measurements led to:
+
+- **Monster life ramp** (`lifeRamp`): weapons and monster life share the power curve, but the
+  hero also stacks percentage increases (tree, strength, gear, speed, crit) that grow about
+  linearly with level. Without the ramp, hero damage outgrew monster life ~30x by level 85.
+- **Early bosses** (`bossEase`, `bossLifeEase`): the first bosses start at 60% damage and 45%
+  life, reaching full strength by levels 13 and 5.
+- **Experience catch-up** (`xpCatchUp`): monsters above the hero give up to +96% experience,
+  so a hero who falls behind (or pushes deeper) closes the gap.
+- **Mechanics never trap**: field pulls are capped at 60% of a character's run speed, bosses
+  are too heavy for launch pads, and totems mend bosses only slowly.
+
+Baseline (bot, Normal, 40 depths): both melee and spell builds clear every depth; boss fights
+have a median of 12-34 s; the hero stays within -2..+4 levels of the monsters; melee dies about
+once per depth past depth 20, ranged rarely. `tests/agent-tools.test.ts` guards the opening.
+
 ## Extending
 
 - **New skill:** add a `SkillDef` in `skills.ts`; for hero skills add a skill cluster in

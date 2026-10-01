@@ -123,6 +123,8 @@ registerProp('launchpad', { radius: 0.7, height: 0.2, solid: false, hittable: fa
   touch(sim, p, ch) {
     if (p.timer > 0 || ch.state === 'dead' || ch.lift > 0.2 || (ch.cooldowns.pad ?? 0) > 0) return;
     if (ch.action?.skill === 'pad_leap') return;
+    // Bosses are too heavy to fling (a launched boss would loop its own fight around the level).
+    if (ch.monster?.boss) return;
     if (ch.state !== 'idle' && ch.state !== 'move' && ch.state !== 'recover' && ch.state !== 'action') return;
     const to = p.data.to as { x: number; z: number } | undefined;
     if (!to) return;
@@ -293,7 +295,8 @@ registerProp('totem', { radius: 0.4, height: 1.8, solid: true, hittable: true, h
     for (const c of sim.characters.values()) {
       if (!c.monster || c.state === 'dead' || Math.hypot(c.pos.x - p.x, c.pos.z - p.z) > 9) continue;
       addStatus(sim, c, 'empowered', 1.2, 1, p.id);
-      if (c.life < c.maxLife) c.life = Math.min(c.maxLife, c.life + c.maxLife * 0.015);
+      // Bosses mend slowly: ignoring the totems must never make a boss unkillable.
+      if (c.life < c.maxLife) c.life = Math.min(c.maxLife, c.life + c.maxLife * (c.monster.boss ? 0.0025 : 0.015));
     }
   },
 });

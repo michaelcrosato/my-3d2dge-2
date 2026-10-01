@@ -69,7 +69,7 @@ The ⚙ button opens Settings. Everything is stored per **profile**; Standard, L
 
 ## Agent tools
 
-The engine ships its own tools for AI agents: 37 typed, documented tools for building, generating, rendering and inspecting the game's assets and systems. They live in `src/agent/` and run in three places:
+The engine ships its own tools for AI agents: 38 typed, documented tools for building, generating, rendering and inspecting the game's assets and systems. They live in `src/agent/` and run in three places:
 
 - **Browser console:** `await agent.call('help')`, `await agent.call('creature.render', { plan: 'spider', seed: 9 })`, `agent.tools()` (names, descriptions, JSON Schemas). Present in every mode.
 - **Terminal:** `npm run agent -- help`, `npm run agent -- level.generate stage=30 'mechanics=["kegs","ice"]'`, `npm run agent -- --script steps.json`, `npm run agent -- repl`. Images are written to `.agent/out/` (git-ignored) and their paths are printed.
@@ -84,7 +84,7 @@ The CLI and the MCP server start Vite in-process and drive headless Chromium (`-
 | item | `item.roll`, `loot.simulate` (thousands of kills through the real drop code) |
 | level | `campaign.list`, `level.generate` (any depth or a remix of theme / layout / mechanics, with a map image and critical path) |
 | tree, hero | `tree.inspect`, `tree.path`, `tree.render`, `hero.build` (auto-built hero of any level), `skill.inspect` |
-| balance | `balance.curve` (power curves by level), `balance.run` (the autoplayer bot plays a depth headless at ~60x speed: clear rate, time, deaths) |
+| balance | `balance.curve` (power curves by level), `balance.run` (the autoplayer bot plays a depth headless at ~60x speed: clear rate, time, deaths), `balance.campaign` (one hero plays depth after depth, equipping drops and spending points: the progression curve) |
 | config | `config.get`, `config.set`, `difficulty.set` |
 | render (live) | `creature.render`, `creature.lineup`, `monster.render`, `item.icon`, `scene.capture` (exact pixels, HUD, labelled boxes), `scene.stats`, `logs.read` |
 | world (live) | `game.state`, `game.goto`, `game.step`, `game.input`, `hero.set`, `hero.sheet`, `hero.give`, `monster.spawn`, `bot.play`, `bot.autopilot` |

@@ -256,3 +256,47 @@ describe('mechanics in the sim', () => {
     sim.dispose();
   });
 });
+
+describe('mechanics never trap a player who ignores them', () => {
+  it('anyone can walk out of overlapping gravity wells', () => {
+    const { sim, p } = stageSim(11);
+    calm(sim);
+    const well = propsOf(sim, 'well')[0];
+    // A second well on top doubles the pull.
+    sim.addProp({ id: 'well_extra', kind: 'well', x: well.x + 0.3, z: well.z, scale: well.scale });
+    put(sim, p, well.x + 0.5, well.z);
+    // Walk straight out through open floor (any direction without a wall in the way).
+    const ang = [0, 1, 2, 3, 4, 5, 6, 7].map((k) => (k * Math.PI) / 4).find((a) => sim.nav.lineFree(well, { x: well.x + Math.cos(a) * (well.scale + 2), z: well.z + Math.sin(a) * (well.scale + 2) }))!;
+    sim.setInput('player', { moveX: Math.cos(ang), moveZ: Math.sin(ang) }, 240);
+    steps(sim, 240);
+    expect(Math.hypot(p.pos.x - well.x, p.pos.z - well.z)).toBeGreaterThan(well.scale + 0.5);
+    sim.dispose();
+  });
+
+  it('launch pads do not fling bosses', () => {
+    const { sim } = stageSim(4);
+    const pad = propsOf(sim, 'launchpad')[0];
+    const boss = monsters(sim).find((c) => c.monster!.boss)!;
+    calm(sim, [boss]);
+    boss.ai.awake = false;
+    put(sim, boss, pad.x, pad.z);
+    steps(sim, 30);
+    expect(boss.action?.skill).not.toBe('pad_leap');
+    expect(sim.events.some((e) => e.type === 'launch' && e.id === boss.id)).toBe(false);
+    sim.dispose();
+  });
+
+  it('totems heal bosses only slowly', () => {
+    const { sim } = stageSim(10);
+    const totem = propsOf(sim, 'totem')[0];
+    const boss = monsters(sim).find((c) => c.monster!.boss)!;
+    calm(sim, [boss]);
+    boss.ai.awake = false;
+    put(sim, boss, totem.x + 2, totem.z);
+    boss.life = boss.maxLife * 0.5;
+    sim.despawn('player');
+    steps(sim, 120);
+    expect(boss.life / boss.maxLife).toBeLessThan(0.515);
+    sim.dispose();
+  });
+});

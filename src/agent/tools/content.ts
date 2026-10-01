@@ -22,12 +22,13 @@ import { STATUSES } from '../../content/statuses';
 import { THEMES, DUNGEON_THEMES } from '../../content/themes';
 import { pathTo, SECTOR_NAME, TREE } from '../../content/tree';
 import { UNIQUES } from '../../content/uniques';
-import { autoHero, type BuildFocus } from '../../sim/autobuild';
+import { autoEquip, autoHero, heroPower, spendPoints, type BuildFocus } from '../../sim/autobuild';
 import { runBot, type BotReport } from '../../sim/bot';
 import { dropLoot } from '../../sim/loot';
 import { NavGrid } from '../../sim/nav';
 import { Rng } from '../../sim/rng';
 import { monsterDamage, monsterLife, monsterXp, xpToNext } from '../../sim/scaling';
+import { newHero, treePoints } from '../../sim/hero';
 import { describeItem, itemValue, rollItem } from '../../sim/items';
 import { Sim } from '../../sim/sim';
 import { levelMap, treeImage } from '../maps';
@@ -582,6 +583,83 @@ defineTool({
       },
       runs,
     };
+  },
+});
+
+defineTool({
+  name: 'balance.campaign', group: 'balance',
+  desc: 'Plays the campaign with ONE hero from a fresh start (or a given level): the bot clears depth after depth, and between depths the hero equips upgrades it found and spends passive points, like a player. Shows whether progression keeps pace with the monsters: hero level vs monster level, deaths, time, power per depth.',
+  params: {
+    from: { type: 'integer', default: 1, min: 1, max: 10000, desc: 'First depth.' },
+    to: { type: 'integer', default: 8, min: 1, max: 10000, desc: 'Last depth (max 40 per call).' },
+    focus: { type: 'string', default: 'melee', enum: FOCI, desc: 'Passive tree focus.' },
+    heroLevel: { type: 'integer', min: 1, max: 500, desc: 'Start from an auto-built hero of this level instead of a fresh one.' },
+    strategy: { type: 'string', default: 'clear', enum: ['clear', 'rush'], desc: 'Bot strategy.' },
+    retries: { type: 'integer', default: 1, min: 0, max: 5, desc: 'Replays of a depth the bot failed to clear (players retry).' },
+    maxSeconds: { type: 'integer', default: 480, min: 30, max: 1800, desc: 'Time limit per attempt (a full clear with loot takes 1-5 min).' },
+    difficulty: { type: 'string', enum: Object.keys(DIFFICULTY_PRESETS), desc: 'Difficulty preset.' },
+    tune: { type: 'object', desc: 'tune.* overrides.' },
+    seed: { type: 'integer', default: 1, desc: 'Seed.' },
+  },
+  example: { from: 1, to: 3 },
+  async run(a, ctx) {
+    await probeSim(ctx.clips).then((s) => s.dispose());
+    const hero = a.heroLevel ? autoHero({ level: a.heroLevel, focus: a.focus as BuildFocus, seed: a.seed }) : newHero('Bot');
+    if (!a.heroLevel && a.focus === 'spell') hero.hotbar = ['fireball', 'cleave', null, null, null];
+    const rows: Array<Record<string, unknown>> = [];
+    withTune(a.difficulty, a.tune, () => {
+      for (let n = a.from; n <= Math.min(a.to, a.from + 39); n++) {
+        let cleared = false, attempts = 0, seconds = 0, deaths = 0, kills = 0, picked = 0, mk = 0, boss: number | null = null;
+        const startLevel = hero.level;
+        while (!cleared && attempts <= a.retries) {
+          attempts++;
+          const level = buildStageLevel({ stage: n });
+          hero.flasks = [30, 30];
+          const sim = new Sim(level, ctx.clips, a.seed * 7919 + n * 31 + attempts, { hero });
+          try {
+            const r = runBot(sim, { strategy: a.strategy, maxFrames: a.maxSeconds * 60 });
+            cleared = r.bossDead;
+            seconds += r.seconds;
+            deaths += r.deaths;
+            kills += r.kills;
+            picked += r.itemsPicked;
+            mk += r.mechanicKills;
+            boss = r.bossSeconds;
+            if (cleared) {
+              const key = String(n);
+              if (!(key in hero.progress.cleared)) hero.progress.cleared[key] = r.frames;
+              hero.progress.unlocked = Math.max(hero.progress.unlocked, n + 1);
+            }
+            // Between depths: equip upgrades, spend points (a player in town).
+            spendPoints(hero, Math.max(0, treePoints(hero)), a.focus as BuildFocus);
+            sim.refreshHero();
+            const upgrades = autoEquip(sim);
+            sim.refreshHero();
+            const sheet = heroSheet(sim);
+            if (cleared || attempts > a.retries) {
+              const best = sheet.skills.reduce((x, y) => (y.perSecond > x.perSecond ? y : x));
+              rows.push({
+                depth: n, title: stageTitle(n), monsterLevel: level.monsterLevel, heroLevel: `${startLevel}->${hero.level}`, gap: hero.level - (level.monsterLevel ?? 1),
+                cleared, attempts, seconds: r1(seconds), bossSeconds: boss, deaths, kills, mechanicKills: mk, itemsPicked: picked, upgrades: upgrades.length,
+                life: sheet.life, best: `${best.name} ${best.perSecond}/s`, power: Math.round(heroPower(sim)), gold: hero.gold,
+              });
+            }
+          } finally {
+            sim.dispose();
+          }
+          // Sell everything left (gold for the merchant loop), keep inventory clear.
+          for (let i = 0; i < hero.inventory.length; i++) {
+            const it = hero.inventory[i];
+            if (it) {
+              hero.gold += Math.max(1, Math.round(itemValue(it) * 0.25));
+              hero.inventory[i] = null;
+            }
+          }
+        }
+      }
+    });
+    const failed = rows.filter((r) => !r.cleared).map((r) => r.depth);
+    return { focus: a.focus, difficulty: a.difficulty ?? 'current', failedDepths: failed, totalDeaths: rows.reduce((s, r) => s + (r.deaths as number), 0), rows };
   },
 });
 
