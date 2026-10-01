@@ -9,6 +9,7 @@
  */
 import * as THREE from 'three';
 import { createAgentApi } from './agent/api';
+import { registerWebMcp } from './agent/webmcp';
 import { AudioEngine } from './audio/engine';
 import { installLogCapture } from './agent/logs';
 import { setConfig } from './config';
@@ -356,6 +357,8 @@ async function boot() {
   }
 
   const agent = createAgentApi(game);
+  // Browser AI agents (WebMCP) get the same tools as the console, CLI and MCP server.
+  registerWebMcp(agent);
   Object.assign(window, { agent, game });
   if (agentMode) game.paused = true;
   document.getElementById('loading')?.remove();

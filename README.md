@@ -79,6 +79,7 @@ The engine ships its own tools for AI agents: 42 typed, documented tools for bui
 - **Browser console:** `await agent.call('help')`, `await agent.call('creature.render', { plan: 'spider', seed: 9 })`, `agent.tools()` (names, descriptions, JSON Schemas). Present in every mode.
 - **Terminal:** `npm run agent -- help`, `npm run agent -- level.generate stage=30 'mechanics=["kegs","ice"]'`, `npm run agent -- --script steps.json`, `npm run agent -- repl`. Images are written to `.agent/out/` (git-ignored) and their paths are printed.
 - **MCP:** `npm run mcp` is a stdio MCP server (no extra dependencies); `.mcp.json` registers it for Claude Code in this repository. Tool names use underscores (`creature_render`), and images come back as image content.
+- **WebMCP:** in browsers that offer `navigator.modelContext`, the page registers 40 of the tools for the browser's own AI agent (feature-detected; nothing changes elsewhere). Agents discover the project through `/llms.txt` and `/.well-known/ai-catalog.json`, and Lighthouse's agentic-browsing audit scores 100.
 
 The CLI and the MCP server start Vite in-process and drive headless Chromium (`--url URL` targets a running server, `--standalone` the single-file build).
 

@@ -1,0 +1,22 @@
+# Depthward
+
+> A pixel-art hack-and-slash rendered live from 3D (Three.js, Rapier, TypeScript): fast combat, a ~550-node passive tree, loot, endless procedural depths, a Spore-style creature Workshop, and 42 agent tools built into the engine.
+
+Depthward is an engine showcase that treats AI agents as first-class developers and players. Every tool in its registry (catalogs, creature genomes and custom species, monster, item, level and passive-tree inspection, loot simulation, balance curves and bot playtests, rendering and live-game control) is reachable four ways: `window.agent.call(name, args)` in the page, WebMCP (`navigator.modelContext`) where the browser supports it, the terminal (`npm run agent -- <tool>`), and a stdio MCP server (`npm run mcp`).
+
+## Play
+
+- [Play in the browser](/): title screen, three save slots, keyboard and mouse, gamepad or touch.
+- [Agent mode](/?agent&seed=1): starts paused with human input off; drive it with `window.agent.step(frames)` and `window.agent.call(...)`.
+
+## Docs
+
+- [README](https://github.com/michaelcrosato/my-3d2dge-2/blob/main/README.md): features, controls, commands and the agent tool table.
+- [AGENTS.md](https://github.com/michaelcrosato/my-3d2dge-2/blob/main/AGENTS.md): rules and validation steps for coding agents working on the repository.
+- [Game design](https://github.com/michaelcrosato/my-3d2dge-2/blob/main/docs/GAME-DESIGN.md): the data vocabularies (stats, skills, monsters, items, tree, mechanics, pacts, bestiary, sound, music) and how to extend them.
+
+## Agent tools
+
+- [AI catalog](/.well-known/ai-catalog.json): the MCP server card and this guide.
+- Start with `help` (all tools by group) or `help {"tool":"creature.render"}` (one tool's parameters and example).
+- Images (sprite sheets, maps, captures, spectrograms) come back as PNGs.

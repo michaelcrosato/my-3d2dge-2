@@ -212,3 +212,31 @@ describe('upgrade arrows', () => {
     sim.dispose();
   });
 });
+
+describe('WebMCP bridge', () => {
+  it('registers up to 40 tools with valid names and MCP-style results', async () => {
+    const { registerWebMcp, WEBMCP_MAX_TOOLS } = await import('../src/agent/webmcp');
+    const { describeTools } = await import('../src/agent/registry');
+    const agent = { ready: true, step() {}, idle: async () => {}, tools: (g?: string) => describeTools(g), call: (n: string, a?: Record<string, unknown>) => callTool(n, a ?? {}, env) };
+    const registered: Array<{ name: string; inputSchema: unknown; execute: (i: Record<string, unknown>) => Promise<{ content: Array<Record<string, unknown>>; isError?: boolean }> }> = [];
+    const n = registerWebMcp(agent as never, { modelContext: { registerTool: (t: never) => void registered.push(t) } } as never);
+    expect(n).toBe(registered.length);
+    // Every loaded tool except the two developer diagnostics, capped at the recommended 40.
+    expect(n).toBe(Math.min(WEBMCP_MAX_TOOLS, describeTools().filter((t) => t.name !== 'logs.read' && t.name !== 'scene.stats').length));
+    expect(n).toBeGreaterThan(15);
+    for (const t of registered) {
+      expect(t.name).toMatch(/^[a-zA-Z0-9_-]{1,64}$/);
+      expect((t.inputSchema as { type: string }).type).toBe('object');
+    }
+    const cat = registered.find((t) => t.name === 'catalog_list')!;
+    const ok = await cat.execute({ kind: 'mechanics' });
+    expect(ok.isError).toBeFalsy();
+    expect(JSON.parse(ok.content[0].text as string).length).toBe(13);
+    const bad = await cat.execute({ kind: 'nope' });
+    expect(bad.isError).toBe(true);
+    // provideContext fallback, and no-ops without WebMCP.
+    let provided = 0;
+    expect(registerWebMcp(agent as never, { modelContext: { provideContext: (c: { tools: unknown[] }) => void (provided = c.tools.length) } } as never)).toBe(provided);
+    expect(registerWebMcp(agent as never, {} as never)).toBe(0);
+  });
+});
