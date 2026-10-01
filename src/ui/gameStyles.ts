@@ -90,6 +90,7 @@ body.touchui #ghud .buffs { top: max(92px, calc(env(safe-area-inset-top) + 88px)
 .tip .cmp { margin-top: 6px; border-top: 1px dashed #ffffff30; padding-top: 4px; }
 .tip .better { color: #6af08a; } .tip .worse { color: #ff6a6a; }
 .gp .actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.gp .pacts { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 8px; }
 .gp .row { display: flex; align-items: center; gap: 8px; padding: 5px 0; border-bottom: 1px solid #ffffff10; flex-wrap: wrap; }
 .gp .row > .grow { flex: 1 1 160px; min-width: 0; }
 .gp .stat { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; font: 12px ui-monospace, monospace; }

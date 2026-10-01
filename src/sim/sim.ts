@@ -32,6 +32,7 @@ import { FlowField, NavGrid, type P2 } from './nav';
 import { fieldAt, mechanicHit, propSpec, stepProps, stepSystems } from './props';
 import { impTreasure } from './mechanics';
 import { Rng } from './rng';
+import { pactHeroMods, pactMonsterMods, pactTotals } from '../content/pacts';
 import { bossEase, bossLifeEase, defense, monsterLife, monsterXp, xpCatchUp, xpPenalty } from './scaling';
 import { StatBlock } from './stats';
 import type {
@@ -148,11 +149,14 @@ export class Sim {
   private statCache = new Map<string, { version: number; block: StatBlock }>();
   /** True when any prop has a standing field (skips the per-character lookup otherwise). */
   hasFields = false;
+  /** Pact totals for this level (risk for monsters, rewards for the hero). */
+  readonly pact: ReturnType<typeof pactTotals>;
 
   /** Physics must be initialised first: `await initPhysics()`. */
   constructor(readonly level: Level, readonly clips: ClipTable, readonly seed = 1, opts: SimOptions = {}) {
     this.rng = new Rng(seed);
     this.hero = opts.hero ?? null;
+    this.pact = pactTotals(level.pacts);
     this.world = new RAPIER.World({ x: 0, y: -config['sim.gravity'], z: 0 });
     this.world.timestep = this.dt;
     this.createController();
@@ -411,7 +415,7 @@ export class Sim {
 
   private setupHero(ch: Character) {
     const build = (this.heroBuild = buildHero(this.hero!));
-    ch.baseMods = build.mods;
+    ch.baseMods = [...build.mods, ...pactHeroMods(this.level.pacts)];
     ch.level = this.hero!.level;
     ch.name = this.hero!.name;
     ch.statsVersion++;
@@ -424,7 +428,7 @@ export class Sim {
     const ch = this.characters.get(this.heroId);
     this.heroBuild = buildHero(this.hero);
     if (!ch) return;
-    ch.baseMods = this.heroBuild.mods;
+    ch.baseMods = [...this.heroBuild.mods, ...pactHeroMods(this.level.pacts)];
     ch.level = this.hero.level;
     ch.statsVersion++;
     this.refreshPools(ch, false);
@@ -461,7 +465,7 @@ export class Sim {
   monsterDamageMult(ch: Character): number {
     if (!ch.monster) return 1;
     const md = MONSTERS[ch.monster.def];
-    return md.damage * this.archetypeOf(ch).damage * RARITY_SCALING[ch.monster.rarity].damage * (ch.monster.boss ? bossEase(ch.level) : 1);
+    return md.damage * this.archetypeOf(ch).damage * RARITY_SCALING[ch.monster.rarity].damage * (ch.monster.boss ? bossEase(ch.level) : 1) * (1 + this.pact.enemyDamage);
   }
 
   private setupMonster(ch: Character, m: MonsterSpawn, md: (typeof MONSTERS)[string]) {
@@ -469,13 +473,14 @@ export class Sim {
     const rar = RARITY_SCALING[m.rarity];
     const pal = PALETTES[m.palette ?? md.palette] ?? PALETTES.bone;
     const L = m.level;
-    const affixes = m.affixes ?? [];
+    const affixes = [...new Set([...(m.affixes ?? []), ...this.pact.affixes])];
     const mods: Mod[] = [
       mod('life', 'flat', monsterLife(L) * md.life * arch.life * rar.life * (md.boss ? bossLifeEase(L) : 1)),
       mod('armor', 'flat', 6 * (md.armor ?? 0.5) * defense(L) * (md.boss ? 2 : 1)),
       mod('evasion', 'flat', 5 * defense(L) * (arch.speed > 1.1 ? 2 : 1)),
       mod('manaRegen', 'flat', 0),
       ...affixMods(affixes),
+      ...pactMonsterMods(this.level.pacts),
     ];
     for (const [t, v] of Object.entries({ ...pal.resist, ...md.resist })) {
       const stat = ({ fire: 'resFire', cold: 'resCold', lightning: 'resLightning', chaos: 'resChaos', physical: null } as const)[t as 'fire'];

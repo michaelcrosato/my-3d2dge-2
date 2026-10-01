@@ -14,6 +14,7 @@ import { MECHANICS } from '../content/mechanics';
 import { fmtTime } from './gameHud';
 import type { Game } from '../game';
 import { IconRenderer } from '../render/icons';
+import { PACTS, pactRewardText, pactsOf } from '../content/pacts';
 import { cooldownOf, costOf } from '../sim/actions';
 import { estimateSkill } from '../sim/combat';
 import { heroSkills, treePoints, type Hero } from '../sim/hero';
@@ -451,10 +452,29 @@ export class Panels {
         h('button', { class: `ui-btn small${n === max ? ' primary' : ''}`, onclick: () => { this.close(); void this.game.enterStage(n); } }, 'Enter')));
     }
     rows.reverse();
-    return [h('section', { class: 'stagelist' },
-      h('h3', {}, 'Choose a depth'),
-      h('p', { class: 'note' }, 'Each depth is named after its trick: use it, or ignore it and swing harder. Clear the boss to unlock the next. Past depth 24 new depths combine tricks forever.'),
-      ...rows)];
+    // Pacts: optional risk for reward, unlocked as the hero goes deeper.
+    const open = PACTS.filter((p) => p.minDepth <= max);
+    const chosen = this.game.pacts.filter((id) => open.some((p) => p.id === id));
+    const pactBox = open.length ? h('section', {},
+      h('h3', {}, 'Pacts'),
+      h('p', { class: 'note' }, 'Optional: make the depths harder for better rewards. Pacts stay until you change them.'),
+      h('div', { class: 'pacts' }, ...open.map((p) => h('button', {
+        class: `ui-btn small${chosen.includes(p.id) ? ' primary' : ''}`, 'aria-pressed': String(chosen.includes(p.id)), title: `${p.desc} Reward: ${pactRewardText([p.id])}`,
+        onclick: () => {
+          this.game.pacts = chosen.includes(p.id) ? chosen.filter((x) => x !== p.id) : [...chosen, p.id];
+          this.render();
+        },
+      }, h('span', { style: { color: p.color } }, '◆ '), p.name))),
+      chosen.length
+        ? h('div', { class: 'note' }, h('b', {}, 'Risk: '), pactsOf(chosen).map((p) => p.desc).join(' '), h('br'), h('b', {}, 'Reward: '), pactRewardText(chosen))
+        : h('div', { class: 'note' }, 'No pacts: the depths as they come.'),
+    ) : null;
+    const locked = PACTS.find((p) => p.minDepth > max);
+    return [pactBox ?? h('section', {}, h('h3', {}, 'Pacts'), h('p', { class: 'note' }, `Reach depth ${locked?.minDepth ?? 3} to make pacts: harder depths for richer rewards.`)),
+      h('section', { class: 'stagelist' },
+        h('h3', {}, 'Choose a depth'),
+        h('p', { class: 'note' }, 'Each depth is named after its trick: use it, or ignore it and swing harder. Clear the boss to unlock the next. Past depth 24 new depths combine tricks forever.'),
+        ...rows)];
   }
 }
 
