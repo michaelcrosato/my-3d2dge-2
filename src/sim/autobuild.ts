@@ -65,7 +65,12 @@ function modScore(m: Mod, focus: BuildFocus): number {
 
 function nodeScore(n: TreeNode, focus: BuildFocus, hero: Hero): number {
   if (n.kind === 'keystone') return -1;
-  let s = n.mods.reduce((a, m) => a + modScore(m, focus), 0);
+  // A skill's enhancements only matter once that skill is on the hotbar.
+  const scoped = (m: Mod) => (m.tags ?? []).find((t) => t.startsWith('skill:'))?.slice(6);
+  let s = n.mods.reduce((a, m) => {
+    const skill = scoped(m);
+    return a + (skill && !hero.hotbar.includes(skill) ? 0.1 : modScore(m, focus));
+  }, 0);
   if (n.kind === 'notable') s *= 1.5;
   if (n.skill) {
     const wanted = focus === 'spell' ? ['meteor', 'icespear', 'chainlightning', 'frostnova', 'bladevortex', 'spiritwolves'] : focus === 'melee'
