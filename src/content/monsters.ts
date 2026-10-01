@@ -5,8 +5,10 @@
  * combine them freely, and agents can list and preview each axis on its own.
  */
 import { Rng } from '../sim/rng';
-import { PLAN_KIT, planOf, speciesName, type BodyPlan } from './procgen/creature';
+import { PRESETS } from './characters';
+import { BODY_PLANS, CREATURE_PRESETS, PLAN_KIT, planOf, speciesName, type BodyPlan, type GenomeEdits } from './procgen/creature';
 import type { DamageType, Mod } from './stats';
+import { SKILLS } from './skills';
 import { mod } from './stats';
 
 // ---------------------------------------------------------------- behaviour archetypes
@@ -125,7 +127,7 @@ export const RARITY_SCALING: Record<MonsterRarity, { life: number; damage: numbe
 
 // ---------------------------------------------------------------- monster bodies + attack sets
 
-export type MonsterBody = { kind: 'humanoid'; preset: string } | { kind: 'creature'; plan: string; seed?: number };
+export type MonsterBody = { kind: 'humanoid'; preset: string } | { kind: 'creature'; plan: string; seed?: number; genome?: GenomeEdits };
 
 export interface MonsterDef {
   id: string;
@@ -183,6 +185,27 @@ export const MONSTERS: Record<string, MonsterDef> = {
     life: 1.25, damage: 1.15, speed: 4.2, size: 1.8, xp: 1, palette: 'blood', armor: 1.5, boss: { title: 'The Oathbreaker', phases: 2, enrageAt: 0.4 },
   },
 };
+
+/**
+ * Registers a custom monster assembled from parts (the agent `species.create` tool and the
+ * Workshop): any body, archetype, attack modules and palette. Ids live under `custom:` so they can
+ * never replace a built-in definition. Returns the stored def; throws on unknown parts.
+ */
+export function registerMonster(def: MonsterDef): MonsterDef {
+  const id = def.id.startsWith('custom:') ? def.id : `custom:${def.id}`;
+  if (!/^custom:[a-z0-9_-]{1,40}$/.test(id)) throw new Error(`monster id must be letters, digits, _ or - (got "${def.id}")`);
+  if (!ARCHETYPES[def.archetype]) throw new Error(`unknown archetype "${def.archetype}". Known: ${Object.keys(ARCHETYPES).join(', ')}`);
+  if (!PALETTES[def.palette]) throw new Error(`unknown palette "${def.palette}". Known: ${Object.keys(PALETTES).join(', ')}`);
+  for (const sk of def.skills) if (!SKILLS[sk]) throw new Error(`unknown skill "${sk}"`);
+  if (def.body.kind === 'humanoid' && !PRESETS[def.body.preset]) throw new Error(`unknown humanoid preset "${def.body.preset}"`);
+  if (def.body.kind === 'creature' && !CREATURE_PRESETS.includes(def.body.plan) && !BODY_PLANS.includes(def.body.plan as BodyPlan)) {
+    throw new Error(`unknown creature body "${def.body.plan}". Plans: ${BODY_PLANS.join(', ')}; presets: ${CREATURE_PRESETS.join(', ')}`);
+  }
+  if (def.minion) ensureMonster(def.minion);
+  const stored: MonsterDef = { ...def, id };
+  MONSTERS[id] = stored;
+  return stored;
+}
 
 export function monsterDef(id: string): MonsterDef {
   return ensureMonster(id);

@@ -3,6 +3,7 @@ import type RAPIER from '@dimforge/rapier3d-compat';
 import type { AnimSet } from '../content/characters';
 import type { Brain, Team } from '../content/level';
 import type { MonsterRarity } from '../content/monsters';
+import type { GenomeEdits } from '../content/procgen/creature';
 import type { AilmentId, HitSpec, ProjectileSpec, Shape, ZoneSpec } from '../content/skills';
 import type { DamageType, Mod, Tag } from '../content/stats';
 import type { P2 } from './nav';
@@ -114,6 +115,8 @@ export interface Look {
   /** Procedural creature genome seed / plan. */
   plan?: string;
   seed?: number;
+  /** Hand edits on the generated genome (custom species). */
+  genome?: GenomeEdits;
   /** Elite outline color (magic blue, rare yellow, unique orange). */
   aura?: string;
   weapon?: string;

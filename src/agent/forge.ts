@@ -6,7 +6,7 @@
  */
 import * as THREE from 'three';
 import { config } from '../config';
-import { generateGenome, type CreatureGenome } from '../content/procgen/creature';
+import { generateGenome, type CreatureGenome, type GenomeEdits } from '../content/procgen/creature';
 import type { Game } from '../game';
 import { makeRig, poseCreature, type CreatureRig } from '../render/creature/view';
 import { snapToGrid } from '../render/pixelGrid';
@@ -38,6 +38,8 @@ export interface CreatureSheetOptions {
   cell?: number;
   /** Visual scale (monster size). */
   scale?: number;
+  /** Hand edits on the generated genome. */
+  genome?: GenomeEdits;
 }
 
 /**
@@ -55,7 +57,7 @@ export function renderCreatureSheet(game: Game, o: CreatureSheetOptions) {
   const sun = new THREE.DirectionalLight(0xfff0dc, 2.4);
   sun.position.set(10, 25, 15);
   studio.add(sun);
-  const rig = makeRig(o.plan, o.seed, o.palette);
+  const rig = makeRig(o.plan, o.seed, o.palette, o.genome);
   const holder = new THREE.Group();
   holder.add(rig.mesh);
   holder.scale.setScalar(o.scale ?? 1);
@@ -105,6 +107,6 @@ export function rigInfo(rig: CreatureRig) {
   };
 }
 
-export function genome(plan: string, seed: number) {
-  return generateGenome(plan, seed);
+export function genome(plan: string, seed: number, edits?: GenomeEdits) {
+  return generateGenome(plan, seed, edits);
 }

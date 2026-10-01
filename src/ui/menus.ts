@@ -3,7 +3,7 @@
  * settings, return to town, save & quit) with the debug difficulty sliders: player and enemy
  * damage, life and speed, plus experience, loot and density multipliers for fast playtesting.
  */
-import { CONFIG_SPEC, config, setConfig, type ConfigKey } from '../config';
+import { CONFIG_SPEC, DIFFICULTY_PRESETS, applyDifficulty, config, setConfig, type ConfigKey } from '../config';
 import type { Game } from '../game';
 import type { SaveStore } from '../save';
 import { TUNE_KEYS } from '../save';
@@ -16,12 +16,6 @@ const TUNE_LABELS: Partial<Record<ConfigKey, string>> = {
   'tune.xp': 'Experience', 'tune.loot': 'Loot quantity', 'tune.density': 'Monster density',
 };
 
-const PRESETS: Array<[string, Partial<Record<ConfigKey, number>>]> = [
-  ['Story', { 'tune.playerDamage': 1.6, 'tune.playerLife': 1.8, 'tune.enemyDamage': 0.6, 'tune.enemyLife': 0.8 }],
-  ['Normal', {}],
-  ['Hard', { 'tune.enemyDamage': 1.5, 'tune.enemyLife': 1.4, 'tune.enemySpeed': 1.1 }],
-  ['Nightmare', { 'tune.enemyDamage': 2.2, 'tune.enemyLife': 2.2, 'tune.enemySpeed': 1.2, 'tune.loot': 1.5, 'tune.xp': 1.5 }],
-];
 
 export interface MenuHooks {
   openSettings(): void;
@@ -102,9 +96,9 @@ export class PauseMenu {
       ),
       h('div', { class: 'tune' },
         h('h2', { style: { fontSize: '14px', textAlign: 'left' } }, 'Difficulty & tuning'),
-        h('div', { class: 'stack', style: { flexDirection: 'row', flexWrap: 'wrap' } }, ...PRESETS.map(([name, values]) => h('button', {
+        h('div', { class: 'stack', style: { flexDirection: 'row', flexWrap: 'wrap' } }, ...Object.keys(DIFFICULTY_PRESETS).map((name) => h('button', {
           class: 'ui-btn small', onclick: () => {
-            for (const k of TUNE_KEYS) setConfig(k, values[k] ?? (CONFIG_SPEC[k].value as number));
+            applyDifficulty(name);
             this.render();
             this.hooks.toast(`Difficulty: ${name}`);
           },

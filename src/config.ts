@@ -117,6 +117,28 @@ export function resetConfig(): void {
   for (const k of Object.keys(d) as ConfigKey[]) if (config[k] !== d[k]) setConfig(k, d[k]);
 }
 
+/** Difficulty presets (pause menu buttons and the agent `difficulty.set` tool). */
+export const DIFFICULTY_PRESETS: Record<string, Partial<Record<ConfigKey, number>>> = {
+  Story: { 'tune.playerDamage': 1.6, 'tune.playerLife': 1.8, 'tune.enemyDamage': 0.6, 'tune.enemyLife': 0.8 },
+  Normal: {},
+  Hard: { 'tune.enemyDamage': 1.5, 'tune.enemyLife': 1.4, 'tune.enemySpeed': 1.1 },
+  Nightmare: { 'tune.enemyDamage': 2.2, 'tune.enemyLife': 2.2, 'tune.enemySpeed': 1.2, 'tune.loot': 1.5, 'tune.xp': 1.5 },
+};
+
+/** Sets every `tune.*` key to the preset's value (or its default). */
+export function applyDifficulty(name: string): Record<string, number> {
+  const values = DIFFICULTY_PRESETS[name];
+  if (!values) throw new Error(`unknown difficulty "${name}". Presets: ${Object.keys(DIFFICULTY_PRESETS).join(', ')}`);
+  const out: Record<string, number> = {};
+  for (const k of Object.keys(CONFIG_SPEC) as ConfigKey[]) {
+    if (!k.startsWith('tune.')) continue;
+    const v = values[k] ?? (CONFIG_SPEC[k].value as number);
+    setConfig(k, v);
+    out[k] = v;
+  }
+  return out;
+}
+
 export function describeConfig() {
   return (Object.keys(CONFIG_SPEC) as ConfigKey[]).map((key) => {
     const s: Spec = CONFIG_SPEC[key];
