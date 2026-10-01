@@ -177,13 +177,30 @@ export function itemGeometry(it: ItemLookInput): ItemGeometry {
 }
 
 const cache = new Map<string, ItemGeometry>();
+/** Most-recently-used item looks kept on the GPU; older ones are freed (and rebuilt if they return). */
+export const ITEM_GEOMETRY_CACHE = 256;
 
 export function cachedItemGeometry(it: ItemLookInput): ItemGeometry {
   const key = `${it.base}|${it.rarity}|${it.seed % 64}|${it.unique ?? ''}`;
   let g = cache.get(key);
-  if (!g) cache.set(key, (g = itemGeometry(it)));
+  if (g) {
+    // Refresh recency (Map keeps insertion order).
+    cache.delete(key);
+    cache.set(key, g);
+    return g;
+  }
+  cache.set(key, (g = itemGeometry(it)));
+  while (cache.size > ITEM_GEOMETRY_CACHE) {
+    const [oldKey, old] = cache.entries().next().value!;
+    cache.delete(oldKey);
+    // Safe even if a pickup still shows it: three.js re-uploads a disposed geometry on next use.
+    old.body.dispose();
+    old.glow?.dispose();
+  }
   return g;
 }
+
+export const itemGeometryCacheSize = () => cache.size;
 
 /** A ready-to-add object (toon body + unlit glow parts). */
 export function itemObject(it: ItemLookInput): THREE.Group {

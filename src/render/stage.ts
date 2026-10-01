@@ -136,6 +136,17 @@ interface PropView {
   kind: string;
 }
 
+/** Removes a ground-loot object and frees what it owns: its materials, and geometry made for it alone. */
+function disposeObject(o: THREE.Object3D) {
+  o.removeFromParent();
+  o.traverse((x) => {
+    const m = x as THREE.Mesh;
+    if (!m.isMesh) return;
+    for (const mat of [m.material].flat()) mat?.dispose();
+    if (m.userData.ownGeometry) m.geometry.dispose();
+  });
+}
+
 export class Stage {
   readonly scene = new THREE.Scene();
   readonly camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, CAMERA_DISTANCE * 2.5);
@@ -206,7 +217,7 @@ export class Stage {
     }
     this.crateMeshes.clear();
     this.propViews.clear();
-    for (const v of this.pickupViews.values()) v.removeFromParent();
+    for (const v of this.pickupViews.values()) disposeObject(v);
     this.pickupViews.clear();
     this.vfx.reset();
     this.flames = [];
@@ -622,7 +633,14 @@ export class Stage {
     }
     for (const [id, v] of this.propViews) {
       if (alive.has(id)) continue;
+      // Broken barrels, spent kegs, finished boulders: their meshes were built for them alone.
       v.obj.removeFromParent();
+      v.obj.traverse((o) => {
+        const m = o as THREE.Mesh;
+        if (!m.isMesh) return;
+        m.geometry.dispose();
+        for (const mat of [m.material].flat()) mat.dispose();
+      });
       this.propViews.delete(id);
     }
   }
@@ -655,7 +673,7 @@ export class Stage {
     }
     for (const [id, o] of this.pickupViews) {
       if (alive.has(id)) continue;
-      o.removeFromParent();
+      disposeObject(o);
       this.pickupViews.delete(id);
     }
   }
@@ -717,6 +735,7 @@ function pickupObject(kind: string, item: { base: string; rarity: 'normal' | 'ma
         writesNormals(new THREE.MeshBasicMaterial({ color: item.rarity === 'unique' ? '#ff9a3d' : '#ffe14d', transparent: true, opacity: 0.35, depthWrite: false, side: THREE.DoubleSide }), 'fx'),
       );
       beam.position.y = 1.5;
+      beam.userData.ownGeometry = true;
       beam.layers.set(LAYER.FX);
       holder.add(beam);
     }
@@ -724,6 +743,7 @@ function pickupObject(kind: string, item: { base: string; rarity: 'normal' | 'ma
   }
   if (kind === 'orb') {
     const m = new THREE.Mesh(new THREE.IcosahedronGeometry(0.2, 1), glowMaterial(orb === 'mana' ? '#5a8aff' : '#ff3a4a'));
+    m.userData.ownGeometry = true;
     return m;
   }
   const m = new THREE.Mesh(goldGeo, glowMaterial('#ffd84a'));

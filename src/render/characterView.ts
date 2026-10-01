@@ -165,6 +165,7 @@ export class CharacterView {
     this.shadow.name = `shadow:${id}`;
     if (look.aura) {
       const aura = new THREE.Mesh(auraGeometry, writesNormals(new THREE.MeshBasicMaterial({ color: look.aura, transparent: true, opacity: 0.7, depthWrite: false }), 'fx'));
+      aura.userData.ownMaterial = true;
       aura.position.z = 0.001;
       this.shadow.add(aura);
       aura.layers.set(LAYER.FX);
@@ -313,7 +314,16 @@ export class CharacterView {
 
   dispose() {
     this.mixer.stopAllAction();
+    this.mixer.uncacheRoot(this.root);
     this.root.removeFromParent();
     this.shadow.removeFromParent();
+    // Each part was rebound to its own Skeleton (one GPU bone texture each) and given cloned toon
+    // materials; geometry and textures are shared with the asset library and stay.
+    this.root.traverse((o) => {
+      const m = o as THREE.SkinnedMesh;
+      if (m.isSkinnedMesh) m.skeleton.dispose();
+      if ((o as THREE.Mesh).isMesh && o.userData.ownMaterial) for (const x of [(o as THREE.Mesh).material].flat()) x.dispose();
+    });
+    for (const m of this.materials) m.dispose();
   }
 }

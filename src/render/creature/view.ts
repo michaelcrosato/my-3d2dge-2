@@ -83,6 +83,7 @@ export class CreatureView {
     this.shadow.name = `shadow:${id}`;
     if (look.aura) {
       const aura = new THREE.Mesh(auraGeometry, writesNormals(new THREE.MeshBasicMaterial({ color: look.aura, transparent: true, opacity: 0.7, depthWrite: false }), 'fx'));
+      aura.userData.ownMaterial = true;
       aura.layers.set(LAYER.FX);
       this.shadow.add(aura);
     }
@@ -138,7 +139,13 @@ export class CreatureView {
   dispose() {
     this.root.removeFromParent();
     this.shadow.removeFromParent();
+    // The rig is built for this creature alone: geometry, materials and skeleton (bone texture).
     this.rig.mesh.geometry.dispose();
+    this.rig.mesh.skeleton.dispose();
+    for (const m of [this.rig.mesh.material].flat()) m.dispose();
+    this.root.traverse((o) => {
+      if ((o as THREE.Mesh).isMesh && o.userData.ownMaterial) for (const x of [(o as THREE.Mesh).material].flat()) x.dispose();
+    });
   }
 }
 
