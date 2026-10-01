@@ -20,6 +20,11 @@ const G: Record<string, string> = {
 export const GLYPH_W = 3;
 export const GLYPH_H = 5;
 
+/** The 3x5 bitmap of a character, row-major '1'/'0' (unknown characters draw as '?'). */
+export function glyphBits(ch: string): string {
+  return G[ch.toUpperCase()] ?? G['?'];
+}
+
 /** Width in pixels of `text` at `scale` (1 px gap between glyphs). */
 export function textWidth(text: string, scale = 1): number {
   return text.length ? (text.length * (GLYPH_W + 1) - 1) * scale : 0;

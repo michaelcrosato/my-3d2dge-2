@@ -201,7 +201,8 @@ export class GameHud {
     this.xp.label.textContent = '';
     const timer = game.mode === 'dungeon' ? ` · ${fmtTime(sim.stage.time / 60)}${sim.stage.mechanicKills ? ` · ${sim.stage.mechanicKills} trick kills` : ''}` : '';
     const pts = treePoints(hero);
-    const titleText = `${sim.level.title ?? ''}|Lv ${hero.level} · ${hero.gold}g${timer}${pts > 0 ? ` · ${pts} pts` : ''}`;
+    const auto = game.autopilot;
+    const titleText = `${sim.level.title ?? ''}|Lv ${hero.level} · ${hero.gold}g${timer}${pts > 0 ? ` · ${pts} pts` : ''}${auto.on ? ` · AUTOPILOT: ${auto.goal}` : ''}`;
     if (this.title.dataset.t !== titleText) {
       this.title.dataset.t = titleText;
       const [t, sub] = titleText.split('|');

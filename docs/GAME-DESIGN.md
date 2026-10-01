@@ -84,7 +84,10 @@ procedural skeleton (identity rest rotations, joints blended between bones). `re
 view.ts` animates it procedurally from sim state: gait phase from distance travelled, per-plan
 leg phase patterns (trot, tripod, wave), spine waves, tail sway, and skill pose hints (bite,
 claw, slam, spit, charge, roar, cast, leap, burst). `src/agent/forge.ts` renders sprite sheets
-of any species in any pose, the tool used to tune them.
+of any species in any pose, the tool used to tune them. `GenomeEdits` layer hand edits over a
+generated genome (three leg pairs, four horns, no wings, longer tail; counts and sizes clamped to
+what the rig supports), carried by `MonsterBody.genome` into the sim's `Look` and the renderer,
+so a custom species (`species.create`) is a few lines of data.
 
 ## Combat feel
 
@@ -120,3 +123,28 @@ are rescaled) and are saved with the game. Presets: Story, Normal, Hard, Nightma
 - **New prop or mechanic:** `registerProp(kind, spec, behaviour)` in a sim module and a mesh
   recipe in `render/propMeshes.ts`.
 - **New theme:** one entry in `themes.ts`.
+- **New agent tool:** `defineTool({ name, group, desc, params, example, run })` in
+  `src/agent/tools/`; it appears in `window.agent`, the CLI and the MCP server at once.
+
+## Agent tools: building and judging assets
+
+The engine treats AI agents as first-class developers. `src/agent/registry.ts` holds typed tools
+(validated parameters, defaults, examples, JSON Schema) and every tool is reachable from the
+browser console (`agent.call`), the terminal (`npm run agent`) and MCP (`npm run mcp`).
+
+- **See what you made.** Creatures, monsters (palette-tinted humanoids or genome creatures) and
+  item icons render through the game's own pixel pipeline as sprite sheets and contact sheets;
+  levels and the passive tree are drawn as software maps; `scene.capture` returns exact low-res
+  pixels with the HUD or labelled boxes for vision models.
+- **Make new things from parts.** `species.create` assembles a monster from a body plan plus
+  genome edits (legs, horns, wings, spikes, proportions), an archetype, attack modules and a
+  palette; `level.generate` remixes any depth with any mechanics; `item.roll` rolls any base.
+- **Measure, don't guess.** `monster.inspect` and `hero.build` produce stat sheets with damage
+  per skill, `balance.curve` tabulates hits-to-kill and hits-to-die by level, `loot.simulate`
+  runs thousands of kills through the drop code, and `balance.run` lets the deterministic
+  autoplayer (`src/sim/bot.ts`) play a depth with an auto-built hero (`src/sim/autobuild.ts`):
+  clear rate, time, deaths, xp and gold, per strategy (`clear` for power-levelling, `rush` for
+  speedrunning) and per difficulty.
+- **Drive the live game.** Travel, step exact frames, press inputs, spawn monsters, rebuild the
+  hero, let the bot play, read logs. Live calls mutate the session deliberately; inspection
+  tools use throwaway probe simulations and never touch the game's RNG.

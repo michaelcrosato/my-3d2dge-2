@@ -20,6 +20,7 @@ import { PixelPipeline } from './render/pixelPipeline';
 import { Stage } from './render/stage';
 import type { SaveStore } from './save';
 import { newHero, type Hero } from './sim/hero';
+import { Bot, type BotOptions } from './sim/bot';
 import { Sim, type SimEvent } from './sim/sim';
 
 export type Mode = 'title' | 'town' | 'dungeon' | 'sandbox';
@@ -65,6 +66,9 @@ export class Game {
   private lastRealDt = 1 / 60;
   private transition: Promise<void> | null = null;
   private saveTimer = 0;
+  /** Autopilot: a bot plays the hero (agent `bot.autopilot`, pause-menu demo). */
+  private autopilotOpts: BotOptions | null = null;
+  private bot: Bot | null = null;
 
   constructor(readonly renderer: THREE.WebGLRenderer, readonly lib: AssetLibrary, readonly canvas: HTMLCanvasElement) {
     this.stage = new Stage(lib);
@@ -169,20 +173,21 @@ export class Game {
     }
   }
 
-  async enterStage(n: number) {
+  /** Enters depth n (a prebuilt `custom` level replaces the campaign one: agent remixes). */
+  async enterStage(n: number, custom?: Level) {
     if (!this.hero) this.hero = newHero();
     this.busy = true;
     try {
       const spec = campaignStage(n);
-      const level = generateDungeon(spec.dungeon);
-      spec.place?.(level);
+      const level = custom ?? generateDungeon(spec.dungeon);
+      if (!custom) spec.place?.(level);
       // A way home near the entrance.
       const s = level.start!;
       level.props = [...(level.props ?? []), { id: 'town_portal', kind: 'portal', x: s.x - 1.6, z: s.z - 1.6, data: { to: 'town' } }];
       this.mode = 'dungeon';
       this.stageNo = n;
-      await this.reset({ level, seed: spec.dungeon.seed });
-      this.emit({ type: 'mode', mode: 'dungeon', stage: n, title: level.title, subtitle: level.subtitle, mechanics: level.mechanics ?? [], tip: spec.tip });
+      await this.reset({ level, seed: level.seed ?? spec.dungeon.seed });
+      this.emit({ type: 'mode', mode: 'dungeon', stage: n, title: level.title, subtitle: level.subtitle, mechanics: level.mechanics ?? [], tip: custom ? undefined : spec.tip });
     } finally {
       this.busy = false;
     }
@@ -199,6 +204,26 @@ export class Game {
     if (!this.hero || !this.saves) return;
     this.saves.saveHero(this.heroSlot, this.hero);
     this.emit({ type: 'saved' });
+  }
+
+  /** Turns the autopilot on (a bot plays the hero in real time and in `step`) or off. */
+  setAutopilot(opts: BotOptions | null) {
+    this.autopilotOpts = opts;
+    this.bot = null;
+    this.emit({ type: 'autopilot', on: !!opts });
+  }
+
+  get autopilot(): { on: boolean; goal: string; note: string } {
+    return { on: !!this.autopilotOpts, goal: this.bot?.goal ?? 'idle', note: this.bot?.note ?? '' };
+  }
+
+  /** One sim frame, with the autopilot deciding the hero's input first. */
+  private simStep() {
+    if (this.autopilotOpts && this.sim.player && this.sim.hero) {
+      if (!this.bot || this.bot.sim !== this.sim) this.bot = new Bot(this.sim, this.autopilotOpts);
+      this.bot.think();
+    }
+    this.sim.step();
   }
 
   /** Resolves when no level transition is in flight (agents await this after stepping). */
@@ -310,7 +335,7 @@ export class Game {
       this.acc += Math.min(realDt, 0.1) * config['sim.timeScale'];
       let n = 0;
       while (this.acc >= this.sim.dt && n < 6) {
-        this.sim.step();
+        this.simStep();
         this.acc -= this.sim.dt;
         n++;
       }
@@ -326,14 +351,15 @@ export class Game {
   }
 
   /** Advance exactly n sim frames (deterministic, independent of wall-clock), then draw. */
-  step(n = 1) {
+  step(n = 1, draw = true) {
     for (let i = 0; i < n; i++) {
-      this.sim.step();
+      if (this.busy) break;
+      this.simStep();
       if (i % 30 === 29) this.pump();
     }
     this.pump();
     this.acc = 0;
-    this.render(1, n / 60);
+    if (draw) this.render(1, n / 60);
   }
 
   render(alpha = this.lastAlpha, dt = 0) {

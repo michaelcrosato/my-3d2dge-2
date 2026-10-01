@@ -502,6 +502,7 @@ export class Sim {
       tint, glow, palette: pal.id,
       plan: md.body.kind === 'creature' ? md.body.plan : undefined,
       seed: m.seed ?? (md.body.kind === 'creature' ? md.body.seed : undefined),
+      genome: md.body.kind === 'creature' ? md.body.genome : undefined,
       aura: m.rarity === 'magic' ? '#7f8cff' : m.rarity === 'rare' ? '#ffe14d' : m.rarity === 'unique' ? '#ff8a3d' : undefined,
     };
     if (m.rarity === 'rare' && !m.name) ch.name = rareName(this.rng, md.name);

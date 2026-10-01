@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "depthward": {
+      "command": "node",
+      "args": ["tools/mcp-server.mjs"]
+    }
+  }
+}

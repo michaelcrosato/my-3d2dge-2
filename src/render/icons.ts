@@ -30,6 +30,17 @@ export class IconRenderer {
     const key = `${it.base}|${it.rarity}|${it.seed % 64}|${it.unique ?? ''}`;
     const hit = this.cache.get(key);
     if (hit) return hit;
+    const img = this.image(it);
+    const g = this.canvas.getContext('2d')!;
+    g.clearRect(0, 0, this.size, this.size);
+    g.putImageData(new ImageData(new Uint8ClampedArray(img.data), img.width, img.height), 0, 0);
+    const url = this.canvas.toDataURL('image/png');
+    this.cache.set(key, url);
+    return url;
+  }
+
+  /** The raw icon pixels (agents compose these into contact sheets). */
+  image(it: ItemLookInput): { width: number; height: number; data: Uint8ClampedArray } {
     const obj = itemObject(it);
     const slot = itemBase(it.base).slot;
     // Long things lie diagonally; armour faces the viewer.
@@ -54,14 +65,9 @@ export class IconRenderer {
     const prevAlpha = r.getClearAlpha();
     const prevTarget = r.getRenderTarget();
     r.setClearColor(0x000000, 0);
-    let url = '';
     try {
       this.pipeline.renderLowRes(this.targets, this.scene, cam, [LAYER.MAIN]);
-      const img = this.pipeline.read(this.targets);
-      const g = this.canvas.getContext('2d')!;
-      g.clearRect(0, 0, this.size, this.size);
-      g.putImageData(new ImageData(new Uint8ClampedArray(img.data), img.width, img.height), 0, 0);
-      url = this.canvas.toDataURL('image/png');
+      return this.pipeline.read(this.targets);
     } finally {
       r.setClearColor(prevClear, prevAlpha);
       r.setRenderTarget(prevTarget);
@@ -72,7 +78,5 @@ export class IconRenderer {
         (Array.isArray(m.material) ? m.material : [m.material]).forEach((x) => x.dispose());
       });
     }
-    this.cache.set(key, url);
-    return url;
   }
 }

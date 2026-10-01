@@ -75,7 +75,55 @@ export function planOf(name: string): BodyPlan {
   return PRESET_PLAN[name]?.plan ?? (BODY_PLANS.includes(name as BodyPlan) ? (name as BodyPlan) : 'quadruped');
 }
 
-export function generateGenome(planOrPreset: string, seed: number): CreatureGenome {
+/**
+ * Hand edits on top of a generated genome (the Workshop and agent `species.create`): any field,
+ * nested objects merged, `null` removes wings / arms / tentacles. Counts and sizes are clamped to
+ * what the rig builder supports.
+ */
+export type GenomeEdits = { [K in keyof CreatureGenome]?: CreatureGenome[K] extends object | null ? Partial<NonNullable<CreatureGenome[K]>> | null : CreatureGenome[K] };
+
+const EDIT_LIMITS: Record<string, [number, number]> = {
+  length: [0.3, 4], height: [0.1, 3], pitch: [0, 1.5], girth: [0.06, 1.2], taper: [0.4, 2.5], hump: [0, 0.6], squash: [0.4, 1.4], float: [0, 2],
+  'neck.length': [0, 1.2], 'neck.segments': [0, 8], 'head.size': [0.06, 0.9], 'head.length': [0.1, 1.2], 'head.eyes': [0, 8], 'head.eyeSize': [0.01, 0.2],
+  'horns.count': [0, 6], 'horns.length': [0.05, 1], 'tail.segments': [0, 12], 'tail.length': [0, 3], 'legs.pairs': [0, 8], 'legs.length': [0.1, 2],
+  'legs.thickness': [0.02, 0.3], 'spikes.count': [0, 16], 'spikes.size': [0.03, 0.5], 'wings.span': [0.4, 4], 'tentacles.count': [0, 12], 'tentacles.length': [0.1, 2.5],
+  'arms.length': [0.1, 1.5], 'arms.thickness': [0.02, 0.3], stride: [0.2, 3],
+};
+
+export function applyGenomeEdits(g: CreatureGenome, edits: GenomeEdits | undefined): CreatureGenome {
+  if (!edits) return g;
+  const out = structuredClone(g) as unknown as Record<string, unknown>;
+  const clamp = (key: string, v: unknown) => {
+    const lim = EDIT_LIMITS[key];
+    if (typeof v !== 'number' || !lim) return v;
+    const c = Math.min(lim[1], Math.max(lim[0], v));
+    return Number.isInteger(lim[0]) && Number.isInteger(lim[1]) && key.match(/count|pairs|segments|eyes/) ? Math.round(c) : c;
+  };
+  for (const [k, v] of Object.entries(edits)) {
+    if (!(k in g) || k === 'plan' || k === 'seed') throw new Error(`unknown genome field "${k}". Fields: ${Object.keys(g).filter((x) => x !== 'plan' && x !== 'seed').join(', ')}`);
+    if (v === null) out[k] = null;
+    else if (typeof v === 'object' && !Array.isArray(v)) {
+      const base = (out[k] ?? defaultPart(k)) as Record<string, unknown>;
+      const merged: Record<string, unknown> = { ...base };
+      for (const [kk, vv] of Object.entries(v)) merged[kk] = clamp(`${k}.${kk}`, vv);
+      out[k] = merged;
+    } else out[k] = clamp(k, v);
+  }
+  return out as unknown as CreatureGenome;
+}
+
+function defaultPart(k: string): Record<string, unknown> {
+  if (k === 'wings') return { span: 1.4 };
+  if (k === 'arms') return { length: 0.5, thickness: 0.08, pincer: false };
+  if (k === 'tentacles') return { count: 4, length: 0.8 };
+  return {};
+}
+
+export function generateGenome(planOrPreset: string, seed: number, edits?: GenomeEdits): CreatureGenome {
+  return applyGenomeEdits(baseGenome(planOrPreset, seed), edits);
+}
+
+function baseGenome(planOrPreset: string, seed: number): CreatureGenome {
   const preset = PRESET_PLAN[planOrPreset];
   const plan = preset?.plan ?? planOf(planOrPreset);
   const r = new Rng(seed * 7919 + plan.length * 101 + 13);

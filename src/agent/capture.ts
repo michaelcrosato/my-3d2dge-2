@@ -9,6 +9,7 @@ import type { Game } from '../game';
 import { CharacterView } from '../render/characterView';
 import { DIR8_SCREEN_NAMES, snapToGrid } from '../render/pixelGrid';
 import { LAYER, PixelTargets } from '../render/pixelPipeline';
+import type { Look } from '../sim/types';
 
 export interface Img {
   width: number;
@@ -219,7 +220,7 @@ export function withConfig<T>(overrides: Partial<Record<ConfigKey, unknown>>, fn
  */
 export function renderSpriteSheet(
   game: Game,
-  o: { preset: string; clips: string[]; directions: number; fps: number; cell: number; maxFrames: number },
+  o: { preset: string; clips: string[]; directions: number; fps: number; cell: number; maxFrames: number; look?: Look; scale?: number },
 ) {
   const lib = game.lib;
   const ppm = config['render.pixelsPerMeter'];
@@ -229,10 +230,11 @@ export function renderSpriteSheet(
   const az = (game.level.sun.azimuthDeg * Math.PI) / 180, el = (game.level.sun.elevationDeg * Math.PI) / 180;
   sun.position.set(Math.sin(az) * Math.cos(el), Math.sin(el), Math.cos(az) * Math.cos(el)).multiplyScalar(30);
   studio.add(sun);
-  const view = new CharacterView('__studio', o.preset, lib);
+  const view = new CharacterView('__studio', o.preset, lib, o.look);
+  view.root.scale.setScalar(o.scale ?? 1);
   studio.add(view.root);
   const cam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 100);
-  const f = snapToGrid({ x: 0, y: 0.95, z: 0 }, game.stage.basis, ppm);
+  const f = snapToGrid({ x: 0, y: 0.95 * (o.scale ?? 1), z: 0 }, game.stage.basis, ppm);
   const b = game.stage.basis;
   cam.position.set(f.x - b.forward.x * 40, f.y - b.forward.y * 40, f.z - b.forward.z * 40);
   cam.lookAt(f.x, f.y, f.z);

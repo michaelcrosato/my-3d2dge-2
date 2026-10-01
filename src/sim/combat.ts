@@ -414,7 +414,8 @@ export function affixMods(ids: readonly string[]) {
 export function estimateSkill(sim: Sim, a: Character, skill: SkillDef): { hit: number; critChance: number; critMulti: number; perSecond: number; byType: Partial<Record<DamageType, number>> } {
   const st = sim.stats(a);
   const tags = skillTags(skill);
-  const firstHit = skill.effects.find((e) => 'hit' in e && e.hit) as { hit?: HitSpec } | undefined;
+  // The first damaging hit (telegraph strikes with mult 0 only mark the ground).
+  const firstHit = skill.effects.find((e) => 'hit' in e && e.hit && (e.hit.mult ?? 1) > 0) as { hit?: HitSpec } | undefined;
   // Mid-range rolls with crits forced off; crits are added back as an expectation below.
   const base = rollPacket(sim, a, skill, firstHit?.hit, null, 1, { next: () => 0.5 }, true);
   let hit = 0;

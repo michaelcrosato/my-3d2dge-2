@@ -11,7 +11,7 @@
 import * as THREE from 'three';
 import { config } from '../../config';
 import { PALETTES } from '../../content/monsters';
-import { generateGenome } from '../../content/procgen/creature';
+import { generateGenome, type GenomeEdits } from '../../content/procgen/creature';
 import { skill as skillDef } from '../../content/skills';
 import type { Sim } from '../../sim/sim';
 import type { Character, Look } from '../../sim/types';
@@ -34,9 +34,9 @@ const TINT_EMISSIVE: Record<string, [number, number, number]> = {
 };
 
 /** Creates a creature rig for a plan/preset name, seed and palette id (agent tools reuse this). */
-export function makeRig(plan: string, seed: number, paletteId: string): CreatureRig {
+export function makeRig(plan: string, seed: number, paletteId: string, edits?: GenomeEdits): CreatureRig {
   const pal = PALETTES[paletteId] ?? PALETTES.bone;
-  const genome = generateGenome(plan, seed);
+  const genome = generateGenome(plan, seed, edits);
   const rig = buildCreature(genome, pal);
   const body = toonMaterial(0xffffff, null, true);
   const glow = glowMaterial(pal.glow);
@@ -72,7 +72,7 @@ export class CreatureView {
 
   constructor(readonly id: string, readonly preset: string, readonly look: Look, scale: number) {
     const plan = look.plan ?? preset.replace('creature:', '') ?? 'wolf';
-    this.rig = makeRig(plan || 'wolf', look.seed ?? 1, look.palette ?? 'bone');
+    this.rig = makeRig(plan || 'wolf', look.seed ?? 1, look.palette ?? 'bone', look.genome);
     this.body = (this.rig.mesh.material as THREE.Material[])[0] as THREE.MeshToonMaterial;
     this.root.name = `creature:${id}`;
     this.root.add(this.rig.mesh);
