@@ -209,3 +209,10 @@ describe('SettingsStore', () => {
     expect(s.active.touch.scale).toBe(1.4);
   });
 });
+
+describe('comfort settings', () => {
+  it('screen shake, damage numbers and the loot filter are saved per profile', async () => {
+    const { GRAPHICS_KEYS } = await import('../src/input/profile');
+    for (const k of ['ui.screenShake', 'ui.damageNumbers', 'ui.lootFilter', 'audio.music']) expect(GRAPHICS_KEYS as string[]).toContain(k);
+  });
+});

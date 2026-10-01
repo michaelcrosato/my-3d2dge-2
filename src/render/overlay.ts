@@ -79,7 +79,7 @@ export class Overlay {
       case 'hit': {
         const t = ch(e.target);
         const dmg = e.damage as number;
-        if (!t || dmg < 0.5) break;
+        if (!t || dmg < 0.5 || !config['ui.damageNumbers']) break;
         const y = t.pos.y + 1.9 * Math.min(2, t.scale);
         const toHero = e.target === heroId;
         const color = toHero ? '#ff5a5a' : DAMAGE_COLORS[(e.dmgType as DamageType) ?? 'physical'];

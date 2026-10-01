@@ -56,6 +56,8 @@ function setupHuman(game: Game, saves: SaveStore) {
   saves.applyTune();
   // URL overrides are for this visit only; they are not saved into the profile.
   if (params.has('plain')) store.transient(() => setConfig('render.pixelMode', false));
+  // Respect the system's reduced-motion request unless the player chose a shake strength.
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches && store.active.graphics['ui.screenShake'] === undefined) store.transient(() => setConfig('ui.screenShake', 0));
   const hud = document.getElementById('hud') as HTMLPreElement;
   const touchHost = document.getElementById('touch') as HTMLElement;
   let editing = false;
