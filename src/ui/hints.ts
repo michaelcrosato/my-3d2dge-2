@@ -35,6 +35,8 @@ export class Hints {
   private showing: string | null = null;
   private timer = 0;
   private poll = 0;
+  /** Seconds to stay quiet (the arrival banner owns the screen after a level change). */
+  private quiet = 0;
 
   constructor(private game: Game, private label: ControlLabel) {
     installStyles();
@@ -58,6 +60,7 @@ export class Hints {
     const g = this.game, k = this.label;
     switch (e.type) {
       case 'mode':
+        this.quiet = e.mode === 'dungeon' ? 5.5 : 3;
         if (e.mode === 'town' && (g.hero?.progress.unlocked ?? 1) <= 1) this.offer('waypoint', `Walk to the glowing <b>waypoint</b> and press <b>${k('interact')}</b> to enter the depths.`);
         if (e.mode === 'town' && (g.hero?.inventory.filter(Boolean).length ?? 0) >= 6) this.offer('town', `Back in Haven: <b>Odessa</b> buys and sells, <b>Brann</b> crafts, <b>Sage Ilmar</b> reshapes your tree, <b>Sela</b> builds creatures.`);
         if (e.mode === 'dungeon') this.offer('combat', `Hold <b>${k('attack')}</b> to keep swinging. <b>${k('dodge')}</b> rolls through attacks (you can't be hit mid-roll). Skills: <b>${k('skill1')}</b>, <b>${k('skill2')}</b>.`);
@@ -83,7 +86,8 @@ export class Hints {
       this.poll = 0.5;
       this.check();
     }
-    if (!this.showing && this.queue.length && !g.paused && g.mode !== 'title') this.show(this.queue.shift()!);
+    if (this.quiet > 0) this.quiet -= dt;
+    if (!this.showing && this.queue.length && !g.paused && g.mode !== 'title' && this.quiet <= 0) this.show(this.queue.shift()!);
   }
 
   private check() {
