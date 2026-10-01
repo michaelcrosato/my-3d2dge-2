@@ -89,6 +89,19 @@ generated genome (three leg pairs, four horns, no wings, longer tail; counts and
 what the rig supports), carried by `MonsterBody.genome` into the sim's `Look` and the renderer,
 so a custom species (`species.create`) is a few lines of data.
 
+## The Workshop and the bestiary
+
+Spore's lesson is that players care about creatures they made. The Workshop (`src/ui/workshop.ts`)
+edits a `SpeciesDesign` (`src/content/bestiary.ts`): body plan or preset, seed, `GenomeEdits`,
+palette, archetype and up to three attack modules, previewed live by `CreatureStudio` through the
+game's own rig and pixel pipeline. Numbers come from the parts: bulk gives life and costs speed,
+horns, spikes, tail weapons and pincers give damage, legs and wings give speed, and a threat budget
+scales life and damage back so no design breaks the game. A design registers `custom:<id>` and a
+boss variant (`custom:<id>-boss`, larger, with the plan's boss modules). Saved designs live in the
+save file's `bestiary`. The Proving Grounds (`Game.enterArena`) is a small dungeon of one species
+and its matriarch at the hero's level. Released designs join the encounter pools from depth 2,
+chosen deterministically per depth, so the endless dungeon fills with the player's creations.
+
 ## Combat feel
 
 - Every action is a timeline scrubbed through mocap clips, so attack speed literally speeds up

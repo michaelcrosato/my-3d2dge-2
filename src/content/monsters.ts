@@ -214,9 +214,9 @@ export function monsterDef(id: string): MonsterDef {
 // ---------------------------------------------------------------- procedural species
 
 
-const PLAN_SIZE: Record<BodyPlan, number> = { quadruped: 1, hexapod: 1, arachnid: 1, biped: 1.25, serpent: 0.95, floater: 1, centipede: 0.95, blob: 0.85 };
-const PLAN_SPEED: Record<BodyPlan, number> = { quadruped: 5, hexapod: 3.6, arachnid: 4.6, biped: 3.4, serpent: 4, floater: 3.2, centipede: 4.2, blob: 3.8 };
-const BOSS_MODULES: Record<BodyPlan, string[]> = {
+export const PLAN_SIZE: Record<BodyPlan, number> = { quadruped: 1, hexapod: 1, arachnid: 1, biped: 1.25, serpent: 0.95, floater: 1, centipede: 0.95, blob: 0.85 };
+export const PLAN_SPEED: Record<BodyPlan, number> = { quadruped: 5, hexapod: 3.6, arachnid: 4.6, biped: 3.4, serpent: 4, floater: 3.2, centipede: 4.2, blob: 3.8 };
+export const BOSS_MODULES: Record<BodyPlan, string[]> = {
   quadruped: ['b_quake', 'm_charge', 'b_sweep'], hexapod: ['b_quake', 'm_charge', 'm_spit'], arachnid: ['b_barrage', 'm_leap', 'm_summon'],
   biped: ['b_quake', 'b_sweep', 'm_leap'], serpent: ['b_barrage', 'm_nova', 'b_meteors'], floater: ['b_barrage', 'b_meteors', 'm_summon'],
   centipede: ['m_charge', 'b_quake', 'm_spit'], blob: ['m_summon', 'b_barrage', 'm_nova'],

@@ -6,6 +6,7 @@
  */
 import { config } from '../config';
 import { hashSeed, Rng } from '../sim/rng';
+import { releasedSpecies } from './bestiary';
 import { MONSTERS } from './monsters';
 import { CREATURE_PRESETS } from './procgen/creature';
 import type { DungeonSpec } from './procgen/dungeon';
@@ -52,6 +53,12 @@ export function stageSpecies(stage: number, seed: number): PoolEntry[] {
   for (let i = 0; i < n; i++) {
     const preset = r.pick(CREATURE_PRESETS.filter((p) => p !== 'spore'));
     out.push({ def: `sp:${preset}:${r.int(1, 99999)}`, weight: 1.2 });
+  }
+  // Species released from the Workshop roam the depths too (up to two per depth, from depth 2).
+  const mine = releasedSpecies();
+  if (stage >= 2 && mine.length) {
+    const rr = new Rng(seed ^ 0x2c1b3c6d);
+    for (const def of rr.shuffle([...mine]).slice(0, 2)) out.push({ def, weight: 1.1 });
   }
   return out;
 }

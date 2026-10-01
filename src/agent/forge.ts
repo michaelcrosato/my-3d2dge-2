@@ -8,25 +8,13 @@ import * as THREE from 'three';
 import { config } from '../config';
 import { generateGenome, type CreatureGenome, type GenomeEdits } from '../content/procgen/creature';
 import type { Game } from '../game';
+import { previewState, type PreviewPose } from '../render/creature/studio';
 import { makeRig, poseCreature, type CreatureRig } from '../render/creature/view';
 import { snapToGrid } from '../render/pixelGrid';
 import { LAYER, PixelTargets } from '../render/pixelPipeline';
 import { grid, type Img } from './capture';
 
-export const PREVIEW_POSES = ['idle', 'walk', 'bite', 'claw', 'slam', 'spit', 'roar', 'hit', 'dead'] as const;
-export type PreviewPose = (typeof PREVIEW_POSES)[number];
-
-/** Pose-state for a preview pose at normalized time u (0..1). */
-function previewState(pose: PreviewPose, u: number, stride: number) {
-  const base = { t: u * 2, phase: 0, speed: 0, state: 'idle' as const, stateTime: 0, deadTime: 0, action: null as { pose: string; u: number } | null };
-  switch (pose) {
-    case 'idle': return base;
-    case 'walk': return { ...base, phase: u * Math.PI * 2, speed: 3 * stride };
-    case 'hit': return { ...base, state: 'hit' as const, stateTime: u * 0.3 } as never;
-    case 'dead': return { ...base, state: 'dead' as const, deadTime: u * 0.6 } as never;
-    default: return { ...base, action: { pose, u } };
-  }
-}
+export { PREVIEW_POSES, type PreviewPose } from '../render/creature/studio';
 
 export interface CreatureSheetOptions {
   plan: string;

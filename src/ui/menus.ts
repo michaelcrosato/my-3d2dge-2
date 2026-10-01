@@ -19,6 +19,8 @@ const TUNE_LABELS: Partial<Record<ConfigKey, string>> = {
 
 export interface MenuHooks {
   openSettings(): void;
+  /** Opens the creature Workshop (title screen). */
+  openWorkshop?(): void;
   openPanel(p: PanelId): void;
   toast(text: string): void;
 }
@@ -166,6 +168,10 @@ export class TitleScreen {
       h('div', { class: 'slots' }, ...cards),
       h('div', { class: 'more' },
         h('button', { class: 'ui-btn', onclick: () => this.start(() => this.game.startSandbox()) }, 'Training room'),
+        this.hooks.openWorkshop ? h('button', { class: 'ui-btn', onclick: () => {
+          this.hide();
+          this.hooks.openWorkshop!();
+        } }, 'Creature workshop') : null,
         h('button', { class: 'ui-btn', onclick: () => this.hooks.openSettings() }, 'Settings'),
       ),
       h('small', { class: 'sub' }, this.saves.persistent ? 'Progress saves automatically in this browser.' : 'Browser storage is unavailable: progress lasts until this page closes.'),

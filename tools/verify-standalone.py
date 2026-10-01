@@ -31,6 +31,17 @@ async def main():
             page.on('dialog', lambda d: asyncio.ensure_future(d.accept('Verifier')))
             await page.goto(URL)
             await page.wait_for_function('window.agent?.ready', timeout=120000)
+            # Title -> creature workshop: live preview, edit, save to the bestiary, close back to the title.
+            await page.locator('#gtitle button', has_text='Creature workshop').tap()
+            await page.wait_for_selector('.workshop canvas.pv')
+            await page.wait_for_timeout(400)
+            drawn = await page.evaluate('(() => { const c = document.querySelector(".workshop canvas.pv"); const d = c.getContext("2d").getImageData(0, 0, c.width, c.height).data; let n = 0; for (let i = 3; i < d.length; i += 4) if (d[i]) n++; return n; })()')
+            assert drawn > 100, f'workshop preview is empty ({drawn} px)'
+            await page.locator('.workshop .chip', has_text='Charger').first.tap()
+            await page.locator('.workshop button', has_text='Save to bestiary').tap()
+            assert await page.evaluate('JSON.parse(localStorage.getItem("3dpixel2d.save.v1")).bestiary.length') == 1
+            await page.locator('.workshop button[aria-label="Close"]').tap()
+            await page.wait_for_selector('#gtitle:not([hidden])')
             # Title -> new game -> town.
             await page.locator('#gtitle button', has_text='New game').first.tap()
             await page.wait_for_function('game.mode === "town" && !game.busy', timeout=60000)
@@ -74,18 +85,18 @@ async def main():
             await page.wait_for_function(f'game.sim.events.filter(e => e.type === "skill" && e.skill === "dodge").length > {dodges}')
             # Panels and the pause menu.
             await page.locator('#bag').tap()
-            assert await page.evaluate('!document.querySelector(".gp").hidden')
-            await page.locator('.gp header button[aria-label="Close"]').tap()
+            assert await page.evaluate('!document.querySelector(".gp:not(.workshop)").hidden')
+            await page.locator('.gp:not(.workshop) header button[aria-label="Close"]').tap()
             await page.locator('#treebtn').tap()
             assert await page.evaluate('document.querySelector(".treebox canvas") !== null')
-            await page.locator('.gp header button[aria-label="Close"]').tap()
+            await page.locator('.gp:not(.workshop) header button[aria-label="Close"]').tap()
             await page.locator('#menu-open').tap()
             assert await page.evaluate('!document.getElementById("gmenu").hidden && document.querySelectorAll("#gmenu input[type=range]").length >= 6')
             await page.locator('#gmenu button', has_text='Resume').tap()
             # Talk to the merchant (walk up and interact).
             await page.evaluate('(() => { const m = game.sim.get("merchant"); game.sim.teleport("player", m.pos.x - 1.2, m.pos.z + 1.2); game.sim.get("player").input.interact = true; })()')
-            await page.wait_for_function('!document.querySelector(".gp").hidden && document.querySelector(".gp h2").textContent.includes("Odessa")')
-            await page.locator('.gp header button[aria-label="Close"]').tap()
+            await page.wait_for_function('!document.querySelector(".gp:not(.workshop)").hidden && document.querySelector(".gp:not(.workshop) h2").textContent.includes("Odessa")')
+            await page.locator('.gp:not(.workshop) header button[aria-label="Close"]').tap()
             # Into the dungeon.
             await page.evaluate('game.enterStage(1)')
             await page.wait_for_function('game.mode === "dungeon" && !game.busy', timeout=60000)
@@ -105,7 +116,7 @@ async def main():
             models = await page.evaluate('async () => { await Promise.all(game.lib.manifest.models.map(m => game.lib.loadModel(m.id))); return game.lib.manifest.models.length; }')
             assert not external, external
             assert not errors, errors
-            print(json.dumps({'engine': engine, 'offline': True, 'title_new_game': True, 'movement': True, 'release': True, 'attack_dodge': True,
+            print(json.dumps({'engine': engine, 'offline': True, 'workshop': drawn, 'title_new_game': True, 'movement': True, 'release': True, 'attack_dodge': True,
                               'settings_rebind_layout': True, 'panels_pause': True, 'merchant': True, 'dungeon_monsters': monsters, 'hits': hits,
                               'render_modes': True, 'models_loaded': models, 'external_requests': external, 'errors': errors}), flush=True)
             await browser.close()

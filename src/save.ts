@@ -1,9 +1,10 @@
 /**
- * Save files: three hero slots plus the difficulty tuning, in localStorage when available
+ * Save files: three hero slots, the difficulty tuning and the Workshop bestiary, in localStorage when available
  * (private windows and some file:// contexts refuse it; the game then runs from memory).
  * Everything loaded goes through normalizeHero, so old or hand-edited saves can't break the game.
  */
 import { CONFIG_SPEC, config, setConfig, type ConfigKey } from './config';
+import { designProblems, type SpeciesDesign } from './content/bestiary';
 import { BASES, EQUIP_SLOTS, type EquipSlot, type Item } from './content/items';
 import { TREE } from './content/tree';
 import { HOTBAR_SKILLS } from './content/skills';
@@ -18,6 +19,28 @@ export interface SaveFile {
   slots: Array<Hero | null>;
   active: number;
   tune: Partial<Record<ConfigKey, number>>;
+  /** Species designed in the Workshop (shared by every slot). */
+  bestiary: SpeciesDesign[];
+}
+
+export const BESTIARY_SIZE = 24;
+
+/** A design from storage, or null when it is broken (unknown parts, bad id). */
+export function normalizeDesign(raw: unknown): SpeciesDesign | null {
+  if (!isObj(raw)) return null;
+  const d: SpeciesDesign = {
+    id: typeof raw.id === 'string' ? raw.id.slice(0, 32) : '',
+    name: typeof raw.name === 'string' && raw.name.trim() ? raw.name.trim().slice(0, 32) : 'Nameless',
+    body: typeof raw.body === 'string' ? raw.body : '',
+    seed: Math.round(num(raw.seed, 0, 2 ** 31, 1)),
+    genome: isObj(raw.genome) ? (raw.genome as SpeciesDesign['genome']) : undefined,
+    archetype: typeof raw.archetype === 'string' ? raw.archetype : '',
+    skills: Array.isArray(raw.skills) ? raw.skills.filter((x): x is string => typeof x === 'string').slice(0, 3) : [],
+    palette: typeof raw.palette === 'string' ? raw.palette : '',
+    size: num(raw.size, 0.6, 1.8, 1),
+    released: raw.released === true,
+  };
+  return designProblems(d).length ? null : d;
 }
 
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -124,7 +147,8 @@ export class SaveStore {
     while (slots.length < SLOTS) slots.push(null);
     const tune: SaveFile['tune'] = {};
     if (isObj(r.tune)) for (const k of TUNE_KEYS) if (typeof r.tune[k] === 'number') tune[k] = r.tune[k] as number;
-    this.file = { version: 1, slots, active: Math.round(num(r.active, 0, SLOTS - 1, 0)), tune };
+    const bestiary = Array.isArray(r.bestiary) ? r.bestiary.map(normalizeDesign).filter((d): d is SpeciesDesign => !!d).slice(0, BESTIARY_SIZE) : [];
+    this.file = { version: 1, slots, active: Math.round(num(r.active, 0, SLOTS - 1, 0)), tune, bestiary };
   }
 
   write() {
@@ -143,6 +167,21 @@ export class SaveStore {
 
   deleteSlot(slot: number) {
     this.file.slots[slot] = null;
+    this.write();
+  }
+
+  /** Adds or replaces a design (by id). */
+  saveDesign(d: SpeciesDesign): string | null {
+    const i = this.file.bestiary.findIndex((x) => x.id === d.id);
+    if (i < 0 && this.file.bestiary.length >= BESTIARY_SIZE) return `The bestiary holds ${BESTIARY_SIZE} species; release or delete one first.`;
+    if (i >= 0) this.file.bestiary[i] = structuredClone(d);
+    else this.file.bestiary.push(structuredClone(d));
+    this.write();
+    return null;
+  }
+
+  deleteDesign(id: string) {
+    this.file.bestiary = this.file.bestiary.filter((d) => d.id !== id);
     this.write();
   }
 

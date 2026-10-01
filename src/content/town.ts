@@ -1,7 +1,7 @@
 /**
  * Haven, the town hub. Hand-made with the same grid format as generated dungeons (so the same
  * renderer, nav and minimap work): a cobbled plaza with a well, buildings around it, and the
- * core NPCs, each with an idle animation that fits their trade (the smith hammers, the merchant
+ * core NPCs (smith, trader, sage, keeper, guard, and Sela the Beastwright who runs the Workshop), each with an idle animation that fits their trade (the smith hammers, the merchant
  * talks, the sage channels) and a role that opens their panel when the hero talks to them.
  */
 import { wallBoxes } from './procgen/dungeon';
@@ -78,6 +78,7 @@ export function townLevel(): Level {
     npc('sage', 'sage', 22, 9, 180, 'sage', 'Sage Ilmar', 'Spell_Simple_Idle_Loop'),
     npc('keeper', 'keeper', 10, 20, 100, 'stash', 'Keeper Wren', 'Idle_FoldArms_Loop'),
     npc('guard', 'guard', 34, 20, 250, 'guard', 'Captain Hale', 'Idle_Shield_Loop'),
+    npc('beastwright', 'mender', 17.5, 27, 140, 'workshop', 'Sela the Beastwright', 'Spell_Simple_Idle_Loop'),
     npc('farmer', 'farmer', 14, 30, 200, 'wander', 'Old Tobin'),
     npc('villager', 'villager', 30, 31, 140, 'wander', 'Mara'),
     npc('child', 'child', 23, 20.5, 180, 'wander', 'Pip'),
@@ -104,6 +105,7 @@ export const NPC_LINES: Record<string, string[]> = {
   stash: ['Your things are safe with me. Safer than with you, anyway.'],
   guard: ['The waypoint takes you below. The deeper you go, the less comes back.', 'Every depth has its own trick. Learn it, or ignore it and swing harder.'],
   waypoint: ['The waypoint hums. Choose a depth.'],
+  workshop: ['Every beast in the depths began as an idea. Bring me yours.', 'Horns for bite, bulk for staying power, legs for speed. Nothing is free.'],
   shrine_respec: ['The shrine offers to unmake your choices, for a price.'],
   wander: ['Lovely day for not going into the dungeon.', 'My cousin went down there once. Came back taller, somehow.'],
 };

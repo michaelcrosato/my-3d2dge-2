@@ -112,6 +112,10 @@ export class GameHud {
         else if (e.mode === 'town') this.showBanner(String(e.title ?? 'Haven'), String(e.subtitle ?? ''), '', 2.5);
         break;
       case 'stage.clear':
+        if (e.arena) {
+          this.showBanner('Creation defeated', `${fmtTime((e.time as number) / 60)} · ${e.kills} kills · +${e.gold} gold`, 'The portal leads home to Haven.', 5);
+          break;
+        }
         this.showBanner('Depth cleared', `${fmtTime((e.time as number) / 60)} · ${e.kills} kills${e.mechanicKills ? ` (${e.mechanicKills} by tricks)` : ''} · +${e.gold} gold${e.first ? ' · +1 passive point' : ''}`, 'A portal has opened. Step in to go deeper, or use the town portal near the entrance.', 6);
         break;
       case 'levelup':

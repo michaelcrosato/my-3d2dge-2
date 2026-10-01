@@ -8,11 +8,13 @@
  */
 import * as THREE from 'three';
 import { config, configListeners } from './config';
+import { monsterId, registerDesign, type SpeciesDesign } from './content/bestiary';
 import { campaignStage } from './content/campaign';
 import { PRESETS } from './content/characters';
 import { DEFAULT_LEVEL, type CharacterDef, type Level } from './content/level';
 import { ensureMonster } from './content/monsters';
 import { generateDungeon } from './content/procgen/dungeon';
+import { stageSpec } from './content/stages';
 import { townLevel } from './content/town';
 import { AssetLibrary, clipTable } from './render/assets';
 import { Overlay, type OverlayOptions } from './render/overlay';
@@ -21,6 +23,7 @@ import { Stage } from './render/stage';
 import type { SaveStore } from './save';
 import { newHero, type Hero } from './sim/hero';
 import { Bot, type BotOptions } from './sim/bot';
+import { hashSeed } from './sim/rng';
 import { Sim, type SimEvent } from './sim/sim';
 
 export type Mode = 'title' | 'town' | 'dungeon' | 'sandbox';
@@ -41,8 +44,10 @@ export class Game {
   mode: Mode = 'sandbox';
   hero: Hero | null = null;
   heroSlot = 0;
-  /** Dungeon stage being played (0 in town / sandbox). */
+  /** Dungeon stage being played (0 in town / sandbox / the Proving Grounds). */
   stageNo = 0;
+  /** True in the Proving Grounds (a Workshop test fight): no campaign progress, exit leads home. */
+  arena = false;
   /** Town visits (vendor restocks each visit). */
   visits = 0;
   saves: SaveStore | null = null;
@@ -159,6 +164,7 @@ export class Game {
     this.busy = true;
     try {
       this.mode = 'town';
+      this.arena = false;
       this.stageNo = 0;
       this.visits++;
       // Flasks refill in town.
@@ -186,6 +192,7 @@ export class Game {
       level.props = [...(level.props ?? []), { id: 'town_portal', kind: 'portal', x: s.x - 1.6, z: s.z - 1.6, data: { to: 'town' } }];
       this.mode = 'dungeon';
       this.stageNo = n;
+      this.arena = false;
       await this.reset({ level, seed: level.seed ?? spec.dungeon.seed });
       this.emit({ type: 'mode', mode: 'dungeon', stage: n, title: level.title, subtitle: level.subtitle, mechanics: level.mechanics ?? [], tip: custom ? undefined : spec.tip });
     } finally {
@@ -193,7 +200,36 @@ export class Game {
     }
   }
 
+  /**
+   * The Proving Grounds: a small dungeon at the hero's level holding packs of one Workshop species
+   * and its boss variant. Clearing it gives normal rewards but no campaign progress.
+   */
+  async enterArena(d: SpeciesDesign) {
+    if (!this.hero) this.hero = newHero();
+    registerDesign(d);
+    this.busy = true;
+    try {
+      const L = this.hero.level;
+      const spec = stageSpec(Math.max(1, Math.round((L - 1) / 2) + 1), {
+        theme: 'ruins', layout: 'rooms', title: 'Proving Grounds', subtitle: `Test fight: ${d.name}`, boss: { def: monsterId(d, true), palette: d.palette },
+      });
+      spec.pool = { entries: [{ def: monsterId(d), weight: 1 }], palettes: [d.palette], magic: 0.2, rare: 0.1 };
+      Object.assign(spec, { rooms: 5, cols: 44, rows: 44, monsterLevel: L, mechanics: [], seed: hashSeed('arena', d.id, L) });
+      const level = generateDungeon(spec);
+      const s = level.start!;
+      level.props = [...(level.props ?? []), { id: 'town_portal', kind: 'portal', x: s.x - 1.6, z: s.z - 1.6, data: { to: 'town' } }];
+      this.mode = 'dungeon';
+      this.stageNo = 0;
+      this.arena = true;
+      await this.reset({ level, seed: spec.seed });
+      this.emit({ type: 'mode', mode: 'dungeon', stage: 0, title: level.title, subtitle: level.subtitle, mechanics: [], tip: `${d.name} packs and their matriarch. The exit leads home.` });
+    } finally {
+      this.busy = false;
+    }
+  }
+
   async startSandbox() {
+    this.arena = false;
     this.mode = 'sandbox';
     this.stageNo = 0;
     await this.reset({ level: DEFAULT_LEVEL });
@@ -244,12 +280,18 @@ export class Game {
       for (const fn of this.listeners) fn(e);
       switch (e.type) {
         case 'portal.enter':
-          if (e.to === 'town') this.go(() => this.enterTown());
+          if (e.to === 'town' || (e.to === 'next' && this.arena)) this.go(() => this.enterTown());
           else if (e.to === 'next') this.go(() => this.enterStage(this.stageNo + 1));
           break;
         case 'boss.dead': {
           const hero = this.hero;
           if (!hero || this.mode !== 'dungeon') break;
+          if (this.arena) {
+            sim.stage.cleared = true;
+            this.save();
+            this.emit({ type: 'stage.clear', stage: 0, arena: true, first: false, time: sim.stage.time, kills: sim.stage.kills, gold: sim.stage.gold, xp: Math.round(sim.stage.xp), items: sim.stage.items, mechanicKills: 0 });
+            break;
+          }
           const key = String(this.stageNo);
           const first = !(key in hero.progress.cleared);
           hero.progress.cleared[key] = Math.min(hero.progress.cleared[key] ?? Infinity, sim.stage.time);
