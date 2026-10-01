@@ -12,6 +12,7 @@ import { PRESETS } from '../../content/characters';
 import { BASES, ITEM_BASES, type ItemRarity, type SlotKind } from '../../content/items';
 import type { Level } from '../../content/level';
 import { MECHANIC_IDS, MECHANICS, placeMechanics } from '../../content/mechanics';
+import { applyPactsToSpec, PACT_BY_ID, PACTS, stampPacts } from '../../content/pacts';
 import { ARCHETYPES, ensureMonster, MONSTER_AFFIXES, MONSTERS, PALETTES, registerMonster, type MonsterDef, type MonsterRarity } from '../../content/monsters';
 import { BODY_PLANS, CREATURE_PRESETS, generateGenome, PLAN_KIT, planOf, speciesName, type GenomeEdits } from '../../content/procgen/creature';
 import { generateDungeon } from '../../content/procgen/dungeon';
@@ -62,9 +63,9 @@ defineTool({
 
 defineTool({
   name: 'catalog.list', group: 'catalog',
-  desc: 'Lists the building blocks: skills, monsters, archetypes, palettes, monster affixes, body plans, item bases, item affixes, uniques, mechanics, themes, statuses, stats, character presets, difficulty presets.',
+  desc: 'Lists the building blocks: skills, monsters, archetypes, palettes, monster affixes, body plans, item bases, item affixes, uniques, mechanics, pacts (risk-for-reward depth modifiers), themes, statuses, stats, character presets, difficulty presets.',
   params: {
-    kind: { type: 'string', required: true, desc: 'What to list.', enum: ['skills', 'monsters', 'archetypes', 'palettes', 'monsterAffixes', 'plans', 'bases', 'itemAffixes', 'uniques', 'mechanics', 'themes', 'statuses', 'stats', 'presets', 'difficulty'] },
+    kind: { type: 'string', required: true, desc: 'What to list.', enum: ['skills', 'monsters', 'archetypes', 'palettes', 'monsterAffixes', 'plans', 'bases', 'itemAffixes', 'uniques', 'mechanics', 'pacts', 'themes', 'statuses', 'stats', 'presets', 'difficulty'] },
     filter: { type: 'string', desc: 'Case-insensitive substring filter on id/name.' },
   },
   example: { kind: 'monsters', filter: 'boss' },
@@ -99,6 +100,7 @@ defineTool({
       case 'stats': return Object.entries(STATS).filter(([id, s]) => keep(id, s.label)).map(([id, s]) => ({ id, label: s.label, group: s.group }));
       case 'presets': return Object.entries(PRESETS).filter(([id, p]) => keep(id, p.label)).map(([id, p]) => ({ id, label: p.label, base: p.base, parts: p.parts }));
       case 'difficulty': return DIFFICULTY_PRESETS;
+      case 'pacts': return PACTS.filter((p) => keep(p.id, p.name));
     }
     return null;
   },
@@ -350,12 +352,14 @@ defineTool({
 });
 
 /** Builds a level for a depth, optionally overriding theme / layout / mechanics / seed. */
-export function buildStageLevel(a: { stage: number; theme?: string; layout?: string; mechanics?: string[]; seed?: number; intensity?: number }): Level {
+export function buildStageLevel(a: { stage: number; theme?: string; layout?: string; mechanics?: string[]; seed?: number; intensity?: number; pacts?: string[] }): Level {
+  for (const id of a.pacts ?? []) if (!PACT_BY_ID[id]) throw new Error(`unknown pact "${id}". Pacts: ${PACTS.map((p) => p.id).join(', ')}`);
   const c = campaignStage(a.stage);
   const custom = a.theme || a.layout || a.mechanics || a.seed;
   if (!custom) {
-    const level = generateDungeon(c.dungeon);
+    const level = generateDungeon(applyPactsToSpec(c.dungeon, a.pacts));
     c.place?.(level);
+    stampPacts(level, a.pacts);
     return level;
   }
   const mechanics = a.mechanics ?? c.mechanics;
@@ -364,8 +368,9 @@ export function buildStageLevel(a: { stage: number; theme?: string; layout?: str
     theme: a.theme ?? c.dungeon.theme, layout: (a.layout ?? c.dungeon.layout) as 'rooms', mechanics, seedSalt: a.seed ?? 0, boss: c.dungeon.boss,
     title: a.mechanics ? mechanics.map((m) => MECHANICS[m].name).join(' + ') : c.dungeon.title,
   });
-  const level = generateDungeon(spec);
+  const level = generateDungeon(applyPactsToSpec(spec, a.pacts));
   placeMechanics(level, mechanics, a.intensity ?? 1);
+  stampPacts(level, a.pacts);
   return level;
 }
 
@@ -410,6 +415,7 @@ defineTool({
     mechanics: { type: 'array', items: { type: 'string', enum: MECHANIC_IDS }, desc: 'Mechanics override (combine any).' },
     seed: { type: 'integer', desc: 'Seed salt for a different layout of the same depth.' },
     intensity: { type: 'number', default: 1, min: 0.2, max: 3, desc: 'Mechanic prop density (custom levels).' },
+    pacts: { type: 'array', items: { type: 'string', enum: PACTS.map((p) => p.id) }, desc: 'Risk-for-reward pacts (catalog.list pacts).' },
     map: { type: 'boolean', default: true, desc: 'Return the map image.' },
     px: { type: 'integer', default: 4, min: 1, max: 12, desc: 'Map pixels per tile.' },
   },
@@ -609,13 +615,14 @@ defineTool({
     difficulty: { type: 'string', enum: Object.keys(DIFFICULTY_PRESETS), desc: 'Difficulty preset for the runs.' },
     tune: { type: 'object', desc: 'tune.* overrides for the runs, e.g. {"enemyDamage":1.5}.' },
     layoutSeed: { type: 'integer', desc: 'Remix the depth\'s layout (default: the campaign layout).' },
+    pacts: { type: 'array', items: { type: 'string', enum: PACTS.map((p) => p.id) }, desc: 'Risk-for-reward pacts (catalog.list pacts).' },
   },
   example: { stage: 6, seeds: [1, 2], strategy: 'rush' },
   async run(a, ctx) {
     await probeSim(ctx.clips).then((s) => s.dispose());
     const heroLevel = a.heroLevel ?? stageMonsterLevel(a.stage);
     const runs: Array<BotReport & { seed: number }> = withTune(a.difficulty, a.tune, () => (a.seeds as number[]).map((seed) => {
-      const level = buildStageLevel({ stage: a.stage, seed: a.layoutSeed });
+      const level = buildStageLevel({ stage: a.stage, seed: a.layoutSeed, pacts: a.pacts });
       const hero = autoHero({ level: heroLevel, gear: a.gear, focus: a.focus as BuildFocus, seed });
       const sim = new Sim(level, ctx.clips, seed * 977 + a.stage, { hero });
       try {
@@ -650,6 +657,7 @@ defineTool({
     difficulty: { type: 'string', enum: Object.keys(DIFFICULTY_PRESETS), desc: 'Difficulty preset.' },
     tune: { type: 'object', desc: 'tune.* overrides.' },
     seed: { type: 'integer', default: 1, desc: 'Seed.' },
+    pacts: { type: 'array', items: { type: 'string', enum: PACTS.map((p) => p.id) }, desc: 'Risk-for-reward pacts (catalog.list pacts).' },
   },
   example: { from: 1, to: 3 },
   async run(a, ctx) {
@@ -663,7 +671,7 @@ defineTool({
         const startLevel = hero.level;
         while (!cleared && attempts <= a.retries) {
           attempts++;
-          const level = buildStageLevel({ stage: n });
+          const level = buildStageLevel({ stage: n, pacts: a.pacts });
           hero.flasks = [30, 30];
           const sim = new Sim(level, ctx.clips, a.seed * 7919 + n * 31 + attempts, { hero });
           try {

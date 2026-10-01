@@ -326,6 +326,15 @@ export const MECHANICS: Record<string, MechanicDef> = {
 export const MECHANIC_IDS = Object.keys(MECHANICS);
 
 /** Places every listed mechanic into a generated level (deterministic for the level seed). */
+/** Adds one more mechanic to an already furnished level (pacts that bring darkness). */
+export function addMechanic(level: Level, id: string, intensity = 1) {
+  if (level.mechanics?.includes(id)) return;
+  const m = MECHANICS[id];
+  if (!m) throw new Error(`unknown mechanic "${id}"`);
+  m.place(level, new Rng((level.seed ?? 1) * 104729 + id.length), intensity);
+  level.mechanics = [...(level.mechanics ?? []), id];
+}
+
 export function placeMechanics(level: Level, ids: string[], intensity = 1) {
   const rng = new Rng((level.seed ?? 1) * 7349 + ids.length);
   uid = 0;

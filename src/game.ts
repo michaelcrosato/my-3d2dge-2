@@ -10,6 +10,7 @@ import * as THREE from 'three';
 import { config, configListeners } from './config';
 import { monsterId, registerDesign, type SpeciesDesign } from './content/bestiary';
 import { campaignStage } from './content/campaign';
+import { applyPactsToSpec, pactRewardText, stampPacts } from './content/pacts';
 import { PRESETS } from './content/characters';
 import { DEFAULT_LEVEL, type CharacterDef, type Level } from './content/level';
 import { ensureMonster } from './content/monsters';
@@ -48,6 +49,8 @@ export class Game {
   stageNo = 0;
   /** True in the Proving Grounds (a Workshop test fight): no campaign progress, exit leads home. */
   arena = false;
+  /** Pacts chosen at the waypoint; they apply to every depth entered until changed. */
+  pacts: string[] = [];
   /** Town visits (vendor restocks each visit). */
   visits = 0;
   saves: SaveStore | null = null;
@@ -185,8 +188,11 @@ export class Game {
     this.busy = true;
     try {
       const spec = campaignStage(n);
-      const level = custom ?? generateDungeon(spec.dungeon);
-      if (!custom) spec.place?.(level);
+      const level = custom ?? generateDungeon(applyPactsToSpec(spec.dungeon, this.pacts));
+      if (!custom) {
+        spec.place?.(level);
+        stampPacts(level, this.pacts);
+      }
       // A way home near the entrance.
       const s = level.start!;
       level.props = [...(level.props ?? []), { id: 'town_portal', kind: 'portal', x: s.x - 1.6, z: s.z - 1.6, data: { to: 'town' } }];
@@ -194,7 +200,8 @@ export class Game {
       this.stageNo = n;
       this.arena = false;
       await this.reset({ level, seed: level.seed ?? spec.dungeon.seed });
-      this.emit({ type: 'mode', mode: 'dungeon', stage: n, title: level.title, subtitle: level.subtitle, mechanics: level.mechanics ?? [], tip: custom ? undefined : spec.tip });
+      const pactTip = level.pacts?.length ? ` Pacts: ${pactRewardText(level.pacts)}.` : '';
+      this.emit({ type: 'mode', mode: 'dungeon', stage: n, title: level.title, subtitle: level.subtitle, mechanics: level.mechanics ?? [], pacts: level.pacts ?? [], tip: custom ? undefined : `${spec.tip ?? ''}${pactTip}` });
     } finally {
       this.busy = false;
     }

@@ -136,6 +136,8 @@ export interface Level {
   monsterLevel?: number;
   /** Campaign stage (1-based); endless stages continue past the authored ones. */
   stage?: number;
+  /** Risk-for-reward pacts chosen at the waypoint (content/pacts.ts). */
+  pacts?: string[];
 }
 
 export const DEFAULT_LEVEL: Level = {

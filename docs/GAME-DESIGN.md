@@ -119,6 +119,16 @@ important requests near the camera: torches (flickering), braziers, fireballs, e
 loot beams, portals, elite auras and the hero's lantern (stronger in dark themes). Toon
 materials quantize the falloff into crisp bands.
 
+## Pacts (endgame risk for reward)
+
+`src/content/pacts.ts` defines modifiers chosen at the waypoint, in the spirit of Nightmare Sigils
+and map mods. Each pairs one readable risk (more damage, life, speed, packs or elites, an affix on
+every monster, darkness) with rewards (experience, rarity, quantity, gold). They act at three
+layers: the dungeon spec before generation (`applyPactsToSpec`), the generated level
+(`stampPacts`, which can add the Lightless mechanic), and the sim via `level.pacts` (monster mods
+and damage, hero loot stats). Bot check at depth 10: three pacts gave +26% experience and +34% items
+with no deaths; all eight gave 2.4x experience and 2.3x items at real risk.
+
 ## Sound
 
 Sounds are data too (`src/content/sounds.ts`): each is a few synthesized layers (oscillator or

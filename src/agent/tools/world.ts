@@ -5,6 +5,7 @@
  * reproducible script.
  */
 import { MECHANIC_IDS } from '../../content/mechanics';
+import { PACTS } from '../../content/pacts';
 import { ensureMonster, MONSTER_AFFIXES, PALETTES, type MonsterRarity } from '../../content/monsters';
 import { DUNGEON_THEMES } from '../../content/themes';
 import { ITEM_BASES, RARITY_COLOR, type ItemRarity, type SlotKind } from '../../content/items';
@@ -33,7 +34,7 @@ export function brief(game: Game) {
   const alive = [...sim.characters.values()].filter((c) => c.monster && c.state !== 'dead');
   const boss = alive.find((c) => c.monster!.boss);
   return {
-    mode: game.mode, stage: game.stageNo, title: game.level.title ?? null, mechanics: game.level.mechanics ?? [], frame: sim.frame, busy: game.busy,
+    mode: game.mode, stage: game.stageNo, title: game.level.title ?? null, mechanics: game.level.mechanics ?? [], pacts: game.level.pacts ?? [], frame: sim.frame, busy: game.busy,
     hero: p && game.hero ? {
       level: game.hero.level, life: Math.round(p.life), maxLife: Math.round(p.maxLife), mana: Math.round(p.mana), gold: game.hero.gold, state: p.state,
       pos: [r2(p.pos.x), r2(p.pos.z)], action: p.action?.skill ?? null, flasks: game.hero.flasks, hotbar: game.hero.hotbar,
@@ -76,15 +77,17 @@ defineTool({
     heroLevel: { type: 'integer', min: 1, max: 500, desc: 'Replace the hero with an auto-built one of this level.' },
     focus: { type: 'string', default: 'melee', enum: FOCI, desc: 'Auto-build focus.' },
     gear: { type: 'string', enum: GEAR, desc: 'Auto-build gear rarity.' },
+    pacts: { type: 'array', items: { type: 'string', enum: PACTS.map((p) => p.id) }, desc: 'Pacts for this and following depths (like the waypoint selector; [] clears).' },
   },
-  example: { to: 'stage', stage: 14, heroLevel: 28 },
+  example: { to: 'stage', stage: 14, heroLevel: 28, pacts: ['brutal', 'teeming'] },
   async run(a, ctx) {
     const game = g(ctx);
     await game.idle();
     if (a.heroLevel) game.hero = autoHero({ level: a.heroLevel, focus: a.focus as BuildFocus, gear: a.gear, name: game.hero?.name ?? 'Ranger' });
+    if (a.pacts) game.pacts = [...a.pacts];
     if (a.to === 'town') await game.enterTown();
     else if (a.to === 'sandbox') await game.startSandbox();
-    else if (a.theme || a.layout || a.mechanics || a.seed) await game.enterStage(a.stage, buildStageLevel(a as never));
+    else if (a.theme || a.layout || a.mechanics || a.seed) await game.enterStage(a.stage, buildStageLevel({ ...(a as never as object), pacts: game.pacts } as never));
     else await game.enterStage(a.stage);
     return { ...brief(game), level: game.level.grid ? levelSummary(game.level) : null };
   },
