@@ -348,7 +348,7 @@ defineTool({
           rank: `${rivals.filter((r) => r.gain > mine).length + 1} of ${rivals.length + 1} uniques for this slot`,
           rivals: rivals.slice(0, 8),
         },
-        note: 'gain = hero power with the item / without (damage x survival, the same measure as the inventory upgrade arrows). Skill lines only count if that skill is on the test hero\'s hotbar.',
+        note: 'gain = hero power with the item / without (damage x survival, the same measure as the inventory upgrade arrows). Unique lines only, on both sides: drops also roll regular affixes (UNIQUE_AFFIXES). Skill lines only count if that skill is on the test hero\'s hotbar.',
       };
     } finally {
       delete UNIQUE_BY_ID[id];

@@ -195,7 +195,8 @@ export function describeMod(m: Mod, skillNames: Record<string, string> = {}): st
     if (m.kind === 'more') return `${fmtNum(Math.abs(v))}% ${v >= 0 ? 'more' : 'less'} ${what}${tail}`;
     return `${fmtNum(Math.abs(v))}% ${v >= 0 ? 'increased' : 'reduced'} ${what}${tail}`;
   }
-  const scoped = words.length || skillWord ? ` with ${skillWord}${words.join(' ')}${words.length ? ' Skills' : ''}`.replace('  ', ' ') : '';
+  const scope = [skillWord.trim(), words.length ? `${words.join(' ')} Skills` : ''].filter(Boolean).join(' ');
+  const scoped = scope ? ` with ${scope}` : '';
   if (m.kind === 'more') return `${fmtNum(Math.abs(v))}% ${v >= 0 ? 'more' : 'less'} ${spec.label}${scoped}${tail}`;
   if (m.kind === 'inc') return `${fmtNum(Math.abs(v))}% ${v >= 0 ? 'increased' : 'reduced'} ${spec.label}${scoped}${tail}`;
   // flat
