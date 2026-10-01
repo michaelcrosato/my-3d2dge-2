@@ -46,6 +46,26 @@ export function brief(game: Game) {
   };
 }
 
+/**
+ * Steps like game.step and draws once, but keeps every event: the sim buffers only its last 1500,
+ * which a long step through a big fight overflows. Follows the game into a new level mid-step.
+ */
+function stepCollect(game: Game, frames: number): SimEvent[] {
+  const out: SimEvent[] = [];
+  let sim = game.sim, seq = sim.lastEventSeq;
+  for (let done = 0; done < frames; done += 120) {
+    game.step(Math.min(120, frames - done), false);
+    out.push(...sim.eventsSince(seq));
+    if (game.sim !== sim) {
+      sim = game.sim;
+      out.push(...sim.eventsSince(0));
+    }
+    seq = sim.lastEventSeq;
+  }
+  game.render(1);
+  return out;
+}
+
 function eventDigest(events: SimEvent[]) {
   const counts: Record<string, number> = {};
   for (const e of events) counts[e.type] = (counts[e.type] ?? 0) + 1;
@@ -100,10 +120,7 @@ defineTool({
   params: { frames: { type: 'integer', default: 60, min: 1, max: 60 * 600, desc: 'Frames to step.' } },
   async run({ frames }, ctx) {
     const game = g(ctx);
-    const from = game.sim.lastEventSeq;
-    const sim = game.sim;
-    game.step(frames);
-    const events = sim.eventsSince(from);
+    const events = stepCollect(game, frames);
     await game.idle();
     return { stepped: frames, events: eventDigest(events), state: brief(game) };
   },
@@ -138,9 +155,7 @@ defineTool({
       moveX: a.move ? a.move[0] / len : 0, moveZ: a.move ? a.move[1] / len : 0, aim, attackHeld: a.attack, skill: a.skill ?? -1,
       dodge: a.dodge, interact: a.interact, flask: a.flask ?? -1,
     }, a.frames);
-    const from = sim.lastEventSeq;
-    game.step(a.frames);
-    const events = sim.eventsSince(from);
+    const events = stepCollect(game, a.frames);
     await game.idle();
     return { events: eventDigest(events), state: brief(game) };
   },

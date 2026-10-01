@@ -301,7 +301,7 @@ export const HERO_SKILLS: SkillDef[] = [
   },
   {
     id: 'icespear', name: 'Ice Spear', desc: 'A piercing lance of ice that chills and splits on its last hit.', icon: 'icespear',
-    tags: ['spell', 'projectile', 'cold'], kind: 'spell', base: { cold: [10, 15] }, cost: 8, time: 0.4, anim: { clip: 'Spell_Simple_Shoot' },
+    tags: ['spell', 'projectile', 'cold'], kind: 'spell', base: { cold: [12, 18] }, cost: 8, time: 0.4, anim: { clip: 'Spell_Simple_Shoot' },
     cancelAfter: 0.6, range: 14, color: '#bfeaff',
     effects: [{ at: 0.45, type: 'projectile', projectile: { speed: 22, radius: 0.3, range: 16, pierce: 2, hit: { knock: 2, stagger: 35, ailments: { chill: 60, freeze: 10 } }, visual: 'icespear' } }],
     aim: 'target',
@@ -326,19 +326,19 @@ export const HERO_SKILLS: SkillDef[] = [
   },
   {
     id: 'flamesurge', name: 'Flame Surge', desc: 'A line of fire erupts ahead of you and keeps burning.', icon: 'flamewall',
-    tags: ['spell', 'area', 'fire'], kind: 'spell', base: { fire: [8, 12] }, cost: 11, time: 0.45, anim: { clip: 'Spell_Simple_Shoot' },
+    tags: ['spell', 'area', 'fire'], kind: 'spell', base: { fire: [8, 12] }, cost: 11, cooldown: 2, time: 0.45, anim: { clip: 'Spell_Simple_Shoot' },
     cancelAfter: 0.6, range: 7, color: '#ff6a2a',
-    effects: [{ at: 0.5, type: 'zone', where: 'front', zone: { shape: { kind: 'line', length: 8, width: 1.8 }, delay: 0.12, duration: 3, tick: 0.4, tickMult: 0.3, hit: { knock: 2, stagger: 40, ailments: { ignite: 35 } }, visual: 'molten' } }],
+    effects: [{ at: 0.5, type: 'zone', where: 'front', zone: { shape: { kind: 'line', length: 8, width: 1.8 }, delay: 0.12, duration: 3, tick: 0.4, tickMult: 0.35, hit: { knock: 2, stagger: 40, ailments: { ignite: 35 } }, visual: 'molten' } }],
     aim: 'target',
   },
   {
     id: 'moltenstrike', name: 'Molten Strike', desc: 'A blazing overhead blow (mostly fire) that hurls molten globs past the target.', icon: 'molten',
-    tags: ['attack', 'melee', 'projectile', 'area', 'fire'], kind: 'attack', weapon: 120, cost: 9, time: 0.58,
+    tags: ['attack', 'melee', 'projectile', 'area', 'fire'], kind: 'attack', weapon: 105, cost: 9, time: 0.58,
     anim: { clip: 'Sword_Attack', from: 0.12, to: 1.0 }, motion: { kind: 'lunge', from: 0, to: 0.35, speed: 1.4 }, cancelAfter: 0.72, range: 2.6, color: '#ff8a3d',
     convert: { fire: 0.6 },
     effects: [
       { at: 0.45, type: 'strike', shape: { kind: 'cone', radius: 2.5, arc: 100 }, hit: { knock: 3, stagger: 70, ailments: { ignite: 30 } } },
-      { at: 0.47, type: 'projectile', count: 3, spread: 80, projectile: { speed: 11, radius: 0.3, range: 5.5, explode: 1.3, lob: true, hit: { mult: 0.35, knock: 2, stagger: 25, ailments: { ignite: 20 } }, visual: 'fireball' } },
+      { at: 0.47, type: 'projectile', count: 3, spread: 80, projectile: { speed: 11, radius: 0.3, range: 5.5, explode: 1.3, lob: true, hit: { mult: 0.3, knock: 2, stagger: 25, ailments: { ignite: 20 } }, visual: 'fireball' } },
     ],
     aim: 'target',
   },
