@@ -7,7 +7,8 @@
 import { MECHANIC_IDS } from '../../content/mechanics';
 import { PACTS } from '../../content/pacts';
 import { ensureMonster, MONSTER_AFFIXES, PALETTES, type MonsterRarity } from '../../content/monsters';
-import { DUNGEON_THEMES } from '../../content/themes';
+import { DUNGEON_THEMES, THEMES, type Theme } from '../../content/themes';
+import { THEME_FAMILIES } from '../../content/stages';
 import { ITEM_BASES, RARITY_COLOR, type ItemRarity, type SlotKind } from '../../content/items';
 import type { Game } from '../../game';
 import { autoHero, type BuildFocus } from '../../sim/autobuild';
@@ -356,6 +357,83 @@ defineTool({
       out.boxes = boxes.map((b) => ({ ...b, label: labels[b.id] ?? b.id }));
     } else out.image = ctx.image('frame', img, a.scale);
     return out;
+  },
+});
+
+const HEX = /^#[0-9a-f]{6}$/i;
+const FLOOR_PATTERNS = ['flagstone', 'brick', 'cobble', 'dirt', 'tile', 'plank', 'grass'];
+const WALL_PATTERNS = ['brick', 'block', 'rough', 'plank', 'hedge'];
+const PARTICLES = ['dust', 'embers', 'snow', 'spores', 'motes', 'none'];
+
+defineTool({
+  name: 'theme.design', group: 'world', needs: 'game',
+  desc: 'Designs a dungeon theme from parts: floor and wall colours and patterns, light rig (sky, ground, ambient, sun), torch colour, decor, breakables, monster palettes and particles, starting from an existing theme. Registers it for this session, walks the hero into a depth dressed in it and returns the frame plus the theme as data to paste into src/content/themes.ts.',
+  params: {
+    id: { type: 'string', required: true, desc: 'New theme id (a-z, 0-9, _).' },
+    name: { type: 'string', desc: 'Display name (default: from the id).' },
+    from: { type: 'string', default: 'crypt', enum: Object.keys(THEMES), desc: 'Theme to start from (unset fields keep its values; its monster families too).' },
+    floor: { type: 'object', desc: '{base, alt, grout, accent: hex colours; pattern: flagstone|brick|cobble|dirt|tile|plank|grass}' },
+    wall: { type: 'object', desc: '{side, top, trim: hex colours; pattern: brick|block|rough|plank|hedge}' },
+    sun: { type: 'object', desc: '{color: hex, intensity 0-4, azimuthDeg 0-360, elevationDeg 5-90}' },
+    background: { type: 'string', desc: 'Void colour (hex).' },
+    sky: { type: 'string', desc: 'Hemisphere sky colour (hex).' },
+    ground: { type: 'string', desc: 'Hemisphere ground colour (hex).' },
+    ambient: { type: 'number', min: 0, max: 3, desc: 'Ambient light; low values make torches matter.' },
+    torch: { type: 'string', desc: 'Torch flame colour (hex).' },
+    decor: { type: 'array', items: { type: 'string' }, desc: 'Floor decor kinds (from existing themes).' },
+    breakables: { type: 'array', items: { type: 'string' }, desc: 'Breakable containers.' },
+    palettes: { type: 'array', items: { type: 'string', enum: Object.keys(PALETTES) }, desc: 'Monster palettes the encounters lean toward.' },
+    particles: { type: 'string', enum: PARTICLES, desc: 'Ambient particles.' },
+    stage: { type: 'integer', default: 6, min: 1, max: 10000, desc: 'Depth whose layout and monsters dress the preview.' },
+  },
+  example: { id: 'verdigris', from: 'ruins', floor: { base: '#3e5a50', alt: '#46645a', grout: '#22322c', pattern: 'tile' }, wall: { side: '#4f7466', top: '#8fc1ad' }, torch: '#7affd8', particles: 'spores', stage: 8 },
+  async run(a, ctx) {
+    const game = g(ctx);
+    const problems: string[] = [];
+    if (!/^[a-z0-9_]{2,24}$/.test(a.id)) problems.push('id: 2-24 characters of a-z, 0-9 and _');
+    const base = THEMES[a.from];
+    const known = (key: 'decor' | 'breakables') => new Set(Object.values(THEMES).flatMap((t) => t[key]));
+    const colour = (where: string, v: unknown) => {
+      if (v !== undefined && (typeof v !== 'string' || !HEX.test(v))) problems.push(`${where}: a hex colour like #3e5a50`);
+    };
+    const part = <T extends object>(where: string, over: unknown, keys: Record<string, 'colour' | readonly string[] | [number, number]>, into: T): T => {
+      if (over === undefined) return into;
+      const out = { ...into } as Record<string, unknown>;
+      for (const [k, v] of Object.entries(over as Record<string, unknown>)) {
+        const rule = keys[k];
+        if (!rule) problems.push(`${where}.${k}: unknown (use ${Object.keys(keys).join(', ')})`);
+        else if (rule === 'colour') colour(`${where}.${k}`, v);
+        else if (typeof rule[0] === 'number') {
+          const [lo, hi] = rule as [number, number];
+          if (typeof v !== 'number' || v < lo || v > hi) problems.push(`${where}.${k}: a number in [${lo}, ${hi}]`);
+        } else if (!(rule as readonly string[]).includes(v as string)) problems.push(`${where}.${k}: one of ${(rule as readonly string[]).join(', ')}`);
+        out[k] = v;
+      }
+      return out as T;
+    };
+    const floor = part('floor', a.floor, { base: 'colour', alt: 'colour', grout: 'colour', accent: 'colour', pattern: FLOOR_PATTERNS }, base.floor);
+    const wall = part('wall', a.wall, { side: 'colour', top: 'colour', trim: 'colour', pattern: WALL_PATTERNS }, base.wall);
+    const sun = part('sun', a.sun, { color: 'colour', intensity: [0, 4], azimuthDeg: [0, 360], elevationDeg: [5, 90] }, base.sun);
+    for (const k of ['background', 'sky', 'ground', 'torch'] as const) colour(k, a[k]);
+    for (const k of ['decor', 'breakables'] as const) {
+      const ok = known(k);
+      for (const v of (a[k] as string[] | undefined) ?? []) if (!ok.has(v)) problems.push(`${k}: unknown "${v}" (known: ${[...ok].join(', ')})`);
+    }
+    if (problems.length) return { ok: false, problems };
+    const theme: Theme = {
+      ...structuredClone(base), id: a.id, name: a.name ?? a.id.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
+      floor, wall, sun,
+      ...(a.background ? { background: a.background } : {}), ...(a.sky ? { sky: a.sky } : {}), ...(a.ground ? { ground: a.ground } : {}),
+      ...(a.ambient !== undefined ? { ambient: a.ambient } : {}), ...(a.torch ? { torch: a.torch } : {}),
+      ...(a.decor ? { decor: a.decor } : {}), ...(a.breakables ? { breakables: a.breakables } : {}), ...(a.palettes ? { palettes: a.palettes } : {}),
+      ...(a.particles ? { particles: a.particles } : {}),
+    };
+    THEMES[a.id] = theme;
+    THEME_FAMILIES[a.id] = THEME_FAMILIES[a.from] ?? THEME_FAMILIES.crypt;
+    await game.idle();
+    await game.enterStage(a.stage, buildStageLevel({ stage: a.stage, theme: a.id }));
+    game.step(20);
+    return { ok: true, id: a.id, theme, frame: ctx.image('theme', captureFrame(game), 2), note: 'Registered for this session only. Paste `theme` into THEMES in src/content/themes.ts (and DUNGEON_THEMES to use it in rotation) to ship it.' };
   },
 });
 

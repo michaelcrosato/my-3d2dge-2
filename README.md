@@ -97,7 +97,7 @@ The CLI and the MCP server start Vite in-process and drive headless Chromium (`-
 | balance | `balance.curve` (power curves by level), `balance.run` (the autoplayer bot plays a depth headless at ~60x speed: clear rate, time, deaths), `balance.campaign` (one hero plays depth after depth, equipping drops and spending points: the progression curve), `replay.verify` (record a bot run, replay it into a fresh sim, compare state hashes: a determinism check) |
 | config, audio | `config.get`, `config.set`, `difficulty.set`, `audio.list`, `audio.inspect` (renders a sound or bars of music offline: waveform + spectrogram image, loudness, brightness) |
 | render (live) | `creature.render`, `creature.lineup`, `monster.render`, `item.icon`, `scene.capture` (exact pixels, HUD, labelled boxes, full map), `scene.stats`, `logs.read` |
-| world (live) | `game.state`, `game.goto`, `game.step`, `game.input`, `hero.set`, `hero.sheet`, `hero.give`, `monster.spawn`, `bot.play`, `bot.autopilot` |
+| world (live) | `game.state`, `game.goto`, `game.step`, `game.input`, `hero.set`, `hero.sheet`, `hero.give`, `monster.spawn`, `bot.play`, `bot.autopilot`, `theme.design` (build a dungeon theme from colours, patterns, light rig, decor and palettes, then walk into a depth dressed in it) |
 
 Content tools also run under Vitest without a browser (`tests/agent-tools.test.ts`). The autoplayer (`src/sim/bot.ts`) is deterministic and doubles as the pause menu's **Autopilot** (watch the bot play).
 
