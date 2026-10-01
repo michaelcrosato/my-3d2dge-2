@@ -46,6 +46,9 @@ async def main():
             await page.locator('#gtitle button', has_text='New game').first.tap()
             await page.wait_for_function('game.mode === "town" && !game.busy', timeout=60000)
             assert await page.evaluate('game.hero.name') == 'Verifier'
+            # GPU resources stay flat across level reloads (character bone textures once leaked).
+            mem = await page.evaluate('async () => { const c = []; for (let i = 0; i < 3; i++) { await game.enterTown(); game.render(1); const m = game.renderer.info.memory; c.push([m.textures, m.geometries]); } return c; }')
+            assert mem[2][0] <= mem[0][0] + 2 and mem[2][1] <= mem[0][1] + 2, f'GPU resources grow across reloads: {mem}'
             # Touch movement (the game keeps running; measure while pressed).
             start = await page.evaluate('({...game.sim.characters.get("player").pos})')
             stick = page.locator('#touch [data-control="move"]')
@@ -116,7 +119,7 @@ async def main():
             models = await page.evaluate('async () => { await Promise.all(game.lib.manifest.models.map(m => game.lib.loadModel(m.id))); return game.lib.manifest.models.length; }')
             assert not external, external
             assert not errors, errors
-            print(json.dumps({'engine': engine, 'offline': True, 'workshop': drawn, 'title_new_game': True, 'movement': True, 'release': True, 'attack_dodge': True,
+            print(json.dumps({'engine': engine, 'offline': True, 'workshop': drawn, 'gpu_after_reloads': mem[2], 'title_new_game': True, 'movement': True, 'release': True, 'attack_dodge': True,
                               'settings_rebind_layout': True, 'panels_pause': True, 'merchant': True, 'dungeon_monsters': monsters, 'hits': hits,
                               'render_modes': True, 'models_loaded': models, 'external_requests': external, 'errors': errors}), flush=True)
             await browser.close()
