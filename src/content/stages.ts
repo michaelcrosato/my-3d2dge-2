@@ -14,7 +14,8 @@ import type { EncounterPool, PoolEntry } from './procgen/encounters';
 import { DUNGEON_THEMES, THEMES } from './themes';
 
 /** Humanoid families that fit each theme (procedural creatures are mixed in everywhere). */
-const THEME_FAMILIES: Record<string, string[]> = {
+/** Monster families per theme (custom themes borrow their base theme's, agent `theme.design`). */
+export const THEME_FAMILIES: Record<string, string[]> = {
   crypt: ['hollow', 'hollow_brute', 'hexer', 'shade', 'cultist'],
   cellar: ['brigand', 'marksman', 'bombling', 'golem', 'reaver'],
   catacomb: ['hollow', 'hollow_brute', 'mender', 'warden', 'hexer'],
