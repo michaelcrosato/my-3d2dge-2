@@ -32,7 +32,8 @@ import { Rng } from '../../sim/rng';
 import { monsterDamage, monsterLife, monsterXp, xpToNext } from '../../sim/scaling';
 import { newHero, treePoints } from '../../sim/hero';
 import { describeItem, itemValue, rollItem } from '../../sim/items';
-import { Sim } from '../../sim/sim';
+import { costOf } from '../../sim/actions';
+import { Sim, type SimEvent } from '../../sim/sim';
 import { levelMap, treeImage } from '../maps';
 import { heroSheet, monsterSheet, probeSim, spawnProbeMonster } from '../probe';
 import { allTools, defineTool, describeTools, schemaOf, tool } from '../registry';
@@ -590,23 +591,29 @@ defineTool({
       });
       const life0 = new Map(dummies.map((m) => [m.id, m.life]));
       const mana0 = p.mana;
-      const seq = sim.lastEventSeq;
-      let cast = 0, manaSpent = 0;
+      // Collected every frame: the sim keeps only its last 1500 events, and a held key on
+      // cooldown reports a blocked cast each frame.
+      const ev: SimEvent[] = [];
+      let seq = sim.lastEventSeq;
+      let cast = 0;
       const frames = Math.round(a.seconds * 60);
       for (let f = 0; f < frames; f++) {
+        // Dummies never fight back, even once hurt (damage wakes monsters up).
+        for (const m of dummies) m.ai.awake = false;
         p.input.aim = { x: cx, z: cz };
         if (cast < a.casts) {
           if (s.id === 'slash1') p.input.attack = true;
           else p.input.skill = 0;
         }
-        const before = p.mana;
         sim.step();
         p.input.attack = false;
         p.input.skill = -1;
-        manaSpent += Math.max(0, before - p.mana);
-        cast = sim.eventsSince(seq).filter((e) => e.type === 'skill' && e.id === 'player' && e.skill === s.id).length;
+        for (const e of sim.eventsSince(seq)) {
+          ev.push(e);
+          if (e.type === 'skill' && e.id === 'player' && e.skill === s.id) cast++;
+        }
+        seq = sim.lastEventSeq;
       }
-      const ev = sim.eventsSince(seq);
       // Hits by the hero or its minions, plus damage over time (ailments, lingering zones) on the dummies.
       const minions = new Set(ev.filter((e) => e.type === 'summon' && e.owner === 'player').map((e) => String(e.id)));
       const ours = (id: unknown) => id === 'player' || minions.has(String(id));
@@ -636,7 +643,7 @@ defineTool({
         perTarget: dummies.map((m) => ({ id: m.id, damageTaken: Math.round((life0.get(m.id) ?? 0) - Math.max(0, m.life)), dead: m.state === 'dead' })),
         kills: dummies.filter((m) => m.state === 'dead').length,
         effects: { strikes: count('strike'), projectiles: count('projectile'), zones: count('zone'), chains: count('chain'), minions: minions.size },
-        manaSpent: Math.round(manaSpent), manaLeft: Math.round(p.mana), manaStart: Math.round(mana0),
+        manaSpent: Math.round(cast * costOf(sim, p, s)), manaLeft: Math.round(p.mana), manaStart: Math.round(mana0),
         blocked: [...new Set(ev.filter((e) => e.type === 'skill.blocked' && e.id === 'player').map((e) => String(e.reason)))],
       };
     } finally {

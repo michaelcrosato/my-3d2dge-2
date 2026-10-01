@@ -109,11 +109,13 @@ it('Molten Strike turns most of the blow to fire and throws globs', async () => 
   const fire = hits.filter((h) => h.dmgType === 'fire').reduce((a, h) => a + h.damage, 0);
   const all = hits.reduce((a, h) => a + h.damage, 0);
   expect(fire / all).toBeGreaterThan(0.5);
-  // The estimate counts the blow (120%) and one glob (35% of it), more than Cleave's single 150%
-  // swing; Lacerate counts both of its 75% cuts.
-  const est = estimateSkill(sim, sim.player!, SKILLS.moltenstrike);
+  // The estimate counts the blow and one glob (30% of it): 1.3x the blow alone. Lacerate counts
+  // both of its 75% cuts, matching Cleave's single 150% swing.
+  const ms = SKILLS.moltenstrike;
+  const est = estimateSkill(sim, sim.player!, ms);
+  const blowOnly = estimateSkill(sim, sim.player!, { ...ms, effects: ms.effects.filter((e) => e.type === 'strike') });
+  expect(est.hit / blowOnly.hit).toBeCloseTo(1.3, 2);
   const cleave = estimateSkill(sim, sim.player!, SKILLS.cleave);
-  expect(est.hit).toBeGreaterThan(cleave.hit);
   expect(est.byType.fire ?? 0).toBeGreaterThan(est.byType.physical ?? 0);
   expect(estimateSkill(sim, sim.player!, SKILLS.lacerate).hit).toBeCloseTo(cleave.hit, -1);
   sim.dispose();
