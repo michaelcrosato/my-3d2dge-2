@@ -710,7 +710,8 @@
    ],
    "joints": 65,
    "simplified": 0.35,
-   "triangles": 4809
+   "triangles": 4809,
+   "textureMax": 256
   },
   {
    "id": "mannequin_f",
@@ -725,7 +726,8 @@
    ],
    "joints": 65,
    "simplified": 0.35,
-   "triangles": 5112
+   "triangles": 5112,
+   "textureMax": 256
   },
   {
    "id": "head_m",
@@ -743,7 +745,8 @@
    ],
    "joints": 65,
    "simplified": 0.45,
-   "triangles": 2063
+   "triangles": 2063,
+   "textureMax": 256
   },
   {
    "id": "head_f",
@@ -761,7 +764,8 @@
    ],
    "joints": 65,
    "simplified": 0.45,
-   "triangles": 2368
+   "triangles": 2368,
+   "textureMax": 256
   },
   {
    "id": "outfit_ranger_m",
@@ -784,7 +788,8 @@
    ],
    "joints": 65,
    "simplified": 0.3,
-   "triangles": 9031
+   "triangles": 9031,
+   "textureMax": 256
   },
   {
    "id": "outfit_ranger_f",
@@ -807,7 +812,8 @@
    ],
    "joints": 65,
    "simplified": 0.3,
-   "triangles": 9093
+   "triangles": 9093,
+   "textureMax": 256
   },
   {
    "id": "outfit_peasant_m",
@@ -825,7 +831,8 @@
    ],
    "joints": 65,
    "simplified": 0.3,
-   "triangles": 3885
+   "triangles": 3885,
+   "textureMax": 256
   },
   {
    "id": "outfit_peasant_f",
@@ -842,7 +849,8 @@
    ],
    "joints": 65,
    "simplified": 0.3,
-   "triangles": 4082
+   "triangles": 4082,
+   "textureMax": 256
   },
   {
    "id": "hair_beard",
@@ -856,7 +864,8 @@
    ],
    "joints": 65,
    "simplified": 0.6,
-   "triangles": 620
+   "triangles": 620,
+   "textureMax": 256
   },
   {
    "id": "hair_buns",
@@ -870,7 +879,8 @@
    ],
    "joints": 65,
    "simplified": 0.6,
-   "triangles": 1970
+   "triangles": 1970,
+   "textureMax": 256
   },
   {
    "id": "hair_buzzed",
@@ -884,7 +894,8 @@
    ],
    "joints": 65,
    "simplified": 0.6,
-   "triangles": 498
+   "triangles": 498,
+   "textureMax": 256
   },
   {
    "id": "hair_buzzed_f",
@@ -898,7 +909,8 @@
    ],
    "joints": 65,
    "simplified": 0.6,
-   "triangles": 497
+   "triangles": 497,
+   "textureMax": 256
   },
   {
    "id": "hair_long",
@@ -912,7 +924,8 @@
    ],
    "joints": 65,
    "simplified": 0.6,
-   "triangles": 1742
+   "triangles": 1742,
+   "textureMax": 256
   },
   {
    "id": "hair_parted",
@@ -926,7 +939,8 @@
    ],
    "joints": 65,
    "simplified": 0.6,
-   "triangles": 779
+   "triangles": 779,
+   "textureMax": 256
   }
  ]
 }
