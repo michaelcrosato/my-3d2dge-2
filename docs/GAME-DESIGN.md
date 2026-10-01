@@ -208,7 +208,8 @@ browser console (`agent.call`), the terminal (`npm run agent`) and MCP (`npm run
 - **See what you made.** Creatures, monsters (palette-tinted humanoids or genome creatures) and
   item icons render through the game's own pixel pipeline as sprite sheets and contact sheets;
   levels and the passive tree are drawn as software maps; `scene.capture` returns exact low-res
-  pixels with the HUD or labelled boxes for vision models.
+  pixels with the HUD, the player's full map or labelled boxes for vision models. Captures after
+  long headless steps show effects at their true age, as a player would see that frame.
 - **Make new things from parts.** `species.create` assembles a monster from a body plan plus
   genome edits (legs, horns, wings, spikes, proportions), an archetype, attack modules and a
   palette; `level.generate` remixes any depth with any mechanics; `item.roll` rolls any base.

@@ -496,6 +496,9 @@ export class InputController {
       case 'townPortal':
         this.hooks.townPortal();
         break;
+      case 'map':
+        this.game.toggleMap();
+        break;
       case 'sprint':
         if (this.profile.prefs.sprintToggle) this.toggleSprintLatch();
         break;

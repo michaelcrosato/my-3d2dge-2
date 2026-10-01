@@ -210,7 +210,7 @@ function setupHuman(game: Game, saves: SaveStore) {
     const p = store.active;
     if (input.device === 'gamepad' && p.pad[a]?.[0]) return padLabel(p.pad[a][0]);
     if (document.body.classList.contains('touchui')) {
-      const toolbar: Partial<Record<Action, string>> = { inventory: 'Bag', tree: 'Tree', character: 'Char', townPortal: '☰ → Return to town' };
+      const toolbar: Partial<Record<Action, string>> = { inventory: 'Bag', tree: 'Tree', character: 'Char', map: 'Tap the minimap', townPortal: '☰ → Return to town' };
       return toolbar[a] ?? (CONTROL_LABELS as Record<string, string>)[a] ?? a;
     }
     return p.keys[a]?.[0] ? codeLabel(p.keys[a][0]) : a;
@@ -271,6 +271,8 @@ function setupHuman(game: Game, saves: SaveStore) {
   btn('bag', () => togglePanel('inventory'));
   btn('treebtn', () => togglePanel('tree'));
   btn('charbtn', () => togglePanel('character'));
+  // The minimap is the map button (tap or click it; Tab on the keyboard).
+  btn('mapbtn', () => game.toggleMap());
   btn('mode', () => input.press('togglePixel'));
   btn('settings-open', () => menu?.show());
 
@@ -324,6 +326,18 @@ function setupHuman(game: Game, saves: SaveStore) {
           toolbar.style.top = `max(${Math.round(css(mm.y + mm.h - game.pipeline.margin) + rect.top + 8)}px, env(safe-area-inset-top))`;
           toolbar.style.right = 'max(8px, env(safe-area-inset-right))';
           toolbar.style.flexDirection = 'column';
+        }
+      }
+      // A transparent button over the pixel minimap opens the full map.
+      const mapBtn = document.getElementById('mapbtn')!;
+      const showMapBtn = !!mm && (game.mode === 'dungeon' || game.mode === 'town');
+      const mk = showMapBtn ? `${mm.x}|${mm.y}|${mm.w}|${mm.h}|${game.pipeline.scale}|${rect.left}|${rect.top}` : 'none';
+      if (mapBtn.dataset.key !== mk) {
+        mapBtn.dataset.key = mk;
+        mapBtn.hidden = !showMapBtn;
+        if (mm && showMapBtn) {
+          const m = game.pipeline.margin;
+          Object.assign(mapBtn.style, { left: `${rect.left + css(mm.x - m)}px`, top: `${rect.top + css(mm.y - m)}px`, width: `${css(mm.w)}px`, height: `${css(mm.h)}px` });
         }
       }
       if (now - labelsAt > 250) {

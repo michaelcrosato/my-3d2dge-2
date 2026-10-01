@@ -111,6 +111,7 @@ export function defaultKeys(): KeyBindings {
     tree: ['KeyP'],
     character: ['KeyC'],
     townPortal: ['KeyT'],
+    map: ['Tab'],
     menu: ['Escape'],
     pause: ['Pause'],
     step: ['F10'],
@@ -258,28 +259,35 @@ export function isPadInput(v: unknown): v is PadInput {
 export const samePad = (a: PadInput, b: PadInput) =>
   a.kind === b.kind && a.index === b.index && (a.kind === 'button' || a.dir === (b as typeof a).dir);
 
+/**
+ * Stored bindings win; an action the stored profile doesn't know yet (added in a later version)
+ * gets its default inputs unless the player already uses them for something else.
+ */
 function normalizeKeys(raw: unknown, fallback: KeyBindings): KeyBindings {
   if (!isObj(raw)) return fallback;
   const out = emptyKeys();
-  for (const a of ACTIONS) {
-    const list = Array.isArray(raw[a]) ? (raw[a] as unknown[]) : fallback[a];
-    out[a] = [...new Set(list.filter(isInputCode))].slice(0, MAX_BINDINGS);
-  }
+  const missing = ACTIONS.filter((a) => !Array.isArray(raw[a]));
+  for (const a of ACTIONS) if (Array.isArray(raw[a])) out[a] = [...new Set((raw[a] as unknown[]).filter(isInputCode))].slice(0, MAX_BINDINGS);
+  const used = new Set(Object.values(out).flat());
+  for (const a of missing) out[a] = fallback[a].filter((c) => !used.has(c)).slice(0, MAX_BINDINGS);
   return out;
 }
 
 function normalizePad(raw: unknown, fallback: PadBindings): PadBindings {
   if (!isObj(raw)) return fallback;
   const out = emptyPad();
+  const missing = ACTIONS.filter((a) => !Array.isArray(raw[a]));
   for (const a of ACTIONS) {
-    const list = Array.isArray(raw[a]) ? (raw[a] as unknown[]) : fallback[a];
+    if (!Array.isArray(raw[a])) continue;
     const clean: PadInput[] = [];
-    for (const p of list) {
+    for (const p of raw[a] as unknown[]) {
       if (!isPadInput(p) || clean.some((q) => samePad(p, q))) continue;
       clean.push(p.kind === 'button' ? { kind: 'button', index: p.index } : { kind: 'axis', index: p.index, dir: p.dir });
     }
     out[a] = clean.slice(0, MAX_BINDINGS);
   }
+  const used = Object.values(out).flat();
+  for (const a of missing) out[a] = fallback[a].filter((p) => !used.some((q) => samePad(p, q))).slice(0, MAX_BINDINGS);
   return out;
 }
 

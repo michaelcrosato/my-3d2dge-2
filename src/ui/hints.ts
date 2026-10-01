@@ -1,7 +1,7 @@
 /**
  * First-steps hints: the game teaches itself at the moment each thing matters (the waypoint on
  * arrival, attack and roll in the first fight, the first passive point, the first upgrade, low
- * life, the first boss, the town's services). Each hint fires once per hero (saved in
+ * life, the first boss, the town's services, the map). Each hint fires once per hero (saved in
  * `hero.progress.hints`), names the control for the device in use, and can be turned off
  * (Settings → Gameplay → Hints).
  */
@@ -63,6 +63,7 @@ export class Hints {
         this.quiet = e.mode === 'dungeon' ? 5.5 : 3;
         if (e.mode === 'town' && (g.hero?.progress.unlocked ?? 1) <= 1) this.offer('waypoint', `Walk to the glowing <b>waypoint</b> and press <b>${k('interact')}</b> to enter the depths.`);
         if (e.mode === 'town' && (g.hero?.inventory.filter(Boolean).length ?? 0) >= 6) this.offer('town', `Back in Haven: <b>Odessa</b> buys and sells, <b>Brann</b> crafts, <b>Sage Ilmar</b> reshapes your tree, <b>Sela</b> builds creatures.`);
+        if (e.mode === 'dungeon' && (g.hero?.progress.unlocked ?? 1) >= 2) this.offer('map', `Full map: <b>${k('map')}</b>. It shows everywhere you've been, with portals, chests and shrines.`);
         if (e.mode === 'dungeon') this.offer('combat', `Hold <b>${k('attack')}</b> to keep swinging. <b>${k('dodge')}</b> rolls through attacks (you can't be hit mid-roll). Skills: <b>${k('skill1')}</b>, <b>${k('skill2')}</b>.`);
         break;
       case 'pickup':

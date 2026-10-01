@@ -37,6 +37,7 @@ const defs = {
   tree: { label: 'Passive tree', group: 'panels' },
   character: { label: 'Character & skills', group: 'panels' },
   townPortal: { label: 'Town portal', group: 'panels' },
+  map: { label: 'Map', group: 'panels' },
   menu: { label: 'Pause menu', group: 'system' },
   pause: { label: 'Freeze frame (debug)', group: 'system' },
   step: { label: 'Step 1 frame (debug)', group: 'system' },

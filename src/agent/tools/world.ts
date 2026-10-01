@@ -314,11 +314,19 @@ defineTool({
     scale: { type: 'integer', default: 2, min: 1, max: 8, desc: 'Integer upscale.' },
     hud: { type: 'boolean', default: true, desc: 'Include the overlay (life bars, labels, numbers, minimap).' },
     annotate: { type: 'boolean', default: false, desc: 'Draw labelled entity boxes.' },
+    map: { type: 'boolean', default: false, desc: 'Show the full map (explored area, portals, chests, shrines, boss) as the player sees it with Tab.' },
   },
   run(a, ctx) {
     const game = g(ctx);
-    let img = captureFrame(game);
-    if (a.hud && game.mode !== 'sandbox') img = withOverlay(game, img);
+    const wasOpen = game.mapOpen;
+    game.mapOpen = a.map;
+    let img: Img;
+    try {
+      img = captureFrame(game);
+      if ((a.hud || a.map) && game.mode !== 'sandbox') img = withOverlay(game, img);
+    } finally {
+      game.mapOpen = wasOpen;
+    }
     const out: Record<string, unknown> = { width: img.width, height: img.height, stats: { ...game.frameStats } };
     if (a.annotate) {
       const boxes = entityBoxes(game).filter((b) => b.x + b.w > 0 && b.y + b.h > 0 && b.x < img.width && b.y < img.height);

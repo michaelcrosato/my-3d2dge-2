@@ -40,6 +40,7 @@ Open http://localhost:5173. On the title screen pick a save slot (three slots, s
 | Life / mana flask | Z / V | D-pad ↓ / ↑ | flask buttons |
 | Inventory, passive tree, character | I, P, C | View, D-pad →, D-pad ← | Bag, Tree, Char |
 | Town portal | T | R3 | — |
+| Full map (explored area, portals, chests, shrines) | Tab, or click the minimap | bindable in Settings | tap the minimap |
 | Pause menu | Esc | Menu | ☰ |
 
 The right stick aims on gamepads. Engine debug toggles have moved to function keys: F2 switches pixel and plain 3D, F3 shows stats, F6 toggles outlines, F7 cycles palettes, F8 shows colliders. Every binding is rebindable in Settings (⚙). Settings also holds the profiles, graphics, gamepad options and the touch layout editors (portrait and landscape are separate).
@@ -66,7 +67,7 @@ The ⚙ button opens Settings. Everything is stored per **profile**; Standard, L
 
 - `src/sim/`: deterministic simulation (Rapier physics, character state machine, skills, combat, AI, monster affixes, loot, props, hero build and operations, navigation and flow fields, seeded RNG, scaling curves).
 - `src/content/`: data vocabularies (stats, skills, statuses, monsters, items, affixes, uniques, passive tree, themes, town, stages) and procedural generators (dungeons, encounters, creature genomes).
-- `src/render/`: stage, pixel pipeline, overlay (pixel font, damage numbers, labels, minimap), light pool, VFX, procedural props/items/creatures, engine-rendered icons.
+- `src/render/`: stage, pixel pipeline, overlay (pixel font, damage numbers, labels, minimap and full map), light pool, VFX, procedural props/items/creatures, engine-rendered icons.
 - `src/ui/`: HUD, panels, passive tree view, menus, settings, touch overlay.
 - `src/input/`: actions, settings profiles and storage, input math and the keyboard/mouse/gamepad/touch controller.
 - `src/agent/`: the agent tool registry and tools, capture helpers, the asset forge (creature sprite sheets, rig inspection), software-drawn maps.
@@ -93,7 +94,7 @@ The CLI and the MCP server start Vite in-process and drive headless Chromium (`-
 | tree, hero | `tree.inspect`, `tree.path`, `tree.render`, `hero.build` (auto-built hero of any level), `skill.inspect` |
 | balance | `balance.curve` (power curves by level), `balance.run` (the autoplayer bot plays a depth headless at ~60x speed: clear rate, time, deaths), `balance.campaign` (one hero plays depth after depth, equipping drops and spending points: the progression curve) |
 | config, audio | `config.get`, `config.set`, `difficulty.set`, `audio.list`, `audio.inspect` (renders a sound or bars of music offline: waveform + spectrogram image, loudness, brightness) |
-| render (live) | `creature.render`, `creature.lineup`, `monster.render`, `item.icon`, `scene.capture` (exact pixels, HUD, labelled boxes), `scene.stats`, `logs.read` |
+| render (live) | `creature.render`, `creature.lineup`, `monster.render`, `item.icon`, `scene.capture` (exact pixels, HUD, labelled boxes, full map), `scene.stats`, `logs.read` |
 | world (live) | `game.state`, `game.goto`, `game.step`, `game.input`, `hero.set`, `hero.sheet`, `hero.give`, `monster.spawn`, `bot.play`, `bot.autopilot` |
 
 Content tools also run under Vitest without a browser (`tests/agent-tools.test.ts`). The autoplayer (`src/sim/bot.ts`) is deterministic and doubles as the pause menu's **Autopilot** (watch the bot play).

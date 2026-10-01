@@ -2,7 +2,8 @@
  * The overlay layer: a 2D canvas the size of the low-res target, drawn in exact art pixels and
  * composited by the pixel pipeline's upscale pass (so it lines up with the world pixel for pixel,
  * including smooth-scroll offsets). It holds floating damage numbers, health bars, elite names,
- * ground-loot labels (clickable), interaction prompts and the minimap with fog of war.
+ * ground-loot labels (clickable), interaction prompts, the minimap with fog of war and the full
+ * map (Tab / the Map button / a click on the minimap).
  */
 import { config } from '../config';
 import * as THREE from 'three';
@@ -41,7 +42,11 @@ export interface OverlayOptions {
   heroId: string;
   /** Pointer position in low-res target pixels (hover highlight), or null. */
   hover: { x: number; y: number } | null;
+  /** The full map over the scene (explored area only). */
+  bigMap?: boolean;
 }
+
+type Dot = (x: number, z: number, color: string, size?: number) => void;
 
 export class Overlay {
   readonly canvas = document.createElement('canvas');
@@ -138,16 +143,32 @@ export class Overlay {
     return stage.project(this.tmp, w, h);
   }
 
+  private syncSim(sim: Sim) {
+    if (sim === this.sim) return;
+    this.sim = sim;
+    this.lastSeq = sim.lastEventSeq;
+    this.floats = [];
+    const g = sim.level.grid;
+    this.explored = g ? new Uint8Array(g.cols * g.rows) : null;
+    // Town needs no exploring.
+    if (this.explored && sim.level.kind === 'town') this.explored.fill(1);
+  }
+
+  /** Uncovers the map around a character (every drawn frame, and during headless steps). */
+  reveal(sim: Sim, id: string) {
+    this.syncSim(sim);
+    const grid = sim.level.grid, ex = this.explored, ch = sim.characters.get(id);
+    if (!grid || !ex || !ch) return;
+    const hc = Math.floor((ch.pos.x - grid.originX) / grid.cell), hr = Math.floor((ch.pos.z - grid.originZ) / grid.cell);
+    const R = 9;
+    for (let r = Math.max(0, hr - R); r <= Math.min(grid.rows - 1, hr + R); r++)
+      for (let c = Math.max(0, hc - R); c <= Math.min(grid.cols - 1, hc + R); c++)
+        if ((c - hc) ** 2 + (r - hr) ** 2 <= R * R) ex[r * grid.cols + c] = 1;
+  }
+
   update(sim: Sim, stage: Stage, w: number, h: number, dt: number, o: OverlayOptions) {
-    if (sim !== this.sim) {
-      this.sim = sim;
-      this.lastSeq = sim.lastEventSeq;
-      this.floats = [];
-      const g = sim.level.grid;
-      this.explored = g ? new Uint8Array(g.cols * g.rows) : null;
-      // Town needs no exploring.
-      if (this.explored && sim.level.kind === 'town') this.explored.fill(1);
-    }
+    this.syncSim(sim);
+    this.reveal(sim, o.heroId);
     for (const e of sim.recentEvents(this.lastSeq, 60)) {
       this.born = (sim.frame - e.frame) / 60 - dt;
       this.onEvent(sim, e, o.heroId);
@@ -263,6 +284,7 @@ export class Overlay {
     }
     this.minimapRect = null;
     if (o.minimap && hero) this.minimap(sim, hero, w, h);
+    if (o.bigMap && hero) this.bigMap(sim, hero, w, h);
     this.texture.needsUpdate = true;
   }
 
@@ -275,13 +297,6 @@ export class Overlay {
     const ox = w - size - 4, oy = 4;
     this.minimapRect = { x: ox, y: oy, w: size, h: size };
     const hc = Math.floor((hero.pos.x - grid.originX) / grid.cell), hr = Math.floor((hero.pos.z - grid.originZ) / grid.cell);
-    // Reveal around the hero.
-    const R = 9;
-    for (let r = hr - R; r <= hr + R; r++)
-      for (let c = hc - R; c <= hc + R; c++) {
-        if (c < 0 || r < 0 || c >= grid.cols || r >= grid.rows) continue;
-        if ((c - hc) ** 2 + (r - hr) ** 2 <= R * R) ex[r * grid.cols + c] = 1;
-      }
     // The map is drawn rotated 45° like the iso view: screen right = +X -Z, screen up = -X -Z.
     g.fillStyle = '#0b0a10b0';
     g.fillRect(ox - 1, oy - 1, size + 2, size + 2);
@@ -301,7 +316,7 @@ export class Overlay {
         g.fillStyle = t === '#' ? '#c8bcd8' : '#4e475e';
         g.fillRect(p.x, p.y, t === '#' ? 1 : 2, 1);
       }
-    const dot = (x: number, z: number, color: string, s = 1) => {
+    const dot: Dot = (x, z, color, s = 1) => {
       const c = Math.floor((x - grid.originX) / grid.cell), r = Math.floor((z - grid.originZ) / grid.cell);
       if (c < 0 || r < 0 || c >= grid.cols || r >= grid.rows || !ex[r * grid.cols + c]) return;
       const p = toMap(c, r);
@@ -309,22 +324,79 @@ export class Overlay {
       g.fillStyle = color;
       g.fillRect(p.x, p.y, s, s);
     };
-    for (const ch of sim.characters.values()) {
-      if (ch.state === 'dead' || ch.id === hero.id) continue;
-      if (ch.team === 'enemy') dot(ch.pos.x, ch.pos.z, ch.monster?.boss ? '#ff8a3d' : ch.monster && ch.monster.rarity !== 'normal' ? '#ffe14d' : '#e0283a', ch.monster?.boss ? 3 : 1);
-      else if (ch.npc) dot(ch.pos.x, ch.pos.z, '#7affd8', 2);
-    }
-    for (const p of sim.props.values()) {
-      if (p.dead) continue;
-      if (p.kind === 'portal' || p.kind === 'waypoint') dot(p.x, p.z, '#7ab8ff', 2);
-      else if (p.kind === 'chest' && p.state !== 'used') dot(p.x, p.z, '#ffd27a', 2);
-      else if (p.kind.startsWith('shrine')) dot(p.x, p.z, '#c77dff', 2);
-    }
-    for (const p of sim.pickups) if (p.kind === 'item' && p.item && p.item.rarity !== 'normal') dot(p.x, p.z, RARITY_COLOR[p.item.rarity]);
+    markers(sim, hero, dot, 1);
     if ((sim.frame >> 4) % 2 === 0) {
       g.fillStyle = '#ffffff';
       g.fillRect(Math.round(cx) - 1, Math.round(cy) - 1, 2, 2);
     }
+  }
+
+  /**
+   * The full map: every explored cell of the level over a dimmed scene, scaled to fit what has
+   * been explored (centred on the hero when that is too big), with the same markers as the
+   * minimap. Walls are drawn where they border a floor, so rooms read as outlines.
+   */
+  private bigMap(sim: Sim, hero: Character, w: number, h: number) {
+    const grid = sim.level.grid;
+    const ex = this.explored;
+    if (!grid || !ex) return;
+    const g = this.g, cols = grid.cols;
+    const open = (c: number, r: number) => c >= 0 && r >= 0 && c < cols && r < grid.rows && grid.cells[r * cols + c] !== '#' && grid.cells[r * cols + c] !== ' ';
+    const cells: Array<{ c: number; r: number; wall: boolean }> = [];
+    const b = { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity };
+    for (let r = 0; r < grid.rows; r++)
+      for (let c = 0; c < cols; c++) {
+        const t = grid.cells[r * cols + c];
+        if (!ex[r * cols + c] || t === ' ') continue;
+        const wall = t === '#';
+        if (wall && !open(c - 1, r) && !open(c + 1, r) && !open(c, r - 1) && !open(c, r + 1)) continue;
+        cells.push({ c, r, wall });
+        const x = c - r, y = (c + r + 1) / 2;
+        b.minX = Math.min(b.minX, x);
+        b.maxX = Math.max(b.maxX, x);
+        b.minY = Math.min(b.minY, y);
+        b.maxY = Math.max(b.maxY, y);
+      }
+    if (!cells.length) return;
+    const top = 16, side = 8, bottom = 8;
+    const availW = w - side * 2, availH = h - top - bottom;
+    const spanX = b.maxX - b.minX + 3, spanY = b.maxY - b.minY + 2;
+    const k = Math.max(1, Math.min(4, availW / spanX, availH / spanY));
+    const hc = (hero.pos.x - grid.originX) / grid.cell, hr = (hero.pos.z - grid.originZ) / grid.cell;
+    const midX = spanX * k <= availW ? (b.minX + b.maxX) / 2 : hc - hr;
+    const midY = spanY * k <= availH ? (b.minY + b.maxY) / 2 : (hc + hr) / 2;
+    const ox = side + availW / 2 - midX * k, oy = top + availH / 2 - midY * k;
+    const at = (c: number, r: number) => ({ x: Math.round(ox + (c - r) * k), y: Math.round(oy + (c + r) * 0.5 * k) });
+    g.fillStyle = '#0b0a10b8';
+    g.fillRect(0, 0, w, h);
+    // Each cell's diamond as its bounding box, so neighbours tile without gaps; walls on top.
+    const fw = Math.max(2, Math.round(k * 2)), fh = Math.max(1, Math.round(k));
+    for (const wall of [false, true]) {
+      g.fillStyle = wall ? '#b4a8c8' : '#3a3448';
+      for (const q of cells) {
+        if (q.wall !== wall) continue;
+        const p = at(q.c + 0.5, q.r + 0.5);
+        g.fillRect(p.x - (fw >> 1), p.y - (fh >> 1), fw, fh);
+      }
+    }
+    const s = Math.max(2, Math.round(k));
+    const dot: Dot = (x, z, color, size = 1) => {
+      const c = Math.floor((x - grid.originX) / grid.cell), r = Math.floor((z - grid.originZ) / grid.cell);
+      if (c < 0 || r < 0 || c >= grid.cols || r >= grid.rows || !ex[r * grid.cols + c]) return;
+      const p = at((x - grid.originX) / grid.cell, (z - grid.originZ) / grid.cell);
+      const d = size * s;
+      g.fillStyle = '#0b0a10';
+      g.fillRect(p.x - (d >> 1) - 1, p.y - (d >> 1) - 1, d + 2, d + 2);
+      g.fillStyle = color;
+      g.fillRect(p.x - (d >> 1), p.y - (d >> 1), d, d);
+    };
+    markers(sim, hero, dot, 0.5);
+    const p = at(hc, hr);
+    const d = s + 1;
+    g.fillStyle = (sim.frame >> 4) % 2 === 0 ? '#ffffff' : '#ffe14d';
+    g.fillRect(p.x - (d >> 1), p.y - (d >> 1), d, d);
+    const title = (sim.level.title ?? (sim.level.kind === 'town' ? 'Haven' : 'Map')).toUpperCase();
+    drawText(g, title, Math.round(w / 2 - textWidth(title) / 2), 5, '#ffe14d');
   }
 
   /** Ground-loot label under a low-res point. */
@@ -332,6 +404,23 @@ export class Overlay {
     for (const l of this.labels) if (x >= l.x && x < l.x + l.w && y >= l.y && y < l.y + l.h) return l.id;
     return null;
   }
+}
+
+/** Map markers shared by the minimap and the full map (`scale` shrinks small ones on the minimap). */
+function markers(sim: Sim, hero: Character, dot: Dot, scale: number) {
+  const n = (v: number) => Math.max(1, Math.round(v * scale));
+  for (const ch of sim.characters.values()) {
+    if (ch.state === 'dead' || ch.id === hero.id) continue;
+    if (ch.team === 'enemy') dot(ch.pos.x, ch.pos.z, ch.monster?.boss ? '#ff8a3d' : ch.monster && ch.monster.rarity !== 'normal' ? '#ffe14d' : '#e0283a', ch.monster?.boss ? n(3) : 1);
+    else if (ch.npc) dot(ch.pos.x, ch.pos.z, '#7affd8', n(2));
+  }
+  for (const p of sim.props.values()) {
+    if (p.dead) continue;
+    if (p.kind === 'portal' || p.kind === 'waypoint') dot(p.x, p.z, '#7ab8ff', n(2));
+    else if (p.kind === 'chest' && p.state !== 'used') dot(p.x, p.z, '#ffd27a', n(2));
+    else if (p.kind.startsWith('shrine')) dot(p.x, p.z, '#c77dff', n(2));
+  }
+  for (const p of sim.pickups) if (p.kind === 'item' && p.item && p.item.rarity !== 'normal') dot(p.x, p.z, RARITY_COLOR[p.item.rarity]);
 }
 
 function overlaps(a: LabelRect, b: LabelRect) {

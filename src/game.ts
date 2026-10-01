@@ -70,6 +70,8 @@ export class Game {
   busy = false;
   readonly listeners = new Set<(e: GameEvent | SimEvent) => void>();
   overlayOptions: OverlayOptions = { interactKey: 'E', minimap: true, heroId: 'player', hover: null };
+  /** The full map is open (Tab); drawn in the town and the depths. */
+  mapOpen = false;
   renderFrames = 0;
   fps = 0;
   /** Draw calls / triangles / milliseconds of the last rendered frame (all passes). */
@@ -451,6 +453,11 @@ export class Game {
   }
 
   /** Advance exactly n sim frames (deterministic, independent of wall-clock), then draw. */
+  toggleMap() {
+    this.mapOpen = !this.mapOpen;
+    this.needsRender = true;
+  }
+
   /** The sim and frame of the last draw. */
   private drawn: { sim: Sim | null; frame: number } = { sim: null, frame: 0 };
 
@@ -458,6 +465,8 @@ export class Game {
     for (let i = 0; i < n; i++) {
       if (this.busy) break;
       this.simStep();
+      // Headless steps still uncover the map the hero walks through.
+      if (this.sim.frame % 8 === 0) this.overlay.reveal(this.sim, this.overlayOptions.heroId);
       if (i % 30 === 29) this.pump();
     }
     this.pump();
@@ -484,6 +493,7 @@ export class Game {
       this.pipeline.background.setStyle(this.level.background, THREE.LinearSRGBColorSpace);
     }
     const sandbox = this.mode === 'sandbox';
+    this.overlayOptions.bigMap = this.mapOpen && (this.mode === 'dungeon' || this.mode === 'town');
     if (!sandbox) this.overlay.update(this.sim, this.stage, this.pipeline.width, this.pipeline.height, dt, this.overlayOptions);
     this.pipeline.render(this.stage.scene, this.stage.camera, { subPixel: this.stage.subPixel, overlay: sandbox ? null : this.overlay.texture });
     this.renderFrames++;
