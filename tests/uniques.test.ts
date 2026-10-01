@@ -12,7 +12,7 @@ import { BASES } from '../src/content/items';
 import { HERO_SKILLS, SKILL_NAMES } from '../src/content/skills';
 import { KNOWN_TAGS, STATS, type Tag } from '../src/content/stats';
 import { UNIQUES } from '../src/content/uniques';
-import { describeItem, rollItem } from '../src/sim/items';
+import { describeItem, rollItem, UNIQUE_AFFIXES } from '../src/sim/items';
 import { Rng } from '../src/sim/rng';
 
 const heroSkills = new Set(HERO_SKILLS.map((s) => s.id));
@@ -52,6 +52,8 @@ it('rolls each unique and describes it without placeholders', () => {
     if (item.unique !== u.id) continue; // another unique on the same base won the roll
     const text = describeItem(item, SKILL_NAMES).map((l) => l.text).join('\n');
     expect(item.name, u.id).toBe(u.name);
+    // Uniques roll regular affixes on top of their unique lines.
+    expect(item.affixes.length, u.id).toBe(UNIQUE_AFFIXES);
     expect(text, u.id).toContain(u.flavour);
     expect(text, u.id).not.toMatch(/undefined|NaN|skill:/);
   }

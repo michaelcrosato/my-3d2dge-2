@@ -172,6 +172,9 @@ export function magicName(item: Item): string {
   return `${pre ? `${pre.word} ` : ''}${base.name}${suf ? ` ${suf.word}` : ''}`;
 }
 
+/** Regular affixes every unique rolls on top of its unique mods. */
+export const UNIQUE_AFFIXES = 3;
+
 export function rollItem(rng: Rng, o: RollOptions): Item {
   let rarity = o.rarity ?? rollRarity(rng, o.rarityBonus);
   let baseId = o.base;
@@ -191,6 +194,9 @@ export function rollItem(rng: Rng, o: RollOptions): Item {
   if (unique) {
     item.unique = unique;
     item.name = UNIQUE_BY_ID[unique].name;
+    // Uniques also roll regular affixes at their item level (like Diablo IV): their fixed powers
+    // define a build, the affixes keep them competitive with rares deeper down.
+    for (let i = 0; i < UNIQUE_AFFIXES; i++) addRandomAffix(rng, item);
     return item;
   }
   if (rarity === 'magic') {

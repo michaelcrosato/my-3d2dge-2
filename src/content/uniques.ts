@@ -120,12 +120,12 @@ export const UNIQUES: UniqueDef[] = [
   },
   {
     id: 'executioner_u', name: 'Last Rites', base: 'executioner', level: 20, weight: 5, flavour: 'The verdict was never in doubt.',
-    mods: [F(mod('damage', 'more', 40, ['vs:elite'])), F(mod('critChance', 'inc', 40)), F(mod('lifeOnKill', 'flat', 20)), F(mod('stagger', 'inc', 50))],
+    mods: [F(mod('damage', 'more', 40, ['vs:elite'])), F(mod('critChance', 'inc', 40)), D(mod('lifeOnKill', 'flat', 5)), F(mod('stagger', 'inc', 50))],
   },
   // ---- Starters: early finds that point at a build.
   {
     id: 'grandfather', name: "Grandfather's Blade", base: 'rusted_sword', level: 1, weight: 10, flavour: 'Notched by three generations of bad decisions.',
-    mods: [Pw({ stat: 'addedPhysical', kind: 'flat', value: 2, max: 4, tags: ['attack'] }), F(mod('xpGain', 'flat', 10)), F(mod('lifeOnKill', 'flat', 3)), F(mod('moveSpeed', 'inc', 5))],
+    mods: [Pw({ stat: 'addedPhysical', kind: 'flat', value: 2, max: 4, tags: ['attack'] }), F(mod('xpGain', 'flat', 10)), D(mod('lifeOnKill', 'flat', 3)), F(mod('moveSpeed', 'inc', 5))],
   },
   {
     id: 'warcoat', name: 'Tattered Warcoat', base: 'padded_vest', level: 1, weight: 10, flavour: 'Every hole has a story. Most end with "and then I ran".',
