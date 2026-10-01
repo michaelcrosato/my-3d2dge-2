@@ -2,7 +2,8 @@
  * Audio tools: agents cannot listen, so sounds are rendered offline and shown as a waveform and a
  * log-frequency spectrogram, with loudness and brightness numbers to compare against.
  */
-import { renderSound } from '../../audio/engine';
+import { renderMood, renderSound } from '../../audio/engine';
+import { MOODS } from '../../content/music';
 import { SOUNDS, THEME_AMBIENCE } from '../../content/sounds';
 import { newImg, rgba, setPx, text, line, type RGBA } from '../raster';
 import { defineTool } from '../registry';
@@ -19,6 +20,7 @@ defineTool({
         return { id, layers: d.layers.length, waves: [...new Set(d.layers.map((l) => l.wave))], seconds: Math.round(Math.max(...d.layers.map((l) => (l.delay ?? 0) + l.dur)) * 100) / 100, max: d.max ?? 4, gap: d.gap ?? 0, vary: d.vary ?? 0 };
       }),
       ambience: Object.keys(THEME_AMBIENCE),
+      music: Object.fromEntries(Object.entries(MOODS).map(([id, m]) => [id, { bpm: m.bpm, voices: ['bass', 'pad', 'melody', ...(m.pulse ? ['pulse'] : [])] }])),
     };
   },
 });
@@ -43,15 +45,19 @@ function heat(v: number): RGBA {
 
 defineTool({
   name: 'audio.inspect', group: 'audio', needs: 'game',
-  desc: 'Renders a sound offline and returns a waveform + log-frequency spectrogram image with duration, peak, RMS loudness and spectral centroid (brightness). Agents tune sounds by looking at them.',
+  desc: 'Renders a sound (or a few bars of a music mood) offline and returns a waveform + log-frequency spectrogram image with duration, peak, RMS loudness and spectral centroid (brightness). Agents tune audio by looking at it.',
   params: {
-    sound: { type: 'string', required: true, desc: 'Sound id (audio.list).', enum: Object.keys(SOUNDS) },
+    sound: { type: 'string', desc: 'Sound id (audio.list).', enum: Object.keys(SOUNDS) },
+    mood: { type: 'string', desc: 'Instead of a sound: a music mood to render.', enum: Object.keys(MOODS) },
+    bars: { type: 'integer', default: 4, min: 1, max: 16, desc: 'Bars of music to render (with mood).' },
     scale: { type: 'integer', default: 2, min: 1, max: 4, desc: 'Image upscale.' },
   },
   example: { sound: 'hit_crit' },
-  async run({ sound, scale }, ctx) {
+  async run({ sound, mood, bars, scale }, ctx) {
     const rate = 22050;
-    const x = await renderSound(sound, rate);
+    if (!sound && !mood) throw new Error('give a sound or a mood');
+    const x = mood ? await renderMood(mood, bars, 1, rate) : await renderSound(sound, rate);
+    sound = mood ? `music:${mood}` : sound;
     let peak = 0, sum = 0;
     for (const v of x) {
       peak = Math.max(peak, Math.abs(v));
@@ -94,7 +100,7 @@ defineTool({
     text(img, `${sound} ${(x.length / rate).toFixed(2)}s`, 2, H - 8, rgba('#e8e4da'), 1, null);
     return {
       sound, seconds: Math.round((x.length / rate) * 100) / 100, peak: Math.round(peak * 1000) / 1000, rms: Math.round(rms * 1000) / 1000,
-      centroidHz: Math.round(centroidNum / Math.max(1e-9, centroidDen)), layers: SOUNDS[sound].layers,
+      centroidHz: Math.round(centroidNum / Math.max(1e-9, centroidDen)), layers: mood ? undefined : SOUNDS[sound].layers,
       image: ctx.image('spectrogram', img, scale), legend: 'top: waveform; bottom: spectrogram, 60 Hz (bottom) to 11 kHz (top), brighter = louder',
     };
   },

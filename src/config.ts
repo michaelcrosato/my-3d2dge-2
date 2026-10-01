@@ -64,6 +64,7 @@ export const CONFIG_SPEC = {
   'audio.master': { value: 0.7, min: 0, max: 1, desc: 'Master volume.' },
   'audio.sfx': { value: 0.85, min: 0, max: 1, desc: 'Combat, loot and mechanic sounds (all synthesized live).' },
   'audio.ambience': { value: 0.6, min: 0, max: 1, desc: 'Per-theme ambient drone.' },
+  'audio.music': { value: 0.45, min: 0, max: 1, desc: 'Generative music: a calm town tune, dark dungeon phrases per theme, a driving pulse in boss fights.' },
   'audio.mute': { value: false, desc: 'Silence everything.' },
   'tune.playerDamage': { value: 1, min: 0.1, max: 10, desc: 'Difficulty: multiplier on all damage the hero (and minions) deal.' },
   'tune.playerLife': { value: 1, min: 0.1, max: 10, desc: 'Difficulty: multiplier on the hero\'s maximum life.' },
