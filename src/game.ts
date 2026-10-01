@@ -608,6 +608,8 @@ export class Game {
     }
     const sandbox = this.mode === 'sandbox';
     this.overlayOptions.bigMap = this.mapOpen && (this.mode === 'dungeon' || this.mode === 'town');
+    // The title screen's backdrop is scenery: no minimap over it.
+    this.overlayOptions.minimap = this.mode !== 'title';
     if (!sandbox) this.overlay.update(this.sim, this.stage, this.pipeline.width, this.pipeline.height, dt, this.overlayOptions);
     this.pipeline.render(this.stage.scene, this.stage.camera, { subPixel: this.stage.subPixel, overlay: sandbox ? null : this.overlay.texture });
     this.renderFrames++;

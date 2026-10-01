@@ -143,7 +143,7 @@ body.touchui #ghud .buffs { top: max(92px, calc(env(safe-area-inset-top) + 88px)
 #gtitle { position: fixed; inset: 0; z-index: 27; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 16px; color: var(--gp-text); font: 14px system-ui; background: radial-gradient(ellipse at 50% 30%, #2a1f3a00, #07060acc 70%); }
 #gtitle[hidden] { display: none; }
 #gtitle h1 { margin: 0; font: 900 clamp(30px, 7vw, 64px)/1 system-ui; letter-spacing: 0.1em; color: #ffe9b8; text-shadow: 0 4px 0 #000, 0 0 20px #ff9a3d55; text-align: center; }
-#gtitle .sub { color: var(--gp-dim); text-align: center; margin-top: -6px; }
+#gtitle .sub { color: #e2d8ee; text-align: center; margin-top: -6px; text-shadow: 0 1px 0 #000, 0 0 6px #000, 0 0 12px #000; }
 #gtitle .slots { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; width: min(760px, 100%); }
 #gtitle .slotcard { background: var(--gp-bg); border: 2px solid #5a4a30; padding: 10px; display: flex; flex-direction: column; gap: 6px; }
 #gtitle .slotcard b { color: #ffe9b8; }
