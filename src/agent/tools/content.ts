@@ -275,7 +275,7 @@ defineTool({
         sim.pickups = [];
         if (sim.events.length > 1000) sim.events.length = 0;
       }
-      return { ...out, perKill: { items: r1(out.items / a.kills * 100) / 100, gold: r1(out.gold / a.kills) }, best };
+      return { ...out, perKill: { items: Math.round((out.items / a.kills) * 1000) / 1000, gold: r1(out.gold / a.kills) }, best };
     } finally {
       sim.dispose();
     }

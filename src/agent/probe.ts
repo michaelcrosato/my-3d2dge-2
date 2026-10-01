@@ -42,7 +42,10 @@ export function heroSheet(sim: Sim) {
   const skills = ['slash1', ...hero.hotbar.filter((s): s is string => !!s)].map((id) => {
     const s = skillDef(id);
     const e = estimateSkill(sim, ch, s);
-    return { id, name: s.name, hit: r1(e.hit), perSecond: r1(e.perSecond), critChance: r1(e.critChance), cost: r1(costOf(sim, ch, s)), cooldown: r1(cooldownOf(sim, ch, s)), byType: Object.fromEntries(Object.entries(e.byType).map(([k, v]) => [k, r1(v ?? 0)])) };
+    const cd = cooldownOf(sim, ch, s);
+    // Sustained rate: a cooldown caps how often the skill lands.
+    const perSecond = cd > 0 ? Math.min(e.perSecond, e.hit / cd) : e.perSecond;
+    return { id, name: s.name, hit: r1(e.hit), perSecond: r1(perSecond), critChance: r1(e.critChance), cost: r1(costOf(sim, ch, s)), cooldown: r1(cd), byType: Object.fromEntries(Object.entries(e.byType).map(([k, v]) => [k, r1(v ?? 0)])) };
   });
   return {
     name: hero.name, level: hero.level, xp: `${hero.xp}/${xpToNext(hero.level)}`, gold: hero.gold, passivePoints: { allocated: hero.tree.length, unspent: treePoints(hero) },
@@ -72,7 +75,8 @@ export function monsterSheet(sim: Sim, ch: Character) {
     skills: m.skills.map((id) => {
       const s = skillDef(id);
       const e = estimateSkill(sim, ch, s);
-      return { id, name: s.name, hit: r1(e.hit), perSecond: r1(e.perSecond), range: s.range, cooldown: s.cooldown ?? 0, tags: s.tags };
+      const cd = s.cooldown ?? 0;
+      return { id, name: s.name, hit: r1(e.hit), perSecond: r1(cd > 0 ? Math.min(e.perSecond, e.hit / cd) : e.perSecond), range: s.range, cooldown: cd, tags: s.tags };
     }),
   };
 }

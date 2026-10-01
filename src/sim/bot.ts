@@ -55,7 +55,7 @@ export class Bot {
   private goalKey = '';
   private goalFrames = 0;
 
-  constructor(private sim: Sim, opts: BotOptions = {}) {
+  constructor(readonly sim: Sim, opts: BotOptions = {}) {
     this.opts = { ...DEFAULTS, ...opts };
     this.rng = new Rng(sim.seed * 7919 + 13);
   }
@@ -437,9 +437,10 @@ export interface BotReport {
 
 /**
  * Plays the current level with a bot until the hero leaves through the exit (or `maxFrames`).
- * `onFrame` runs after every step (the live autopilot renders there).
+ * `onFrame` runs after every step (return false to stop); `step` replaces `sim.step()` (the live
+ * game steps through `Game.step` so portals and events are handled).
  */
-export function runBot(sim: Sim, opts: BotOptions & { maxFrames?: number } = {}, onFrame?: (frame: number) => boolean | void): BotReport {
+export function runBot(sim: Sim, opts: BotOptions & { maxFrames?: number } = {}, onFrame?: (frame: number) => boolean | void, step: () => void = () => sim.step()): BotReport {
   const bot = new Bot(sim, opts);
   const maxFrames = opts.maxFrames ?? 60 * 240;
   const hero = sim.hero;
@@ -457,7 +458,7 @@ export function runBot(sim: Sim, opts: BotOptions & { maxFrames?: number } = {},
   for (let f = 0; f < maxFrames; f++) {
     bot.think();
     r.goals[bot.goal] = (r.goals[bot.goal] ?? 0) + 1 / 60;
-    sim.step();
+    step();
     r.frames++;
     const p = sim.player;
     if (p && p.state !== 'dead') r.lowestLife = Math.min(r.lowestLife, p.life / Math.max(1, p.maxLife));

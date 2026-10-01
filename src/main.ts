@@ -8,6 +8,8 @@
  *   ?stage=N     start a fresh hero at depth N (agents and quick testing)
  */
 import * as THREE from 'three';
+import { createAgentApi } from './agent/api';
+import { installLogCapture } from './agent/logs';
 import { setConfig } from './config';
 import { Game } from './game';
 import { InputController, type PanelName } from './input/controller';
@@ -282,6 +284,7 @@ function setupHuman(game: Game, saves: SaveStore) {
 }
 
 async function boot() {
+  installLogCapture();
   const canvas = document.getElementById('view') as HTMLCanvasElement;
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' });
   renderer.setPixelRatio(1);
@@ -319,7 +322,7 @@ async function boot() {
     human?.title.show();
   }
 
-  const agent = { ready: false, step: (frames = 1) => game.step(frames), idle: () => game.idle() };
+  const agent = createAgentApi(game);
   Object.assign(window, { agent, game });
   if (agentMode) game.paused = true;
   document.getElementById('loading')?.remove();

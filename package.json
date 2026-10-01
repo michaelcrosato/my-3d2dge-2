@@ -12,7 +12,9 @@
     "assets": "node tools/build-assets.mjs",
     "build:standalone": "node node_modules/typescript/bin/tsc --noEmit && node tools/build-standalone.mjs",
     "verify:standalone": "python3 tools/verify-standalone.py",
-    "test": "vitest run"
+    "test": "vitest run",
+    "agent": "node tools/agent-cli.mjs",
+    "mcp": "node tools/mcp-server.mjs"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "0.20.0",

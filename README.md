@@ -47,11 +47,13 @@ The ⚙ button opens Settings. Everything is stored per **profile**; Standard, L
 | Command (from the repository root) | Purpose |
 | --- | --- |
 | `npm run typecheck` | Strict TypeScript validation |
-| `npm run test` | Vitest unit tests (stats, items, tree, dungeon generation, combat and rewards, determinism, species, saves, Rapier queries, input profiles) |
+| `npm run test` | Vitest unit tests (stats, items, tree, dungeon generation, combat and rewards, determinism, species, saves, mechanics, agent tools and the bot, Rapier queries, input profiles) |
 | `npm run check` | TypeScript validation, production build and unit tests; also runs in CI |
 | `npm run build` | Build the web app into `dist/` |
 | `npm run build:standalone` | Rebuild the committed single-file game |
 | `npm run verify:standalone` | Play the offline game in Chromium, WebKit and Firefox on a touch phone (title → town → combat → settings rebind → panels → depth 1); requires Python Playwright and installed browsers |
+| `npm run agent -- <tool> [args]` | Call an agent tool from the terminal (`help` lists them) |
+| `npm run mcp` | Stdio MCP server exposing the agent tools |
 | `npm run assets` | Download source packs and rebuild runtime assets (requires network) |
 
 ## Layout
@@ -61,13 +63,35 @@ The ⚙ button opens Settings. Everything is stored per **profile**; Standard, L
 - `src/render/`: stage, pixel pipeline, overlay (pixel font, damage numbers, labels, minimap), light pool, VFX, procedural props/items/creatures, engine-rendered icons.
 - `src/ui/`: HUD, panels, passive tree view, menus, settings, touch overlay.
 - `src/input/`: actions, settings profiles and storage, input math and the keyboard/mouse/gamepad/touch controller.
-- `src/agent/`: capture helpers and the asset forge (creature sprite sheets, rig inspection).
+- `src/agent/`: the agent tool registry and tools, capture helpers, the asset forge (creature sprite sheets, rig inspection), software-drawn maps.
 - `src/game.ts`, `src/main.ts`, `src/save.ts`, `src/config.ts`: run flow, boot, saves and configuration.
 - `tests/`, `public/assets/`, `tools/`, `standalone/`: unit tests, runtime assets, build tools, the shareable HTML game.
 
-## Agents
+## Agent tools
 
-Open `/?agent&seed=1` (training room), `/?agent&town` or `/?agent&stage=N` (a fresh hero in town or at depth N), wait for `window.agent.ready`, and call `window.agent.step(frames)`; after steps that may change level (portals), `await window.agent.idle()`. `window.game` exposes the game: `game.sim` (characters, events, `setInput`, `snapshot()`), `game.hero`, `game.enterStage(n)`, `game.enterTown()`. Agent mode starts paused with human input disabled. `src/agent/forge.ts` renders creature sprite sheets for any plan/seed/palette. See [AGENTS.md](AGENTS.md).
+The engine ships its own tools for AI agents: 37 typed, documented tools for building, generating, rendering and inspecting the game's assets and systems. They live in `src/agent/` and run in three places:
+
+- **Browser console:** `await agent.call('help')`, `await agent.call('creature.render', { plan: 'spider', seed: 9 })`, `agent.tools()` (names, descriptions, JSON Schemas). Present in every mode.
+- **Terminal:** `npm run agent -- help`, `npm run agent -- level.generate stage=30 'mechanics=["kegs","ice"]'`, `npm run agent -- --script steps.json`, `npm run agent -- repl`. Images are written to `.agent/out/` (git-ignored) and their paths are printed.
+- **MCP:** `npm run mcp` is a stdio MCP server (no extra dependencies); `.mcp.json` registers it for Claude Code in this repository. Tool names use underscores (`creature_render`), and images come back as image content.
+
+The CLI and the MCP server start Vite in-process and drive headless Chromium (`--url URL` targets a running server, `--standalone` the single-file build).
+
+| Group | Tools |
+| --- | --- |
+| meta, catalog | `help`, `catalog.list` (skills, monsters, archetypes, palettes, affixes, body plans, bases, uniques, mechanics, themes, statuses, stats, presets) |
+| creature | `creature.genome`, `species.create` (assemble a monster from body + genome edits + archetype + attacks + palette), `monster.inspect`, `encounter.roll` |
+| item | `item.roll`, `loot.simulate` (thousands of kills through the real drop code) |
+| level | `campaign.list`, `level.generate` (any depth or a remix of theme / layout / mechanics, with a map image and critical path) |
+| tree, hero | `tree.inspect`, `tree.path`, `tree.render`, `hero.build` (auto-built hero of any level), `skill.inspect` |
+| balance | `balance.curve` (power curves by level), `balance.run` (the autoplayer bot plays a depth headless at ~60x speed: clear rate, time, deaths) |
+| config | `config.get`, `config.set`, `difficulty.set` |
+| render (live) | `creature.render`, `creature.lineup`, `monster.render`, `item.icon`, `scene.capture` (exact pixels, HUD, labelled boxes), `scene.stats`, `logs.read` |
+| world (live) | `game.state`, `game.goto`, `game.step`, `game.input`, `hero.set`, `hero.sheet`, `hero.give`, `monster.spawn`, `bot.play`, `bot.autopilot` |
+
+Content tools also run under Vitest without a browser (`tests/agent-tools.test.ts`). The autoplayer (`src/sim/bot.ts`) is deterministic and doubles as the pause menu's **Autopilot** (watch the bot play).
+
+Lower level: open `/?agent&seed=1` (training room), `/?agent&town` or `/?agent&stage=N`, wait for `window.agent.ready`, and call `window.agent.step(frames)`; after steps that may change level, `await window.agent.idle()`. `window.game` exposes the game (`game.sim`, `game.hero`, `game.enterStage(n)`, `game.enterTown()`). Agent mode starts paused with human input disabled. See [AGENTS.md](AGENTS.md).
 
 The standalone HTML embeds runtime libraries and assets; see [standalone instructions](standalone/README.md). Keep it in sync after runtime or asset changes.
 

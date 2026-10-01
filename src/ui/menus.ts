@@ -90,6 +90,11 @@ export class PauseMenu {
         g.hero && g.mode !== 'sandbox' ? btn('Passive tree (P)', () => { this.hide(); this.hooks.openPanel('tree'); }) : null,
         g.hero && g.mode !== 'sandbox' ? btn('Character & skills (C)', () => { this.hide(); this.hooks.openPanel('character'); }) : null,
         btn('Settings & controls', () => { this.hide(); this.hooks.openSettings(); }),
+        g.mode === 'dungeon' ? btn(g.autopilot.on ? 'Autopilot: on (stop)' : 'Autopilot (watch the bot play)', () => {
+          g.setAutopilot(g.autopilot.on ? null : { strategy: 'clear' });
+          this.hooks.toast(g.autopilot.on ? 'Autopilot on: the bot plays. Pause to take over.' : 'Autopilot off');
+          this.hide();
+        }) : null,
         g.mode === 'dungeon' ? btn('Return to town', () => { this.hide(); void g.enterTown(); }) : null,
         g.mode === 'sandbox' ? btn('Back to title', () => { this.hide(); window.dispatchEvent(new CustomEvent('game:title')); }) : null,
         g.hero ? btn('Save & quit to title', () => { g.save(); this.hide(); window.dispatchEvent(new CustomEvent('game:title')); }) : null,
