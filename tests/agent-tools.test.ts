@@ -35,6 +35,8 @@ describe('tool registry', () => {
       const s = schemaOf(t);
       expect(s.type).toBe('object');
       for (const [k, p] of Object.entries(t.params)) expect(p.desc.length, `${t.name}.${k}`).toBeGreaterThan(2);
+      // Agents copy examples from `help`: a tool with required parameters must ship a valid one.
+      if (Object.values(t.params).some((p) => p.required)) expect(t.example, `${t.name} needs an example`).toBeTruthy();
       if (t.example) expect(() => validateArgs(t, t.example)).not.toThrow();
     }
   });
@@ -60,6 +62,8 @@ describe('tool registry', () => {
       const r = await callTool(t.name, t.example ?? {}, env);
       expect(r.ok, `${t.name}: ${r.ok ? '' : r.error}`).toBe(true);
     }
+    // config.set / difficulty.set examples change global tuning.
+    resetConfig();
   });
 });
 
