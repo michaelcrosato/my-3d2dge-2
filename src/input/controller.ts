@@ -411,11 +411,17 @@ export class InputController {
     }
     if (sim.lastEventSeq === this.eventSeq) return;
     const follow = this.game.stage.follow;
+    const me = sim.characters.get(follow);
     for (const e of sim.eventsSince(this.eventSeq)) {
-      if (e.type !== 'hit' || (e.attacker !== follow && e.target !== follow)) continue;
-      const hurt = e.target === follow;
-      const heavy = !!e.heavy;
-      if (!hurt && !heavy) continue;
+      let hurt = false, heavy = false;
+      if (e.type === 'hit' && (e.attacker === follow || e.target === follow)) {
+        hurt = e.target === follow;
+        // Heavy blows and crits from the hero both land with a thump.
+        heavy = !!e.heavy || (!hurt && !!e.crit);
+        if (!hurt && !heavy) continue;
+      } else if (e.type === 'explosion' && me && Math.hypot((e.x as number) - me.pos.x, (e.z as number) - me.pos.z) < 7) {
+        heavy = true;
+      } else continue;
       if (this.device === 'gamepad' && this.profile.padOptions.vibration) {
         for (const pad of this.pads()) {
           const act = (pad as Gamepad & { vibrationActuator?: { playEffect?(t: string, p: object): Promise<unknown> } }).vibrationActuator;

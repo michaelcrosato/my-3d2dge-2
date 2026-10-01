@@ -492,7 +492,7 @@ export class Stage {
       if (config['render.smoothScroll'] || !snapMovers) this.focus.set(followPos.x, followPos.y + FOLLOW_HEIGHT, followPos.z);
       else this.focus.copy(followView.root.position).setY(followView.root.position.y + FOLLOW_HEIGHT);
     }
-    const shake = this.vfx.shake;
+    const shake = this.vfx.shake * config['ui.screenShake'];
     const shakeVec = shake > 0.3 && pixel ? { x: Math.round((Math.random() - 0.5) * shake) / ppm, y: Math.round((Math.random() - 0.5) * shake) / ppm } : { x: 0, y: 0 };
     const snapCam = pixel && config['render.snapCamera'];
     const fpos = toV3(this.focus);
