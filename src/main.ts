@@ -18,7 +18,7 @@ import { InputController, type PanelName } from './input/controller';
 import type { TouchControl } from './input/profile';
 import { SettingsStore } from './input/store';
 import { AssetLibrary } from './render/assets';
-import { ReplayStore } from './replays';
+import { downloadReplay, ReplayStore } from './replays';
 import { SaveStore, storage } from './save';
 import { fmtFrames } from './game';
 import { registerDesign, setReleased } from './content/bestiary';
@@ -254,7 +254,9 @@ function setupHuman(game: Game, saves: SaveStore) {
   // Replays: a best run is kept per depth; while one plays, a bar shows its clock and a way out.
   const replayBar = h('div', { id: 'replaybar', hidden: true, role: 'status' });
   const replayText = h('span');
-  replayBar.append(replayText, h('button', { class: 'ui-btn small', onclick: () => void game.enterTown() }, 'Exit replay'));
+  replayBar.append(replayText,
+    h('button', { class: 'ui-btn small', title: 'Download this run to share it (plays back exactly in the same browser and game version)', onclick: () => game.playback && void downloadReplay(game.playback.replay) }, 'Save file'),
+    h('button', { class: 'ui-btn small', onclick: () => void game.enterTown() }, 'Exit replay'));
   document.body.append(replayBar);
   let replayDone: string | null = null;
   game.listeners.add((e) => {

@@ -4,6 +4,7 @@ import manifest from '../public/assets/manifest.json';
 import { buildStageLevel } from '../src/agent/tools/content';
 import { autoHero } from '../src/sim/autobuild';
 import { Bot } from '../src/sim/bot';
+import { decode, encode } from '../src/replays';
 import { ReplayPlayer, ReplayRecorder, type Replay } from '../src/sim/replay';
 import { initPhysics, Sim, type ClipTable } from '../src/sim/sim';
 
@@ -78,4 +79,16 @@ it('marks a run invalid when the build changes mid-depth', () => {
   expect(rec.valid).toBe(false);
   rec.stop();
   sim.dispose();
+});
+
+it('encodes replays for storage and files, and refuses anything else', async () => {
+  const { replay, live } = record(120);
+  live.dispose();
+  const text = await encode(replay);
+  expect(text.startsWith('gz:')).toBe(true);
+  expect(await decode(text)).toEqual(replay);
+  expect(await decode(JSON.stringify(replay))).toEqual(replay);
+  expect(await decode('gz:not-base64!')).toBeNull();
+  expect(await decode('{"v":1,"key":"x"}')).toBeNull();
+  expect(await decode(JSON.stringify({ ...replay, v: 999 }))).toBeNull();
 });
