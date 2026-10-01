@@ -75,6 +75,17 @@ function items(raw: unknown, size: number): Array<Item | null> {
   return out;
 }
 
+function normalizeTrials(raw: unknown): Record<string, number> {
+  const out: Record<string, number> = {};
+  if (!isObj(raw)) return out;
+  // Keep the most recent 60 days.
+  for (const k of Object.keys(raw).filter((k) => /^\d{4}-\d{2}-\d{2}$/.test(k)).sort().slice(-60)) {
+    const v = raw[k];
+    if (typeof v === 'number' && v > 0) out[k] = Math.round(Math.min(v, 1e9));
+  }
+  return out;
+}
+
 function normalizeCodex(raw: unknown): Hero['progress']['codex'] {
   const c = isObj(raw) ? raw : {};
   const kills: Record<string, number> = {};
@@ -117,7 +128,7 @@ export function normalizeHero(raw: unknown): Hero {
     tree,
     jewels,
     flasks: Array.isArray(raw.flasks) ? [num(raw.flasks[0], 0, 1000, 30), num(raw.flasks[1], 0, 1000, 30)] : base.flasks,
-    progress: { unlocked: Math.round(num(p.unlocked, 1, 100000, 1)), cleared, endlessBest: Math.round(num(p.endlessBest, 0, 100000, 0)), codex: normalizeCodex(p.codex) },
+    progress: { unlocked: Math.round(num(p.unlocked, 1, 100000, 1)), cleared, endlessBest: Math.round(num(p.endlessBest, 0, 100000, 0)), codex: normalizeCodex(p.codex), trials: normalizeTrials(p.trials) },
     totals: {
       kills: num(t.kills, 0, 1e12, 0), deaths: num(t.deaths, 0, 1e12, 0), gold: num(t.gold, 0, 1e15, 0),
       frames: num(t.frames, 0, 1e15, 0), elites: num(t.elites, 0, 1e12, 0), bosses: num(t.bosses, 0, 1e12, 0),
