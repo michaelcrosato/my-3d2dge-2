@@ -35,8 +35,14 @@ export const monsterLife = (level: number) => 22 * power(level) * lifeRamp(level
 export const bossEase = (level: number) => 0.6 + 0.4 * Math.min(1, (Math.max(1, level) - 1) / 12);
 /** Boss life eases only over the first few levels (later bosses keep their full bulk). */
 export const bossLifeEase = (level: number) => 0.45 + 0.55 * Math.min(1, (Math.max(1, level) - 1) / 4);
+/**
+ * Mid- and late-game tension: heroes gather defences (resistances, armour, evasion, block, life
+ * nodes) faster than the defense curve alone tracks. Bot campaigns on Normal sat above 75% life from
+ * depth 10 on without this; +1.2% per level past 12, capped at +80%.
+ */
+export const damageRamp = (level: number) => Math.min(1.8, 1 + 0.012 * Math.max(0, Math.max(1, level) - 12));
 /** Monster damage: the defense curve, eased in over the first levels so the opening is learnable. */
-export const monsterDamage = (level: number) => defense(level) * (0.65 + 0.35 * Math.min(1, (Math.max(1, level) - 1) / 10));
+export const monsterDamage = (level: number) => defense(level) * (0.65 + 0.35 * Math.min(1, (Math.max(1, level) - 1) / 10)) * damageRamp(level);
 export const spellDamage = (level: number) => power(level);
 export const heroBaseLife = (level: number) => Math.round(58 * defense(level) + 6 * (Math.max(1, level) - 1));
 export const heroBaseMana = (level: number) => Math.round(36 + 4 * (Math.max(1, level) - 1));
