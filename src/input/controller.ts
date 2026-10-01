@@ -177,7 +177,8 @@ export class InputController {
    */
   private clickWorld(clientX: number, clientY: number, touch: boolean): boolean {
     const game = this.game;
-    if (this.hooks.menuOpen()) return false;
+    // A replay plays itself: clicks must not reach its sim.
+    if (this.hooks.menuOpen() || game.playback) return false;
     const low = game.toLowRes(clientX, clientY);
     if (low) {
       const id = game.overlay.labelAt(low.x, low.y);
@@ -555,7 +556,7 @@ export class InputController {
   /** Route the player to the floor point under the mouse (Rapier ray cast through the pixel camera). */
   private moveToPointer() {
     const ch = this.player();
-    if (!ch || !this.pointer) return;
+    if (!ch || !this.pointer || this.game.playback) return;
     const hit = this.game.pick(this.pointer.x, this.pointer.y);
     if (!hit) return;
     try {

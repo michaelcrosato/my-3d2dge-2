@@ -583,7 +583,15 @@ export class Sim {
     ch.inputFrames = frames;
   }
 
+  /**
+   * Hears the player's commands that bypass input (click-to-move, loot-label clicks), so a replay
+   * can repeat them on the same frame (sim/replay.ts).
+   */
+  onCommand: ((name: 'moveTo' | 'pickUp', args: unknown[]) => void) | null = null;
+  private commandDepth = 0;
+
   moveTo(id: string, x: number, z: number, gait: Gait = 'run') {
+    if (id === this.heroId && this.commandDepth === 0) this.onCommand?.('moveTo', [id, x, z, gait]);
     const ch = this.get(id);
     const path = this.nav.path(ch.pos, { x, z });
     if (!path.length) throw new Error(`no path from (${r3(ch.pos.x)}, ${r3(ch.pos.z)}) to (${x}, ${z})`);
@@ -1456,6 +1464,16 @@ export class Sim {
 
   /** Picks up a specific ground item (clicking a label). */
   pickUp(id: number): boolean {
+    if (this.commandDepth === 0) this.onCommand?.('pickUp', [id]);
+    this.commandDepth++;
+    try {
+      return this.pickUpNow(id);
+    } finally {
+      this.commandDepth--;
+    }
+  }
+
+  private pickUpNow(id: number): boolean {
     const p = this.pickups.find((x) => x.id === id && !x.dead);
     const hero = this.player;
     if (!p || !hero) return false;
