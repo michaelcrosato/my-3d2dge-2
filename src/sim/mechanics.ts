@@ -17,6 +17,7 @@
  *   wells      Gravity Wells     pull everything toward their centre
  *   chrono     Chrono Fields     everything inside is slowed
  *   imps       Loot Imps         treasure imps flee, shed gold when hit and escape if not caught
+ *   pylons     Storm Pylons      strike pylons to charge them; charged pairs arc lightning through monsters
  */
 import { addStatus } from './combat';
 import { startSkill } from './actions';
@@ -299,6 +300,60 @@ registerProp('totem', { radius: 0.4, height: 1.8, solid: true, hittable: true, h
       if (c.life < c.maxLife) c.life = Math.min(c.maxLife, c.life + c.maxLife * (c.monster.boss ? 0.0025 : 0.015));
     }
   },
+});
+
+// ---------------------------------------------------------------- Storm Pylons
+
+/** Pylons within this many metres (and in sight of each other) arc while both are charged. */
+export const PYLON_RANGE = 9;
+/** Frames a strike keeps a pylon charged. */
+export const PYLON_CHARGE = 360;
+
+registerProp('pylon', { radius: 0.38, height: 2.1, solid: true, hittable: true, navBlock: true, initial: 'idle', label: 'Pylon' }, {
+  hit(sim, p, by, _s, _h, interact) {
+    if (interact || !heroTeam(by)) return;
+    if (p.state !== 'charged') {
+      sim.stage.mechanicUses++;
+      sim.emit('pylon.charge', { id: p.id, x: p.x, z: p.z });
+    }
+    p.state = 'charged';
+    p.timer = PYLON_CHARGE;
+    p.data.credit = creditOf(by);
+  },
+  step(sim, p) {
+    if (p.state !== 'charged' || --p.timer > 0) return;
+    p.state = 'idle';
+    sim.emit('pylon.fade', { id: p.id, x: p.x, z: p.z });
+  },
+});
+
+/** Distance from (px, pz) to the segment a-b. */
+function segDist(px: number, pz: number, ax: number, az: number, bx: number, bz: number) {
+  const dx = bx - ax, dz = bz - az, len2 = dx * dx + dz * dz || 1;
+  const t = Math.max(0, Math.min(1, ((px - ax) * dx + (pz - az) * dz) / len2));
+  return Math.hypot(px - (ax + dx * t), pz - (az + dz * t));
+}
+
+// Charged pairs arc five times a second; the beam only hurts monsters (lure packs through it).
+registerSystem('pylons', (sim) => {
+  if (sim.frame % 12 !== 0) return;
+  const charged = [...sim.props.values()].filter((p) => p.kind === 'pylon' && p.state === 'charged' && !p.dead);
+  for (let i = 0; i < charged.length; i++)
+    for (let j = i + 1; j < charged.length; j++) {
+      const a = charged[i], b = charged[j];
+      const d = Math.hypot(b.x - a.x, b.z - a.z);
+      if (d > PYLON_RANGE || d < 0.5) continue;
+      // Look from just outside one pylon to just outside the other (their own colliders block rays).
+      const ux = (b.x - a.x) / d, uz = (b.z - a.z) / d;
+      if (!sim.lineOfSight({ x: a.x + ux * 0.5, y: 1.4, z: a.z + uz * 0.5 }, { x: b.x - ux * 0.5, y: 1.4, z: b.z - uz * 0.5 })) continue;
+      sim.emit('pylon.arc', { a: a.id, b: b.id, ax: a.x, az: a.z, bx: b.x, bz: b.z });
+      const credit = (a.data.credit as string | null) ?? (b.data.credit as string | null) ?? sim.heroId;
+      for (const c of [...sim.characters.values()]) {
+        if (!c.monster || c.team === 'hero' || c.state === 'dead' || c.lift > 1.2) continue;
+        if (segDist(c.pos.x, c.pos.z, a.x, a.z, b.x, b.z) > 0.7 + c.radius * 0.5) continue;
+        envHit(sim, c, c.pos.x - uz, c.pos.z + ux, { dmg: { lightning: 5 }, credit, stagger: 45, ailments: { shock: 50 } });
+      }
+    }
 });
 
 // ---------------------------------------------------------------- Loot Imps

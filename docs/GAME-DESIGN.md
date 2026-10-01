@@ -68,12 +68,17 @@ experience and count as "trick kills" in the stage summary, and several open spe
 | 11 | Gravity Wells | let wells bunch packs, then AoE |
 | 12 | Chrono Fields | fight from the edge while monsters wade through slowed |
 | 13 | Loot Imps | catch the fleeing imps before they escape for a hoard |
+| 25 | Storm Pylons | strike two pylons to charge them (6 s); their arc shocks every monster crossing it, never the hero |
 
 Depths 14–24 combine them (Kegs on Ice, Spikes in the Dark, Boulder Pads, Vented Wells, Totems
 of Time, Shrine Rush, Powder and Gravity, The Gauntlet, Dark Rifts, Frozen Time, Imp Gauntlet).
-From depth 25 the endless generator draws two or three mechanics, a theme biased toward them,
-monster palettes and procedural species from the stage seed, and names the level from the
-mechanics' words ("Frozen Kegs & Wells"). A new mechanic is one `MechanicDef` plus prop kinds.
+Depth 25 introduces Storm Pylons, added after the endless generator existed. From depth 26 the
+generator draws two or three mechanics, a theme biased toward them, monster palettes and
+procedural species from the stage seed, and names the level from the mechanics' words ("Frozen
+Kegs & Wells"). A new mechanic is one `MechanicDef` plus prop kinds. To keep content players
+already know, endless depths and Daily Trials draw from the original thirteen
+(`MECHANIC_IDS_V1`); `withLaterMechanics` swaps each later mechanic into a quarter of the draws
+with its own seeded roll, so only those depths change.
 
 ## Spore-style creatures
 

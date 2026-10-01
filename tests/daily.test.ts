@@ -20,7 +20,9 @@ it('builds a level with its mechanics, pacts and a boss', () => {
   const t = dailyTrial('2026-10-01', 15);
   const level = buildTrialLevel(t);
   expect(level.title).toBe(t.title);
-  expect(level.mechanics).toEqual(t.mechanics);
+  // A dark pact adds Lightless on top of the trial's own mechanics.
+  expect(level.mechanics).toEqual(expect.arrayContaining(t.mechanics));
+  for (const m of level.mechanics ?? []) if (!t.mechanics.includes(m)) expect(m).toBe('lightless');
   expect(level.pacts).toEqual(t.pacts);
   expect(level.characters.some((c) => c.monster?.rarity === 'unique')).toBe(true);
   expect(JSON.stringify(buildTrialLevel(t).characters)).toBe(JSON.stringify(level.characters));

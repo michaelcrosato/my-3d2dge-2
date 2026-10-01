@@ -598,6 +598,18 @@ export class Stage {
           lightK = p.state === 'used' ? 0 : 1;
           break;
         }
+        case 'pylon': {
+          // Dark crystal when idle; bright and humming while charged, fading in the last second.
+          const on = p.state === 'charged';
+          const fade = on ? Math.min(1, p.timer / 60) : 0;
+          if (v.glow) {
+            ((v.glow as THREE.Mesh).material as THREE.MeshBasicMaterial).color.set(on ? '#dff4ff' : '#2a4a5a');
+            v.glow.position.y = on ? Math.sin(this.time * 12 + p.x) * 0.04 : 0;
+          }
+          lightK = on ? (0.6 + 0.4 * fade) * (1 + Math.sin(this.time * 20 + p.z) * 0.15) : 0;
+          if (on && v.obj.visible && Math.random() < 0.25) this.vfx.emit(p.x, 1.9, p.z, 1, { color: '#cdeeff', speed: 0.6, up: 0.6, life: 0.25, size: 0.06, gravity: 0 });
+          break;
+        }
         case 'beacon':
           if (v.glow) v.glow.visible = p.state === 'lit';
           lightK = p.state === 'lit' ? 1 + Math.sin(this.time * 9 + p.x) * 0.12 : 0;

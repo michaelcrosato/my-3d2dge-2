@@ -135,6 +135,18 @@ export function propMesh(kind: string, th: Theme, seed: number): PropMesh | null
         glow: merge([box(0.8, 0.02, 0.8, '#ff6a2a', { at: [0, 0.07, 0] })]),
         light: { y: 0.6, color: '#ff6a2a', intensity: 0, range: 5 },
       };
+    case 'pylon':
+      return {
+        body: merge([
+          box(0.62, 0.22, 0.62, th.wall.trim, { at: [0, 0.11, 0] }),
+          cyl(0.16, 0.22, 1.5, METAL, { at: [0, 0.95, 0] }, 6),
+          ...[0.65, 1.0, 1.35].map((y) => torus(0.22, 0.05, '#b87333', { at: [0, y, 0], rot: [Math.PI / 2, 0, 0] }, 4, 10)),
+          cyl(0.24, 0.12, 0.14, METAL, { at: [0, 1.75, 0] }, 6),
+        ]),
+        glow: merge([octa(0.2, '#9fdcff', { at: [0, 2.0, 0] })]),
+        light: { y: 2.0, color: '#9fdcff', intensity: 0, range: 6 },
+        tall: true,
+      };
     case 'totem':
       return {
         body: merge([cyl(0.22, 0.28, 1.6, '#5a4030', { at: [0, 0.8, 0] }, 6), sphere(0.2, '#e8e0c8', { at: [0, 1.15, 0.12] }, 6, 5), sphere(0.2, '#e8e0c8', { at: [0, 1.65, 0.1] }, 6, 5), box(0.9, 0.1, 0.1, '#5a4030', { at: [0, 1.45, 0] })]),

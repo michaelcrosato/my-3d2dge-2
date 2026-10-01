@@ -3,12 +3,13 @@
  *
  *   Depths 1-13   introduce one mechanic each; the level is named after it.
  *   Depths 14-24  combine them in authored pairs and trios.
- *   Depth 25+     endless: two or three mechanics, a theme, palettes and procedural species are
+ *   Depth 25      introduces Storm Pylons (added later; endless depths keep their old numbering).
+ *   Depth 26+     endless: two or three mechanics, a theme, palettes and procedural species are
  *                 drawn from the stage seed; the title is built from the mechanics' words.
  */
 import { Rng, hashSeed } from '../sim/rng';
 import type { Level } from './level';
-import { MECHANIC_IDS, MECHANICS, placeMechanics } from './mechanics';
+import { MECHANIC_IDS_V1, MECHANICS, placeMechanics, withLaterMechanics } from './mechanics';
 import { isPinnacleDepth, pinnacleFor } from './pinnacles';
 import type { DungeonSpec } from './procgen/dungeon';
 import { stageSpec } from './stages';
@@ -56,14 +57,19 @@ export const AUTHORED: Authored[] = [
   { name: 'Dark Rifts', mechanics: ['lightless', 'rifts', 'totems'], theme: 'abyss', layout: 'rooms' },
   { name: 'Frozen Time', mechanics: ['ice', 'chrono', 'kegs'], theme: 'frost', layout: 'caves' },
   { name: 'Imp Gauntlet', mechanics: ['imps', 'launchpads', 'spikes'], theme: 'catacomb', layout: 'halls', boss: { def: 'boss_cult', palette: 'gilded' } },
+  // Later mechanics get their own depth after the combinations.
+  { name: 'Storm Pylons', mechanics: ['pylons'], theme: 'ruins', layout: 'rooms', boss: { def: 'boss_golem', palette: 'storm' } },
 ];
+
+/** Endless intensity counts from here (the authored list was 24 long when endless began). */
+const ENDLESS_BASE = 24;
 
 /** Which mechanics a depth uses (also the agent-facing summary). */
 export function stageMechanics(n: number): string[] {
   if (n <= AUTHORED.length) return AUTHORED[n - 1].mechanics;
   const r = new Rng(hashSeed('endless', n));
   const count = n > 60 ? 3 : r.chance(0.5) ? 3 : 2;
-  return r.shuffle([...MECHANIC_IDS]).slice(0, count);
+  return withLaterMechanics(r.shuffle([...MECHANIC_IDS_V1]).slice(0, count), (id) => hashSeed(`endless:${id}`, n));
 }
 
 export function stageTitle(n: number): string {
@@ -96,7 +102,7 @@ export function campaignStage(n: number): CampaignStage {
     dungeon,
     mechanics,
     // Later depths turn the dial up a little.
-    place: (level) => placeMechanics(level, mechanics, n <= AUTHORED.length ? 1 : Math.min(1.6, 1 + (n - AUTHORED.length) * 0.02)),
+    place: (level) => placeMechanics(level, mechanics, n <= AUTHORED.length ? 1 : Math.min(1.6, 1 + (n - ENDLESS_BASE) * 0.02)),
     tip: fresh.length ? `New: ${tips[0]}` : mechanics.length > 1 ? `${mechanics.map((id) => MECHANICS[id].name).join(' + ')}. Combine them.` : tips[0],
   };
 }

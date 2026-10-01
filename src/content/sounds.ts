@@ -197,6 +197,9 @@ export function soundFor(e: { type: string; [k: string]: unknown }, hero: string
     case 'shrine': return cue('shrine');
     case 'totem.break': return cue('shatter');
     case 'beacon.lit': return cue('ignite');
+    case 'pylon.charge': return cue('cast_lightning', { x: e.x as number, z: e.z as number });
+    // Arcs fire five times a second per pair: voice every third.
+    case 'pylon.arc': return (e.frame as number) % 36 === 0 ? cue('hit_lightning', { x: ((e.ax as number) + (e.bx as number)) / 2, z: ((e.az as number) + (e.bz as number)) / 2 }) : null;
     case 'boulder': return cue('rumble');
     case 'imp.escape': return cue('giggle');
     case 'boss.phase': case 'boss.enrage': return cue('roar');
