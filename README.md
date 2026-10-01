@@ -15,6 +15,7 @@
 - **Sound:** every sound is synthesized live from data (no audio files): swings, element-flavoured hits, crits, kills, loot chimes by rarity, level-ups, mechanic sounds, a drone per dungeon theme, and generative music: a calm town tune, dark phrases in the dungeons, and a driving pulse when a boss engages. Sounds are placed and panned relative to the hero, and volumes live in Settings → Graphics & audio.
 - **Pinnacle bosses:** every tenth depth ends in a named three-phase boss (the Hollow King, Mother of Cinders, the Glass Choir, Vael Unbound, Grull the Mountain, the Brood Tyrant). Each mixes attack kits and calls adds at every phase change, and it always drops a unique plus rares.
 - **Codex:** Character → Codex records every species you slay, with engine-rendered portraits, every unique found and every pinnacle defeated.
+- **Daily Trial:** one seeded challenge per day at the waypoint. Everyone gets the same mechanics and pacts, at a depth set to their own progress. It keeps your best clear time for speedrunners and pays a hoard on the first clear of the day.
 - **Pacts:** optional risk-for-reward modifiers at the waypoint, unlocked as you go deeper: Brutal, Stalwart, Teeming, Swift, Champions, Volatile, Bloodthirsty, Eclipse. Each makes the depths harder in one readable way and pays in experience, item rarity, quantity or gold. They stack for power-levellers, and casual players can ignore them.
 - **Difficulty:** pause menu → Difficulty & tuning has hero and enemy damage, life and speed, plus XP, loot and density multipliers.
 

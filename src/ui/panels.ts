@@ -20,6 +20,8 @@ import { PINNACLE_IDS } from '../content/pinnacles';
 import { UNIQUES } from '../content/uniques';
 import { upgradeGains } from '../sim/autobuild';
 import { PACTS, pactRewardText, pactsOf } from '../content/pacts';
+import { dailyTrial, dateKey } from '../content/daily';
+import { fmtFrames } from '../game';
 import { cooldownOf, costOf } from '../sim/actions';
 import { estimateSkill } from '../sim/combat';
 import { heroSkills, treePoints, type Hero } from '../sim/hero';
@@ -537,7 +539,18 @@ export class Panels {
         : h('div', { class: 'note' }, 'No pacts: the depths as they come.'),
     ) : null;
     const locked = PACTS.find((p) => p.minDepth > max);
-    return [pactBox ?? h('section', {}, h('h3', {}, 'Pacts'), h('p', { class: 'note' }, `Reach depth ${locked?.minDepth ?? 3} to make pacts: harder depths for richer rewards.`)),
+    // Daily Trial: the same seeded challenge for everyone today, at this hero's frontier.
+    const trial = dailyTrial(dateKey(), hero.progress.unlocked);
+    const best = hero.progress.trials[trial.key];
+    const trialBox = h('section', {},
+      h('h3', {}, 'Daily Trial'),
+      h('div', { class: 'row' },
+        h('div', { class: 'grow' },
+          h('b', {}, trial.title), ' ', h('small', {}, `depth ${trial.depth} · ${best ? `best ${fmtFrames(best)}` : 'not cleared today'}`),
+          h('div', {}, ...trial.mechanics.map((m) => h('span', { class: 'mech', title: MECHANICS[m].tip }, MECHANICS[m].name)), ...pactsOf(trial.pacts).map((p) => h('span', { class: 'mech', style: { borderColor: p.color, color: p.color }, title: p.desc }, p.name)))),
+        h('button', { class: 'ui-btn small primary', onclick: () => { this.close(); void this.game.enterTrial(trial.key); } }, best ? 'Again' : 'Enter')),
+      h('p', { class: 'note' }, best ? 'Race your best time. New mechanics and pacts tomorrow.' : 'Same mechanics and pacts for everyone today. The first clear pays a hoard; no campaign progress.'));
+    return [trialBox, pactBox ?? h('section', {}, h('h3', {}, 'Pacts'), h('p', { class: 'note' }, `Reach depth ${locked?.minDepth ?? 3} to make pacts: harder depths for richer rewards.`)),
       h('section', { class: 'stagelist' },
         h('h3', {}, 'Choose a depth'),
         h('p', { class: 'note' }, 'Each depth is named after its trick: use it, or ignore it and swing harder. Clear the boss to unlock the next. Past depth 24 new depths combine tricks forever.'),

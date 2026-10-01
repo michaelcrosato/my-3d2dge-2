@@ -10,6 +10,7 @@ import * as THREE from 'three';
 import { config, configListeners } from './config';
 import { monsterId, registerDesign, type SpeciesDesign } from './content/bestiary';
 import { campaignStage } from './content/campaign';
+import { buildTrialLevel, dailyTrial, dateKey } from './content/daily';
 import { applyPactsToSpec, pactRewardText, stampPacts } from './content/pacts';
 import { PRESETS } from './content/characters';
 import { DEFAULT_LEVEL, type CharacterDef, type Level } from './content/level';
@@ -25,9 +26,16 @@ import type { SaveStore } from './save';
 import { newHero, type Hero } from './sim/hero';
 import { Bot, type BotOptions } from './sim/bot';
 import { hashSeed } from './sim/rng';
+import { dropPinnacle } from './sim/loot';
 import { Sim, type SimEvent } from './sim/sim';
 
 export type Mode = 'title' | 'town' | 'dungeon' | 'sandbox';
+
+/** Frames (60 per second) as m:ss.t. */
+export function fmtFrames(frames: number): string {
+  const s = frames / 60;
+  return `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart(4, '0')}`;
+}
 
 export interface GameEvent {
   type: string;
@@ -49,6 +57,8 @@ export class Game {
   stageNo = 0;
   /** True in the Proving Grounds (a Workshop test fight): no campaign progress, exit leads home. */
   arena = false;
+  /** Date key of the Daily Trial being played (null otherwise). */
+  trial: string | null = null;
   /** Pacts chosen at the waypoint; they apply to every depth entered until changed. */
   pacts: string[] = [];
   /** Town visits (vendor restocks each visit). */
@@ -168,6 +178,7 @@ export class Game {
     try {
       this.mode = 'town';
       this.arena = false;
+      this.trial = null;
       this.stageNo = 0;
       this.visits++;
       // Flasks refill in town.
@@ -199,9 +210,32 @@ export class Game {
       this.mode = 'dungeon';
       this.stageNo = n;
       this.arena = false;
+      this.trial = null;
       await this.reset({ level, seed: level.seed ?? spec.dungeon.seed });
       const pactTip = level.pacts?.length ? ` Pacts: ${pactRewardText(level.pacts)}.` : '';
       this.emit({ type: 'mode', mode: 'dungeon', stage: n, title: level.title, subtitle: level.subtitle, mechanics: level.mechanics ?? [], pacts: level.pacts ?? [], tip: custom ? undefined : `${spec.tip ?? ''}${pactTip}` });
+    } finally {
+      this.busy = false;
+    }
+  }
+
+  /** Today's Daily Trial at the hero's frontier (content/daily.ts). */
+  async enterTrial(key = dateKey()) {
+    if (!this.hero) this.hero = newHero();
+    this.busy = true;
+    try {
+      const t = dailyTrial(key, this.hero.progress.unlocked);
+      const level = buildTrialLevel(t);
+      const s = level.start!;
+      level.props = [...(level.props ?? []), { id: 'town_portal', kind: 'portal', x: s.x - 1.6, z: s.z - 1.6, data: { to: 'town' } }];
+      this.mode = 'dungeon';
+      this.stageNo = 0;
+      this.arena = false;
+      this.trial = t.key;
+      await this.reset({ level, seed: level.seed });
+      const best = this.hero.progress.trials[t.key];
+      this.emit({ type: 'mode', mode: 'dungeon', stage: 0, title: level.title, subtitle: level.subtitle, mechanics: level.mechanics ?? [], pacts: level.pacts ?? [],
+        tip: `Same trial for everyone today. ${best ? `Your best: ${fmtFrames(best)}.` : 'First clear of the day pays a hoard.'}` });
     } finally {
       this.busy = false;
     }
@@ -237,6 +271,7 @@ export class Game {
 
   async startSandbox() {
     this.arena = false;
+    this.trial = null;
     this.mode = 'sandbox';
     this.stageNo = 0;
     await this.reset({ level: DEFAULT_LEVEL });
@@ -287,12 +322,24 @@ export class Game {
       for (const fn of this.listeners) fn(e);
       switch (e.type) {
         case 'portal.enter':
-          if (e.to === 'town' || (e.to === 'next' && this.arena)) this.go(() => this.enterTown());
+          if (e.to === 'town' || (e.to === 'next' && (this.arena || this.trial))) this.go(() => this.enterTown());
           else if (e.to === 'next') this.go(() => this.enterStage(this.stageNo + 1));
           break;
         case 'boss.dead': {
           const hero = this.hero;
           if (!hero || this.mode !== 'dungeon') break;
+          if (this.trial) {
+            const prev = hero.progress.trials[this.trial];
+            const time = sim.stage.time;
+            hero.progress.trials[this.trial] = Math.min(prev ?? Infinity, time);
+            sim.stage.cleared = true;
+            // The first clear of the day pays a pinnacle-grade hoard at the boss.
+            const boss = sim.characters.get(String(e.id));
+            if (prev === undefined && boss) dropPinnacle(sim, boss.pos.x, boss.pos.z, boss.level);
+            this.save();
+            this.emit({ type: 'stage.clear', stage: 0, trial: this.trial, first: prev === undefined, best: Math.min(prev ?? Infinity, time), time, kills: sim.stage.kills, gold: sim.stage.gold, xp: Math.round(sim.stage.xp), items: sim.stage.items, mechanicKills: sim.stage.mechanicKills });
+            break;
+          }
           if (this.arena) {
             sim.stage.cleared = true;
             this.save();

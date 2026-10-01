@@ -112,6 +112,10 @@ export class GameHud {
         else if (e.mode === 'town') this.showBanner(String(e.title ?? 'Haven'), String(e.subtitle ?? ''), '', 2.5);
         break;
       case 'stage.clear':
+        if (e.trial) {
+          this.showBanner('Daily Trial cleared', `${fmtTime((e.time as number) / 60)}${e.first ? '' : ` · best ${fmtTime((e.best as number) / 60)}`} · ${e.kills} kills`, e.first ? 'First clear today: the hoard is at the boss. The portal leads home.' : 'Beat your time tomorrow, or try again. The portal leads home.', 6);
+          break;
+        }
         if (e.arena) {
           this.showBanner('Creation defeated', `${fmtTime((e.time as number) / 60)} · ${e.kills} kills · +${e.gold} gold`, 'The portal leads home to Haven.', 5);
           break;

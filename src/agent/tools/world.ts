@@ -66,9 +66,9 @@ defineTool({
 
 defineTool({
   name: 'game.goto', group: 'world', needs: 'game',
-  desc: 'Travels: town, a campaign depth, a remixed depth (theme / layout / mechanics / seed) or the training room. Optionally swaps in an auto-built hero of a level first.',
+  desc: 'Travels: town, a campaign depth, a remixed depth (theme / layout / mechanics / seed), today\'s Daily Trial or the training room. Optionally swaps in an auto-built hero of a level first.',
   params: {
-    to: { type: 'string', required: true, enum: ['town', 'stage', 'sandbox'], desc: 'Destination.' },
+    to: { type: 'string', required: true, enum: ['town', 'stage', 'sandbox', 'trial'], desc: 'Destination (trial = today\'s Daily Trial).' },
     stage: { type: 'integer', default: 1, min: 1, max: 10000, desc: 'Depth for to=stage.' },
     theme: { type: 'string', enum: DUNGEON_THEMES, desc: 'Remix: theme.' },
     layout: { type: 'string', enum: ['rooms', 'caves', 'halls'], desc: 'Remix: layout.' },
@@ -86,6 +86,7 @@ defineTool({
     if (a.heroLevel) game.hero = autoHero({ level: a.heroLevel, focus: a.focus as BuildFocus, gear: a.gear, name: game.hero?.name ?? 'Ranger' });
     if (a.pacts) game.pacts = [...a.pacts];
     if (a.to === 'town') await game.enterTown();
+    else if (a.to === 'trial') await game.enterTrial();
     else if (a.to === 'sandbox') await game.startSandbox();
     else if (a.theme || a.layout || a.mechanics || a.seed) await game.enterStage(a.stage, buildStageLevel({ ...(a as never as object), pacts: game.pacts } as never));
     else await game.enterStage(a.stage);
