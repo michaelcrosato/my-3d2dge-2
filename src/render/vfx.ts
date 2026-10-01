@@ -6,6 +6,7 @@
  * Rendered in the low-res pass like everything else, so effects become crisp pixel art.
  */
 import * as THREE from 'three';
+import { config } from '../config';
 import { SKILLS, type Shape } from '../content/skills';
 import { DAMAGE_COLORS, type DamageType } from '../content/stats';
 import type { Sim, SimEvent } from '../sim/sim';
@@ -246,13 +247,22 @@ export class Vfx {
       let entry = this.zoneMeshes.get(z.id);
       if (!entry) {
         const telegraph = !z.resolved && z.spec.delay > 0.05;
-        const color = telegraph ? (z.team === 'hero' ? '#ffd27a' : '#ff3a2a') : zoneColor(z);
-        const mesh = new THREE.Mesh(shapeGeometry(z.shape), fxMaterial(color, telegraph ? 0.28 : 0.35));
+        // Bold telegraphs (Settings → Gameplay): magenta instead of red, denser, outlined.
+        const bold = telegraph && z.team !== 'hero' && config['ui.telegraphs'] === 'bold';
+        const color = telegraph ? (z.team === 'hero' ? '#ffd27a' : bold ? '#ff3df5' : '#ff3a2a') : zoneColor(z);
+        const mesh = new THREE.Mesh(shapeGeometry(z.shape), fxMaterial(color, telegraph ? (bold ? 0.36 : 0.28) : 0.35));
         mesh.renderOrder = 5;
         mesh.layers.set(LAYER.FX);
         let fill: THREE.Mesh | null = null;
+        if (bold) {
+          const edge = new THREE.LineSegments(new THREE.EdgesGeometry(mesh.geometry), writesNormals(new THREE.LineBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.95, depthWrite: false }), 'fx'));
+          edge.position.y = 0.004;
+          edge.renderOrder = 7;
+          edge.layers.set(LAYER.FX);
+          mesh.add(edge);
+        }
         if (telegraph) {
-          fill = new THREE.Mesh(shapeGeometry(z.shape), fxMaterial(color, 0.45));
+          fill = new THREE.Mesh(shapeGeometry(z.shape), fxMaterial(color, bold ? 0.55 : 0.45));
           fill.renderOrder = 6;
           fill.layers.set(LAYER.FX);
           mesh.add(fill);
@@ -273,6 +283,7 @@ export class Vfx {
         if (z.resolved) {
           entry.fill.visible = false;
           (m.material as THREE.MeshBasicMaterial).color.set(zoneColor(z));
+          for (const c of m.children) if ((c as THREE.LineSegments).isLineSegments) c.visible = false;
         }
       }
       if (z.resolved && z.life > 0) {
