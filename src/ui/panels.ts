@@ -414,7 +414,7 @@ export class Panels {
     const row = (k: string, v: string | number) => [h('span', {}, k), h('span', {}, String(v))];
     const fmt = (v: number) => (Math.abs(v) >= 100 ? Math.round(v).toLocaleString() : v.toFixed(Math.abs(v) < 10 ? 1 : 0));
     const groups: Array<[string, Array<[string, string | number]>]> = [
-      ['Hero', [['Level', hero.level], ['Experience', `${hero.xp} / ${xpToNext(hero.level)}`], ['Passive points', `${treePoints(hero)} unspent`], ['Gold', hero.gold], ['Kills', hero.totals.kills], ['Deepest cleared', hero.progress.endlessBest]]],
+      ['Hero', [['Level', hero.level], ['Experience', `${hero.xp} / ${xpToNext(hero.level)}`], ['Passive points', `${treePoints(hero)} unspent`], ['Gold', hero.gold], ['Kills', hero.totals.kills]]],
       ['Attributes', [['Strength', fmt(st.get('str'))], ['Dexterity', fmt(st.get('dex'))], ['Intelligence', fmt(st.get('int'))]]],
       ['Defence', [['Life', `${Math.round(ch.life)} / ${Math.round(ch.maxLife)}`], ['Mana', `${Math.round(ch.mana)} / ${Math.round(ch.maxMana)}`], ['Life regen', `${fmt(st.get('lifeRegen') + (st.get('lifeRegenPct') / 100) * ch.maxLife)}/s`], ['Mana regen', `${fmt(st.get('manaRegen'))}/s`],
         ['Armour', fmt(st.get('armor'))], ['Evasion', fmt(st.get('evasion'))], ['Block', `${fmt(st.get('block'))}%`],
@@ -422,12 +422,36 @@ export class Panels {
       ['Offence', [['Weapon', w ? Object.entries(w.dmg).map(([t, r]) => `${r![0]}-${r![1]} ${t}`).join(', ') : '-'], ['Attack speed', `${fmt(st.get('attackSpeed') * (w?.speed ?? 1))}%`], ['Cast speed', `${fmt(st.get('castSpeed'))}%`],
         ['Crit multiplier', `${fmt(st.get('critMulti'))}%`], ['Area of effect', `${fmt(st.get('area'))}%`], ['Move speed', `${fmt(st.get('moveSpeed'))}%`], ['Cooldown recovery', `${fmt(st.get('cooldownRecovery'))}%`]]],
       ['Loot', [['Item rarity', `+${fmt(st.get('itemRarity'))}%`], ['Item quantity', `+${fmt(st.get('itemQuantity'))}%`], ['Gold find', `+${fmt(st.get('goldFind'))}%`]]],
+      ['Records', this.records()],
     ];
     const rules = st.mods.filter((m) => m.kind === 'flag' && STATS[m.stat].group === 'rules').map((m) => describeMod(m, SKILL_NAMES));
     return [
       ...groups.map(([title, rows]) => h('section', {}, h('h3', {}, title), h('div', { class: 'stat' }, ...rows.flatMap(([k, v]) => row(k, v))))),
       rules.length ? h('section', {}, h('h3', {}, 'Rules'), ...[...new Set(rules)].map((r) => h('div', { class: 'note' }, r))) : null,
     ].filter((x): x is HTMLElement => !!x);
+  }
+
+  /** Speedrun and power-levelling records from the hero's saved progress. */
+  private records(): Array<[string, string | number]> {
+    const hero = this.hero, p = hero.progress, t = hero.totals;
+    const cleared = Object.entries(p.cleared).map(([d, f]) => [Number(d), f] as const).filter(([d]) => d > 0);
+    const deepest = Math.max(p.endlessBest, ...cleared.map(([d]) => d), 0);
+    const fastest = cleared.reduce<readonly [number, number] | null>((best, c) => (!best || c[1] < best[1] ? c : best), null);
+    const deepestPace = cleared.filter(([d]) => d === deepest)[0];
+    const trial = p.trials[dateKey()];
+    const trialsCleared = Object.keys(p.trials).length;
+    return [
+      ['Deepest depth cleared', deepest || '-'],
+      ['Depths cleared', cleared.length],
+      ['Fastest clear', fastest ? `${fmtFrames(fastest[1])} (depth ${fastest[0]})` : '-'],
+      ['Deepest depth, best time', deepestPace ? fmtFrames(deepestPace[1]) : '-'],
+      ['Daily Trial today', trial ? fmtFrames(trial) : 'not cleared'],
+      ['Daily Trials cleared', trialsCleared],
+      ['Bosses / elites slain', `${t.bosses} / ${t.elites}`],
+      ['Pinnacles defeated', `${p.codex.pinnacles.length} of ${PINNACLE_IDS.length}`],
+      ['Deaths', t.deaths],
+      ['Time played', `${Math.floor(t.frames / 216000)}h ${String(Math.floor(t.frames / 3600) % 60).padStart(2, '0')}m`],
+    ];
   }
 
   // ---------------------------------------------------------------- codex
