@@ -18,7 +18,9 @@ import { InputController, type PanelName } from './input/controller';
 import type { TouchControl } from './input/profile';
 import { SettingsStore } from './input/store';
 import { AssetLibrary } from './render/assets';
-import { SaveStore } from './save';
+import { ReplayStore } from './replays';
+import { SaveStore, storage } from './save';
+import { fmtFrames } from './game';
 import { registerDesign, setReleased } from './content/bestiary';
 import { SKILLS } from './content/skills';
 import { newHero } from './sim/hero';
@@ -249,6 +251,31 @@ function setupHuman(game: Game, saves: SaveStore) {
   title = new TitleScreen(game, saves, { ...hooks, started: () => syncTouch() });
 
   // Talking to townsfolk opens their panel.
+  // Replays: a best run is kept per depth; while one plays, a bar shows its clock and a way out.
+  const replayBar = h('div', { id: 'replaybar', hidden: true, role: 'status' });
+  const replayText = h('span');
+  replayBar.append(replayText, h('button', { class: 'ui-btn small', onclick: () => void game.enterTown() }, 'Exit replay'));
+  document.body.append(replayBar);
+  let replayDone: string | null = null;
+  game.listeners.add((e) => {
+    if (e.type === 'replay.saved') gtoast(`Best run kept: ${fmtFrames(e.time as number)}. Watch it from the waypoint (▶).`, '#7ab8ff');
+    if (e.type === 'replay.end') {
+      replayDone = e.matches ? '✓ Frame-exact: the state hash matches the original run' : '✗ Desynced: recorded with another game version or browser';
+      const pb = game.playback;
+      setTimeout(() => {
+        if (game.playback === pb) void game.enterTown();
+      }, 6000);
+    }
+    if (e.type === 'mode') replayDone = null;
+  });
+  const updateReplayBar = () => {
+    const pb = game.playback;
+    replayBar.hidden = !pb || game.mode !== 'dungeon';
+    document.body.classList.toggle('replaying', !replayBar.hidden);
+    if (!pb || replayBar.hidden) return;
+    const text = replayDone ?? `▶ Replay · ${pb.replay.title} · ${fmtFrames(Math.min(game.sim.stage.time, pb.replay.time))} / ${fmtFrames(pb.replay.time)}`;
+    if (replayText.textContent !== text) replayText.textContent = text;
+  };
   game.listeners.add((e) => {
     if (e.type !== 'npc.talk') return;
     const role = String(e.role);
@@ -303,6 +330,7 @@ function setupHuman(game: Game, saves: SaveStore) {
       } else if (hud.textContent) hud.textContent = '';
       ghud.update(p, input.device, dt, game.mode === 'sandbox' ? '' : debug);
       hints.update(dt);
+      updateReplayBar();
       const toolbar = document.getElementById('toolbar')!;
       toolbar.hidden = game.mode === 'title';
       // Sit under the pixel minimap (its size depends on the integer upscale).
@@ -365,6 +393,7 @@ async function boot() {
   if (agentMode && params.has('plain')) setConfig('render.pixelMode', false);
   const saves = new SaveStore(agentMode ? null : undefined);
   game.saves = saves;
+  game.replays = agentMode ? null : new ReplayStore(storage());
   const human = agentMode ? null : setupHuman(game, saves);
   const seed = Number(params.get('seed') ?? 1);
   game.seed = seed;

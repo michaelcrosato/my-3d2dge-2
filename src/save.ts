@@ -137,7 +137,8 @@ export function normalizeHero(raw: unknown): Hero {
   };
 }
 
-function storage(): Storage | null {
+/** localStorage when it works (private modes and blocked storage throw). */
+export function storage(): Storage | null {
   try {
     const s = window.localStorage;
     s.setItem(`${SAVE_KEY}.probe`, '1');

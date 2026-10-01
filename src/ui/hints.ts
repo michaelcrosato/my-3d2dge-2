@@ -51,6 +51,8 @@ export class Hints {
 
   /** Queues a hint unless this hero has seen it (or hints are off). */
   private offer(id: string, text: string) {
+    // A replay re-runs old play: nothing to teach.
+    if (this.game.playback) return;
     const seen = this.seen;
     if (!seen || !config['ui.hints'] || seen.includes(id) || this.queue.some((q) => q.id === id) || this.showing === id) return;
     this.queue.push({ id, text });
@@ -78,6 +80,12 @@ export class Hints {
   /** Called every frame by the human loop. */
   update(dt: number) {
     const g = this.game;
+    if (g.playback) {
+      // Hints queued during the live run don't belong in its replay.
+      this.queue.length = 0;
+      if (this.showing) this.dismiss();
+      return;
+    }
     if (this.showing) {
       this.timer -= dt;
       if (this.timer <= 0) this.dismiss();

@@ -25,7 +25,8 @@ import { THEMES, DUNGEON_THEMES } from '../../content/themes';
 import { pathTo, SECTOR_NAME, TREE } from '../../content/tree';
 import { UNIQUE_BY_ID, UNIQUES } from '../../content/uniques';
 import { autoEquip, autoHero, heroPower, spendPoints, type BuildFocus } from '../../sim/autobuild';
-import { runBot, type BotReport } from '../../sim/bot';
+import { Bot, runBot, type BotReport } from '../../sim/bot';
+import { ReplayPlayer, ReplayRecorder, simConfig, type Replay } from '../../sim/replay';
 import { dropLoot } from '../../sim/loot';
 import { NavGrid } from '../../sim/nav';
 import { Rng } from '../../sim/rng';
@@ -723,6 +724,52 @@ defineTool({
       };
     } finally {
       sim.dispose();
+    }
+  },
+});
+
+defineTool({
+  name: 'replay.verify', group: 'balance',
+  desc: 'Determinism check: the bot plays a depth while a replay recorder listens, then the recording (serialized like a saved replay) is played into a fresh sim. Reports whether the final state hash matches, plus the replay size. Run it after changing sim code.',
+  params: {
+    stage: { type: 'integer', default: 3, min: 1, max: 10000, desc: 'Depth to play.' },
+    heroLevel: { type: 'integer', default: 8, min: 1, max: 500, desc: 'Level of the auto-built hero.' },
+    seconds: { type: 'integer', default: 30, min: 1, max: 600, desc: 'Game seconds to record.' },
+    seed: { type: 'integer', default: 1, desc: 'Sim seed.' },
+  },
+  example: { stage: 5, heroLevel: 10, seconds: 20 },
+  async run(a, ctx) {
+    await probeSim(ctx.clips).then((s) => s.dispose());
+    const level = buildStageLevel({ stage: a.stage });
+    const hero = autoHero({ level: a.heroLevel });
+    const meta = { key: String(a.stage), title: level.title ?? `Depth ${a.stage}`, level: structuredClone(level), seed: a.seed, hero: structuredClone(hero), config: simConfig(config) };
+    const live = new Sim(level, ctx.clips, a.seed, { hero });
+    const replay = (() => {
+      const rec = new ReplayRecorder(live, meta);
+      const bot = new Bot(live, {});
+      for (let f = 0; f < a.seconds * 60; f++) {
+        bot.think();
+        rec.capture();
+        live.step();
+      }
+      return rec.finish(live.stage.time);
+    })();
+    const json = JSON.stringify(replay);
+    const copy = JSON.parse(json) as Replay;
+    const sim = new Sim(copy.level, ctx.clips, copy.seed, { hero: copy.hero });
+    try {
+      const player = new ReplayPlayer(sim, copy);
+      while (!player.done) {
+        player.apply();
+        sim.step();
+      }
+      return {
+        matches: player.matches, frames: replay.frames, hashLive: live.hash(), hashReplay: sim.hash(),
+        inputChanges: replay.input.length, commands: replay.cmds.length, sizeKB: Math.round(json.length / 102.4) / 10,
+      };
+    } finally {
+      sim.dispose();
+      live.dispose();
     }
   },
 });

@@ -7,7 +7,9 @@
  * events (mode changes, stage cleared, saved).
  */
 import * as THREE from 'three';
-import { config, configListeners } from './config';
+import { config, configListeners, setConfig } from './config';
+import type { ReplayStore } from './replays';
+import { ReplayPlayer, ReplayRecorder, simConfig, type Replay } from './sim/replay';
 import { monsterId, registerDesign, type SpeciesDesign } from './content/bestiary';
 import { campaignStage } from './content/campaign';
 import { buildTrialLevel, dailyTrial, dateKey } from './content/daily';
@@ -88,6 +90,15 @@ export class Game {
   private lastRealDt = 1 / 60;
   private transition: Promise<void> | null = null;
   private saveTimer = 0;
+  /** Replay storage (set by the app; null in tools and tests). */
+  replays: ReplayStore | null = null;
+  /** Records the current depth run (sim/replay.ts). */
+  private recorder: ReplayRecorder | null = null;
+  /** Plays a stored run back instead of the player's input. */
+  playback: ReplayPlayer | null = null;
+  /** The real hero, kept aside while a replay plays. */
+  private beforePlayback: { hero: Hero | null; ephemeral: boolean; config: Record<string, unknown> } | null = null;
+  private playbackReported = false;
   /** Autopilot: a bot plays the hero (agent `bot.autopilot`, pause-menu demo). */
   private autopilotOpts: BotOptions | null = null;
   private bot: Bot | null = null;
@@ -162,9 +173,11 @@ export class Game {
 
   /** Starts a fresh hero in a save slot and walks into town. */
   async newGame(slot = 0, name = 'Ranger') {
+    this.endPlayback();
     this.hero = newHero(name);
     this.ephemeralHero = false;
     this.heroSlot = slot;
+    this.replays?.clear(slot);
     this.save();
     await this.enterTown();
   }
@@ -172,6 +185,7 @@ export class Game {
   async loadGame(slot: number) {
     const hero = this.saves?.file.slots[slot];
     if (!hero) throw new Error(`save slot ${slot + 1} is empty`);
+    this.endPlayback();
     this.hero = hero;
     this.heroSlot = slot;
     this.ephemeralHero = false;
@@ -179,6 +193,8 @@ export class Game {
   }
 
   async enterTown() {
+    this.endPlayback();
+    this.stopRecording();
     if (!this.hero) this.hero = newHero();
     this.busy = true;
     try {
@@ -201,6 +217,8 @@ export class Game {
 
   /** Enters depth n (a prebuilt `custom` level replaces the campaign one: agent remixes). */
   async enterStage(n: number, custom?: Level) {
+    this.endPlayback();
+    this.stopRecording();
     if (!this.hero) this.hero = newHero();
     this.busy = true;
     try {
@@ -217,7 +235,9 @@ export class Game {
       this.stageNo = n;
       this.arena = false;
       this.trial = null;
+      const start = custom ? null : this.recordingStart(String(n), level.title ?? `Depth ${n}`, level, level.seed ?? spec.dungeon.seed);
       await this.reset({ level, seed: level.seed ?? spec.dungeon.seed });
+      this.startRecording(start);
       const pactTip = level.pacts?.length ? ` Pacts: ${pactRewardText(level.pacts)}.` : '';
       this.emit({ type: 'mode', mode: 'dungeon', stage: n, title: level.title, subtitle: level.subtitle, mechanics: level.mechanics ?? [], pacts: level.pacts ?? [], tip: custom ? undefined : `${spec.tip ?? ''}${pactTip}` });
     } finally {
@@ -227,6 +247,8 @@ export class Game {
 
   /** Today's Daily Trial at the hero's frontier (content/daily.ts). */
   async enterTrial(key = dateKey()) {
+    this.endPlayback();
+    this.stopRecording();
     if (!this.hero) this.hero = newHero();
     this.busy = true;
     try {
@@ -238,7 +260,9 @@ export class Game {
       this.stageNo = 0;
       this.arena = false;
       this.trial = t.key;
+      const start = this.recordingStart(`trial:${t.key}`, level.title ?? t.title, level, level.seed ?? 1);
       await this.reset({ level, seed: level.seed });
+      this.startRecording(start);
       const best = this.hero.progress.trials[t.key];
       this.emit({ type: 'mode', mode: 'dungeon', stage: 0, title: level.title, subtitle: level.subtitle, mechanics: level.mechanics ?? [], pacts: level.pacts ?? [],
         tip: `Same trial for everyone today. ${best ? `Your best: ${fmtFrames(best)}.` : 'First clear of the day pays a hoard.'}` });
@@ -303,11 +327,98 @@ export class Game {
 
   /** One sim frame, with the autopilot deciding the hero's input first. */
   private simStep() {
+    if (this.playback) {
+      if (this.playback.sim !== this.sim || this.playback.done) return;
+      this.playback.apply();
+      this.sim.step();
+      return;
+    }
     if (this.autopilotOpts && this.sim.player && this.sim.hero) {
       if (!this.bot || this.bot.sim !== this.sim) this.bot = new Bot(this.sim, this.autopilotOpts);
       this.bot.think();
     }
+    if (this.recorder?.sim === this.sim) this.recorder.capture();
     this.sim.step();
+  }
+
+  // ---------------------------------------------------------------- replays
+
+  /** What a recording needs from before the sim exists (the hero as it walks in). */
+  private recordingStart(key: string, title: string, level: Level, seed: number) {
+    if (!this.hero || this.ephemeralHero || !this.replays) return null;
+    return { key, title, level: structuredClone(level), seed, hero: structuredClone(this.hero), config: simConfig(config) };
+  }
+
+  private startRecording(start: ReturnType<Game['recordingStart']>) {
+    this.recorder = start ? new ReplayRecorder(this.sim, start) : null;
+  }
+
+  /** The run ended in a clear: keep it if it is this hero's best for the depth. */
+  private finishRecording(time: number) {
+    const rec = this.recorder;
+    this.recorder = null;
+    if (!rec || rec.sim !== this.sim) return;
+    if (!rec.valid) {
+      rec.stop();
+      return;
+    }
+    const replay = rec.finish(time);
+    const slot = this.heroSlot;
+    void this.replays?.put(slot, replay).then((kept) => {
+      if (kept) this.emit({ type: 'replay.saved', key: replay.key, title: replay.title, time: replay.time });
+    }).catch((e) => console.warn('replay not saved', e));
+  }
+
+  private stopRecording() {
+    this.recorder?.stop();
+    this.recorder = null;
+  }
+
+  /** The hero was edited mid-run (equip, tree, hotbar): the run can no longer be replayed. */
+  heroEdited() {
+    if (this.recorder) this.recorder.valid = false;
+    this.sim.refreshHero();
+  }
+
+  /** Plays a stored run back: same level, same hero, same input, frame for frame. */
+  async playReplay(replay: Replay) {
+    this.stopRecording();
+    this.setAutopilot(null);
+    this.beforePlayback ??= { hero: this.hero, ephemeral: this.ephemeralHero, config: simConfig(config) };
+    for (const [k, v] of Object.entries(replay.config ?? {})) setConfig(k, v);
+    this.busy = true;
+    try {
+      this.hero = structuredClone(replay.hero);
+      this.ephemeralHero = true;
+      this.mode = 'dungeon';
+      this.arena = false;
+      this.trial = replay.key.startsWith('trial:') ? replay.key.slice(6) : null;
+      this.stageNo = this.trial ? 0 : Number(replay.key) || 0;
+      await this.reset({ level: replay.level, seed: replay.seed });
+      this.playback = new ReplayPlayer(this.sim, replay);
+      this.playbackReported = false;
+      this.emit({ type: 'mode', mode: 'dungeon', stage: this.stageNo, title: replay.title, subtitle: `Replay · ${fmtFrames(replay.time)}`, mechanics: this.level.mechanics ?? [], pacts: this.level.pacts ?? [], replay: true });
+    } finally {
+      this.busy = false;
+    }
+  }
+
+  /** Leaves a replay (if one is playing) and gives the real hero back. */
+  endPlayback() {
+    if (!this.beforePlayback) return;
+    this.hero = this.beforePlayback.hero;
+    this.ephemeralHero = this.beforePlayback.ephemeral;
+    for (const [k, v] of Object.entries(this.beforePlayback.config)) setConfig(k, v);
+    this.beforePlayback = null;
+    this.playback = null;
+  }
+
+  /** Reports the end of a replay once (frame-exact or not). */
+  private checkPlayback() {
+    const pb = this.playback;
+    if (!pb || this.playbackReported || pb.sim !== this.sim || !pb.done) return;
+    this.playbackReported = true;
+    this.emit({ type: 'replay.end', matches: pb.matches, time: pb.replay.time, title: pb.replay.title });
   }
 
   /** Resolves when no level transition is in flight (agents await this after stepping). */
@@ -323,6 +434,7 @@ export class Game {
   /** Reacts to sim events: portals, stage clears, deaths. Forwards everything to listeners. */
   private pump() {
     const sim = this.sim;
+    this.checkPlayback();
     if (sim.lastEventSeq === this.lastSeq) return;
     for (const e of sim.eventsSince(this.lastSeq)) {
       for (const fn of this.listeners) fn(e);
@@ -333,7 +445,9 @@ export class Game {
           break;
         case 'boss.dead': {
           const hero = this.hero;
-          if (!hero || this.mode !== 'dungeon') break;
+          // A replay changes nothing: it only shows a run again.
+          if (!hero || this.mode !== 'dungeon' || this.playback) break;
+          this.finishRecording(sim.stage.time);
           if (this.trial) {
             const prev = hero.progress.trials[this.trial];
             const time = sim.stage.time;

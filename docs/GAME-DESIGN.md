@@ -127,6 +127,20 @@ cycling past the list. Boss phases are general: `phases` splits the life bar eve
 change resets cooldowns and calls `adds` minions (magic in the final phase), and pinnacles drop
 a guaranteed unique plus rares (`dropPinnacle`). Bot fights run 22-60 s at depths 10-30.
 
+## Replays
+
+The sim is deterministic (seeded RNG, fixed 60 Hz steps, Rapier), so a run is fully described by
+its starting level, the hero as it walked in, the seed, the sim settings (difficulty tuning) and
+the player's input on every frame. `src/sim/replay.ts` records exactly that while you play a depth
+or a Daily Trial. Input is stored as changes, and continuous values (stick, aim point) are
+quantized *before* the live sim reads them, so recording never alters play. Click-to-move and
+loot clicks bypass input; they reach the recording through `Sim.onCommand`. A clear keeps the
+slot's best run per depth (`src/replays.ts`, gzipped, about 50 KB per 3 minutes), and ▶ at the
+waypoint plays it back into a fresh sim. The state hash at the last frame proves the replay
+matched. Runs where the build changed mid-depth (equipping, spending points) are not kept, and a
+replay is exact only in the browser engine and game version that recorded it.
+`replay.verify` gives agents the same check on any depth.
+
 ## Daily Trial
 
 `src/content/daily.ts` turns the date into a challenge: the date picks two or three mechanics, a

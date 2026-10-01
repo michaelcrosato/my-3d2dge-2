@@ -20,7 +20,7 @@ interface ModelContext {
 }
 
 /** Not offered to in-page agents: developer diagnostics and minutes-long batch runs. */
-export const WEBMCP_EXCLUDED: ReadonlySet<string> = new Set(['logs.read', 'scene.stats', 'balance.campaign', 'balance.run']);
+export const WEBMCP_EXCLUDED: ReadonlySet<string> = new Set(['logs.read', 'scene.stats', 'balance.campaign', 'balance.run', 'replay.verify']);
 export const WEBMCP_MAX_TOOLS = 40;
 
 /** The tools as WebMCP descriptors (names use underscores, like the MCP server). */

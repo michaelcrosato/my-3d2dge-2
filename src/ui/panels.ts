@@ -122,7 +122,7 @@ export class Panels {
 
   /** After any change to the hero: rebuild stats, save, redraw. */
   private changed() {
-    this.game.sim.refreshHero();
+    this.game.heroEdited();
     this.render();
   }
 
@@ -502,7 +502,7 @@ export class Panels {
   // ---------------------------------------------------------------- tree / respec / waypoint
 
   private treeContent(): Node[] {
-    if (!this.treeView) this.treeView = new TreeView(() => this.hero, () => this.game.sim.refreshHero(), (t) => this.toast(t, '#ff8a8a'));
+    if (!this.treeView) this.treeView = new TreeView(() => this.hero, () => this.game.heroEdited(), (t) => this.toast(t, '#ff8a8a'));
     const extra: Node[] = [];
     const sel = this.selected;
     const jewelSel = sel ? ops.itemAt(this.hero, sel) : null;
@@ -530,6 +530,20 @@ export class Panels {
     )];
   }
 
+  /** ▶ for a depth with a stored best-run replay (watching it changes nothing). */
+  private replayButton(key: string): HTMLElement | null {
+    const store = this.game.replays, slot = this.game.heroSlot;
+    if (!store || this.game.ephemeralHero || !store.has(slot, key)) return null;
+    return h('button', {
+      class: 'ui-btn small', title: 'Watch your best run again, frame for frame', 'aria-label': 'Watch replay', onclick: async () => {
+        const replay = await store.get(slot, key);
+        if (!replay) return this.toast('That replay could not be read', '#ff8a8a');
+        this.close();
+        void this.game.playReplay(replay);
+      },
+    }, '▶');
+  }
+
   private waypointView(): Node[] {
     const hero = this.hero;
     const rows: HTMLElement[] = [];
@@ -542,6 +556,7 @@ export class Panels {
           h('b', {}, `${n}. ${stageTitle(n)}`), ' ',
           h('small', {}, best ? `cleared · best ${fmtTime(best / 60)}` : n === max ? 'new' : 'not cleared'),
           h('div', {}, ...mechs.map((m) => h('span', { class: 'mech', title: MECHANICS[m].tip }, MECHANICS[m].name)))),
+        this.replayButton(String(n)),
         h('button', { class: `ui-btn small${n === max ? ' primary' : ''}`, onclick: () => { this.close(); void this.game.enterStage(n); } }, 'Enter')));
     }
     rows.reverse();
@@ -572,6 +587,7 @@ export class Panels {
         h('div', { class: 'grow' },
           h('b', {}, trial.title), ' ', h('small', {}, `depth ${trial.depth} · ${best ? `best ${fmtFrames(best)}` : 'not cleared today'}`),
           h('div', {}, ...trial.mechanics.map((m) => h('span', { class: 'mech', title: MECHANICS[m].tip }, MECHANICS[m].name)), ...pactsOf(trial.pacts).map((p) => h('span', { class: 'mech', style: { borderColor: p.color, color: p.color }, title: p.desc }, p.name)))),
+        this.replayButton(`trial:${trial.key}`),
         h('button', { class: 'ui-btn small primary', onclick: () => { this.close(); void this.game.enterTrial(trial.key); } }, best ? 'Again' : 'Enter')),
       h('p', { class: 'note' }, best ? 'Race your best time. New mechanics and pacts tomorrow.' : 'Same mechanics and pacts for everyone today. The first clear pays a hoard; no campaign progress.'));
     return [trialBox, pactBox ?? h('section', {}, h('h3', {}, 'Pacts'), h('p', { class: 'note' }, `Reach depth ${locked?.minDepth ?? 3} to make pacts: harder depths for richer rewards.`)),
