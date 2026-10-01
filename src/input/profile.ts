@@ -51,10 +51,10 @@ export interface Prefs {
 }
 
 /** Config keys a profile may override: presentation only, never the deterministic sim tuning. */
-export type GraphicsKey = Extract<ConfigKey, `render.${string}` | `anim.${string}` | `audio.${string}`> | 'sim.timeScale';
+export type GraphicsKey = Extract<ConfigKey, `render.${string}` | `anim.${string}` | `audio.${string}` | `ui.${string}`> | 'sim.timeScale';
 export type Graphics = Partial<Record<GraphicsKey, boolean | number | string>>;
 export const GRAPHICS_KEYS = (Object.keys(CONFIG_SPEC) as ConfigKey[]).filter(
-  (k): k is GraphicsKey => k.startsWith('render.') || k.startsWith('anim.') || k.startsWith('audio.') || k === 'sim.timeScale',
+  (k): k is GraphicsKey => k.startsWith('render.') || k.startsWith('anim.') || k.startsWith('audio.') || k.startsWith('ui.') || k === 'sim.timeScale',
 );
 export const isGraphicsKey = (k: string): k is GraphicsKey => (GRAPHICS_KEYS as string[]).includes(k);
 

@@ -27,7 +27,7 @@ const GRAPHICS_LABELS: Record<GraphicsKey, string> = {
   'render.colliders': 'Collider overlay', 'render.headScale': 'Head scale', 'render.handScale': 'Hand scale',
   'anim.stepped': 'Stepped animation', 'anim.fps': 'Animation fps', 'anim.dir8': '8-way facing', 'anim.blend': 'Blend time (s)',
   'sim.timeScale': 'Game speed',
-  'audio.master': 'Master volume', 'audio.sfx': 'Sound effects', 'audio.ambience': 'Ambience', 'audio.mute': 'Mute',
+  'ui.lootFilter': 'Loot filter', 'audio.master': 'Master volume', 'audio.sfx': 'Sound effects', 'audio.ambience': 'Ambience', 'audio.mute': 'Mute',
 };
 
 const FOCUSABLE = 'button:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -336,7 +336,7 @@ export class SettingsMenu {
       ['Rendering', GRAPHICS_KEYS.filter((k) => k.startsWith('render.'))],
       ['Animation', GRAPHICS_KEYS.filter((k) => k.startsWith('anim.'))],
       ['Audio', GRAPHICS_KEYS.filter((k) => k.startsWith('audio.'))],
-      ['Gameplay', ['sim.timeScale']],
+      ['Gameplay', ['sim.timeScale', 'ui.lootFilter']],
     ];
     const out: Node[] = [h('p', { class: 'note' }, 'Applies live and is saved to the active profile. Keyboard shortcuts (P, O, I…) change the same settings.')];
     for (const [title, keys] of groups) {
