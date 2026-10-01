@@ -111,6 +111,8 @@ export function rollPacket(sim: Sim, a: Character, skill: SkillDef, hit: HitSpec
     addRange(to, r[0] * f, r[1] * f);
     ranges[from] = [r[0] * (1 - f), r[1] * (1 - f)];
   };
+  // Skill conversions (Molten Strike): the hero's weapon damage turns partly elemental.
+  if (build && skill.convert) for (const [t, f] of Object.entries(skill.convert) as Array<[DamageType, number]>) convert('physical', t, f);
   if (a.monster?.element && a.monster.element !== 'physical') {
     if (skill.usesElement) {
       for (const t of DAMAGE_TYPES) if (t !== a.monster.element) convert(t, a.monster.element, 1);
@@ -419,12 +421,22 @@ export function affixMods(ids: readonly string[]) {
 export function estimateSkill(sim: Sim, a: Character, skill: SkillDef): { hit: number; critChance: number; critMulti: number; perSecond: number; byType: Partial<Record<DamageType, number>> } {
   const st = sim.stats(a);
   const tags = skillTags(skill);
-  // The first damaging hit (telegraph strikes with mult 0 only mark the ground).
-  const firstHit = skill.effects.find((e) => 'hit' in e && e.hit && (e.hit.mult ?? 1) > 0) as { hit?: HitSpec } | undefined;
-  // Mid-range rolls with crits forced off; crits are added back as an expectation below.
-  const base = rollPacket(sim, a, skill, firstHit?.hit, null, 1, { next: () => 0.5 }, true);
+  // Every damaging hit in the timeline: Lacerate cuts twice, Molten Strike's globs follow the blow.
+  // Telegraph strikes with mult 0 only mark the ground; a fan or scatter counts once (one target
+  // usually takes one of them).
+  const hitOf = (e: SkillDef['effects'][number]): HitSpec | undefined =>
+    e.type === 'projectile' ? e.projectile.hit ?? {} : e.type === 'zone' ? e.zone.hit ?? {} : 'hit' in e ? e.hit ?? {} : undefined;
+  const hits = skill.effects.map(hitOf).filter((h): h is HitSpec => !!h && (h.mult ?? 1) > 0).map((hit) => ({ hit }));
   let hit = 0;
-  for (const v of Object.values(base.dmg)) hit += v ?? 0;
+  const byType: Partial<Record<DamageType, number>> = {};
+  for (const e of hits.length ? hits : [{ hit: undefined }]) {
+    // Mid-range rolls with crits forced off; crits are added back as an expectation below.
+    const packet = rollPacket(sim, a, skill, e.hit, null, 1, { next: () => 0.5 }, true);
+    for (const [t, v] of Object.entries(packet.dmg) as Array<[DamageType, number]>) {
+      hit += v ?? 0;
+      byType[t] = (byType[t] ?? 0) + (v ?? 0);
+    }
+  }
   const build = a.id === sim.heroId ? sim.heroBuild : null;
   const baseCrit = build && skill.kind === 'attack' ? build.weapon.crit : skill.kind === 'spell' ? 6 : 5;
   const critChance = st.has('noCrit') ? 0 : Math.min(95, (baseCrit + st.flat('critChance', tags)) * st.scale('critChance', tags));
@@ -432,5 +444,5 @@ export function estimateSkill(sim: Sim, a: Character, skill: SkillDef): { hit: n
   const avg = hit * (1 + (critChance / 100) * (critMulti - 1));
   const speed = skill.kind === 'attack' ? (st.get('attackSpeed', tags) / 100) * (build && !skill.id.startsWith('m_') ? build.weapon.speed : 1) : skill.kind === 'spell' ? st.get('castSpeed', tags) / 100 : 1;
   const perSecond = skill.time > 0 ? (avg * speed) / skill.time : avg;
-  return { hit: avg, critChance, critMulti, perSecond, byType: base.dmg };
+  return { hit: avg, critChance, critMulti, perSecond, byType };
 }

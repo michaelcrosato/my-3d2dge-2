@@ -172,10 +172,12 @@ const SKILL_CLUSTERS: Record<Exclude<Sector, 'center'>, SkillCluster[]> = {
   str_dex: [
     { skill: 'whirlwind', mods: [{ name: 'Cyclone', mods: [inc('area', 25, [s('whirlwind')])] }, { name: 'Tempest Blades', mods: [inc('attackSpeed', 20, [s('whirlwind')])] }, { name: 'Leeching Spin', mods: [flat('lifeLeech', 1, [s('whirlwind')])] }] },
     { skill: 'shieldcharge', mods: [{ name: 'Battering Ram', mods: [inc('knockback', 60, [s('shieldcharge')])] }, { name: 'Momentous Charge', mods: [inc('damage', 50, [s('shieldcharge')])] }, { name: 'Rebound', mods: [inc('cooldownRecovery', 40, [s('shieldcharge')])] }] },
+    { skill: 'lacerate', mods: [{ name: 'Rending Edge', mods: [inc('damage', 40, [s('lacerate')])] }, { name: 'Wide Cuts', mods: [inc('area', 30, [s('lacerate')])] }, { name: 'Haemorrhage', mods: [flat('bleedChance', 30, [s('lacerate')])] }] },
   ],
   dex: [
     { skill: 'dashstrike', mods: [{ name: 'Phantom Step', mods: [inc('cooldownRecovery', 40, [s('dashstrike')])] }, { name: 'Twin Strike', mods: [inc('damage', 40, [s('dashstrike')])] }, { name: 'Lightning Lunge', mods: [flat('addedLightning', 2, [s('dashstrike')]), flat('shockChance', 20, [s('dashstrike')])] }] },
     { skill: 'bladefan', mods: [{ name: 'Fan of Steel', mods: [flat('projectiles', 2, [s('bladefan')])] }, { name: 'Barbed Knives', mods: [flat('bleedChance', 30, [s('bladefan')])] }, { name: 'Piercing Blades', mods: [flat('pierce', 2, [s('bladefan')])] }] },
+    { skill: 'kniferain', mods: [{ name: 'Downpour', mods: [inc('area', 30, [s('kniferain')])] }, { name: 'Weighted Blades', mods: [inc('damage', 40, [s('kniferain')])] }, { name: 'Jagged Rain', mods: [flat('bleedChance', 30, [s('kniferain')])] }] },
   ],
   dex_int: [
     { skill: 'venomcloud', mods: [{ name: 'Miasma', mods: [inc('area', 40, [s('venomcloud')])] }, { name: 'Virulent Cloud', mods: [inc('damage', 40, [s('venomcloud')])] }, { name: 'Lingering Fumes', mods: [inc('ailmentDuration', 30, [s('venomcloud')])] }] },
@@ -190,6 +192,8 @@ const SKILL_CLUSTERS: Record<Exclude<Sector, 'center'>, SkillCluster[]> = {
   ],
   int_str: [
     { skill: 'meteor', mods: [{ name: 'Cataclysmic', mods: [inc('area', 30, [s('meteor')])] }, { name: 'Starfall', mods: [inc('damage', 40, [s('meteor')])] }, { name: 'Quick Comet', mods: [inc('cooldownRecovery', 40, [s('meteor')])] }] },
+    { skill: 'flamesurge', mods: [{ name: 'Wildfire', mods: [inc('area', 30, [s('flamesurge')])] }, { name: 'Searing Heat', mods: [inc('damage', 40, [s('flamesurge')])] }, { name: 'Kindling', mods: [flat('igniteChance', 30, [s('flamesurge')])] }] },
+    { skill: 'moltenstrike', mods: [{ name: 'Magma Globs', mods: [flat('projectiles', 2, [s('moltenstrike')])] }, { name: 'Forge Blow', mods: [inc('damage', 40, [s('moltenstrike')])] }, { name: 'Slag', mods: [inc('area', 30, [s('moltenstrike')])] }] },
   ],
 };
 

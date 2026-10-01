@@ -37,7 +37,7 @@ const DEFAULTS: Required<BotOptions> = { strategy: 'clear', skills: true, loot: 
 /** What the bot is doing this frame (shown by the autopilot overlay and in reports). */
 export type BotGoal = 'fight' | 'explore' | 'loot' | 'mechanic' | 'exit' | 'dodge' | 'idle' | 'dead';
 
-const AOE = new Set(['cleave', 'whirlwind', 'groundslam', 'leapslam', 'frostnova', 'bladevortex', 'warcry', 'venomcloud', 'meteor']);
+const AOE = new Set(['cleave', 'whirlwind', 'groundslam', 'leapslam', 'frostnova', 'bladevortex', 'warcry', 'venomcloud', 'meteor', 'lacerate', 'kniferain', 'flamesurge', 'moltenstrike']);
 
 export class Bot {
   readonly opts: Required<BotOptions>;

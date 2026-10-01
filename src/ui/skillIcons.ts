@@ -53,7 +53,14 @@ const RECIPES: Record<string, (px: Px, c: string) => void> = {
   punch: (px, c) => { circle(px, 8, 8, 4, c, true); line(px, 2, 8, 4, 8, '#ffffff'); },
   burst: (px, c) => { circle(px, 8, 8, 3, c, true); for (let a = 0; a < 6.28; a += 0.78) line(px, Math.round(8 + Math.cos(a) * 4), Math.round(8 + Math.sin(a) * 4), Math.round(8 + Math.cos(a) * 7), Math.round(8 + Math.sin(a) * 7), '#ffffff'); },
   heal: (px, c) => { line(px, 8, 3, 8, 13, c); line(px, 3, 8, 13, 8, c); },
+  lacerate: (px, c) => { line(px, 3, 3, 12, 12, c); line(px, 12, 3, 3, 12, '#ffffff'); px(5, 13, c); px(10, 14, c); px(13, 11, c); },
+  kniferain: (px, c) => { for (const x of [3, 7, 11]) { line(px, x, 2 + (x % 3), x, 8 + (x % 3), '#e8eef6'); px(x, 9 + (x % 3), '#ffffff'); } line(px, 2, 13, 13, 13, c); px(5, 12, c); px(9, 12, c); },
+  flamewall: (px, c) => { line(px, 1, 13, 14, 13, '#ff6a2a'); for (const x of [2, 5, 8, 11, 13]) { line(px, x, 12, x + (x % 2 ? 1 : -1), 6 + (x % 3), c); px(x, 11, '#ffd070'); } },
+  molten: (px, c) => { line(px, 8, 2, 8, 10, '#ffffff'); line(px, 6, 4, 10, 4, '#c9a13b'); circle(px, 3, 12, 1, c, true); circle(px, 8, 13, 1, c, true); circle(px, 13, 12, 1, c, true); px(8, 11, '#ffd070'); },
 };
+
+/** True when an icon key has a recipe (unknown keys fall back to the slash icon). */
+export const hasIconRecipe = (key: string) => key in RECIPES;
 
 /** Canvas icon for a skill (16x16, cached; clone with drawImage or cloneNode when reusing). */
 export function skillIcon(id: string): HTMLCanvasElement {
