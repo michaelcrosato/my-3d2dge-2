@@ -122,6 +122,105 @@ export const UNIQUES: UniqueDef[] = [
     id: 'executioner_u', name: 'Last Rites', base: 'executioner', level: 20, weight: 5, flavour: 'The verdict was never in doubt.',
     mods: [F(mod('damage', 'more', 40, ['vs:elite'])), F(mod('critChance', 'inc', 40)), F(mod('lifeOnKill', 'flat', 20)), F(mod('stagger', 'inc', 50))],
   },
+  // ---- Starters: early finds that point at a build.
+  {
+    id: 'grandfather', name: "Grandfather's Blade", base: 'rusted_sword', level: 1, weight: 10, flavour: 'Notched by three generations of bad decisions.',
+    mods: [Pw({ stat: 'addedPhysical', kind: 'flat', value: 2, max: 4, tags: ['attack'] }), F(mod('xpGain', 'flat', 10)), F(mod('lifeOnKill', 'flat', 3)), F(mod('moveSpeed', 'inc', 5))],
+  },
+  {
+    id: 'warcoat', name: 'Tattered Warcoat', base: 'padded_vest', level: 1, weight: 10, flavour: 'Every hole has a story. Most end with "and then I ran".',
+    mods: [D(mod('life', 'flat', 25)), F(mod('lifeRegenPct', 'flat', 0.5)), F(mod('flaskCharges', 'inc', 25))],
+  },
+  {
+    id: 'ironpromise', name: 'The Iron Promise', base: 'iron_ring', level: 1, weight: 10, flavour: 'Cheap metal, kept word.',
+    mods: [Pw({ stat: 'addedPhysical', kind: 'flat', value: 1, max: 3, tags: ['attack'] }), F(mod('resFire', 'flat', 10)), F(mod('resCold', 'flat', 10)), F(mod('resLightning', 'flat', 10))],
+  },
+  {
+    id: 'pickpocket', name: "Pickpocket's Parry", base: 'buckler', level: 1, weight: 10, flavour: 'Deflect the blade, lift the purse.',
+    mods: [F(mod('block', 'flat', 8)), F(mod('evasion', 'inc', 30)), F(mod('goldFind', 'flat', 25)), D(mod('lifeOnHit', 'flat', 2))],
+  },
+  {
+    id: 'firsthearth', name: 'Ember of the First Hearth', base: 'amber_amulet', level: 1, weight: 9, flavour: 'Every fire since has been a copy.',
+    mods: [F(mod('projectiles', 'flat', 1, ['skill:fireball'])), F(mod('damage', 'inc', 40, ['skill:fireball'])), F(mod('igniteChance', 'flat', 15)), D(mod('life', 'flat', 10))],
+  },
+  // ---- Skill uniques: each makes one skill the centre of a build.
+  {
+    id: 'earthshaker', name: "Earthshaker's Echo", base: 'flanged_mace', level: 12, weight: 7, flavour: 'The ground remembers every blow, and answers twice.',
+    mods: [F(mod('damage', 'inc', 80, ['skill:groundslam'])), F(mod('area', 'inc', 40, ['skill:groundslam'])), F(mod('cost', 'inc', -30, ['skill:groundslam'])), F(mod('stagger', 'inc', 60))],
+  },
+  {
+    id: 'skyfall', name: 'Skyfall Conduit', base: 'runed_staff', level: 15, weight: 6, flavour: 'Point it upward. Step back.',
+    mods: [F(mod('cooldownRecovery', 'inc', 50, ['skill:meteor'])), F(mod('area', 'inc', 30, ['skill:meteor'])), F(mod('damage', 'inc', 60, ['fire'])), F(mod('cost', 'inc', 40, ['skill:meteor']))],
+  },
+  {
+    id: 'bulwark', name: 'Bulwark of the Unbroken', base: 'tower_shield', level: 20, weight: 6, flavour: 'Walls do not retreat. Walls advance.',
+    mods: [F(mod('block', 'flat', 15)), D(mod('life', 'flat', 60)), F(mod('damage', 'more', 40, ['skill:shieldcharge'])), F(mod('cooldownRecovery', 'inc', 40, ['skill:shieldcharge'])), F(mod('moveSpeed', 'inc', -8))],
+  },
+  {
+    id: 'wolfmother', name: "Wolfmother's Mail", base: 'chainmail', level: 9, weight: 8, flavour: 'The pack sleeps in its links.',
+    mods: [F(mod('minionLife', 'inc', 60)), F(mod('minionDamage', 'inc', 40)), F(mod('cooldownRecovery', 'inc', 30, ['skill:spiritwolves'])), D(mod('armor', 'flat', 40))],
+  },
+  {
+    id: 'stormweaver', name: "Stormweaver's Touch", base: 'sorcerer_gloves', level: 16, weight: 6, flavour: 'Each finger a different thunderhead.',
+    mods: [F(mod('chain', 'flat', 2, ['skill:chainlightning'])), F(mod('damage', 'inc', 60, ['skill:chainlightning'])), F(mod('shockChance', 'flat', 20)), F(mod('castSpeed', 'inc', 10))],
+  },
+  {
+    id: 'galetreads', name: 'Gale Treads', base: 'leather_boots', level: 6, weight: 8, flavour: 'The wind gets out of their way.',
+    mods: [F(mod('moveSpeed', 'inc', 20)), F(mod('cooldownRecovery', 'inc', 40, ['movement'])), F(mod('damage', 'more', 20, ['cond:moving']))],
+  },
+  {
+    id: 'glacier', name: "Glacier's Memory", base: 'lapis_amulet', level: 11, weight: 7, flavour: 'It has seen ten thousand winters and forgiven none.',
+    mods: [F(mod('pierce', 'flat', 2, ['skill:icespear'])), F(mod('area', 'inc', 30, ['skill:frostnova'])), F(mod('damage', 'inc', 50, ['cold'])), F(mod('freezeChance', 'flat', 10))],
+  },
+  {
+    id: 'warlord', name: "Warlord's Cord", base: 'sash', level: 9, weight: 7, flavour: 'Tied with a shout.',
+    mods: [F(mod('cooldownRecovery', 'inc', 50, ['skill:warcry'])), F(mod('area', 'inc', 40, ['skill:warcry'])), F(mod('damage', 'more', 15, ['cond:recentKill'])), D(mod('life', 'flat', 20))],
+  },
+  {
+    id: 'marshwater', name: 'Marshwater Band', base: 'topaz_ring', level: 10, weight: 7, flavour: 'Smells of the deep fen, where nothing rots alone.',
+    mods: [F(mod('area', 'inc', 35, ['skill:venomcloud'])), F(mod('damage', 'inc', 50, ['skill:venomcloud'])), F(mod('ailmentDuration', 'inc', 20)), F(mod('resChaos', 'flat', 15))],
+  },
+  {
+    id: 'riftsigil', name: "Riftwalker's Sigil", base: 'two_stone_ring', level: 14, weight: 6, flavour: 'Here, there. The difference is a matter of opinion.',
+    mods: [F(mod('cooldownRecovery', 'inc', 60, ['skill:blink'])), F(mod('damage', 'more', 20, ['cond:recentDodge'])), F(mod('castSpeed', 'inc', 8))],
+  },
+  {
+    id: 'nightshard', name: 'Shard of Endless Night', base: 'jewel', level: 8, weight: 7, flavour: 'A sliver of the dark that spins.',
+    mods: [F(mod('damage', 'inc', 35, ['skill:whirlwind'])), F(mod('area', 'inc', 25, ['skill:whirlwind'])), F(mod('cost', 'inc', -25, ['skill:whirlwind']))],
+  },
+  {
+    id: 'thousandknives', name: 'Splinter of a Thousand Knives', base: 'jewel_viridian', level: 10, weight: 7, flavour: 'There were never fewer than a thousand.',
+    mods: [F(mod('projectiles', 'flat', 2, ['skill:bladefan'])), F(mod('damage', 'inc', 30, ['skill:bladevortex'])), F(mod('bleedChance', 'flat', 15))],
+  },
+  // ---- Mechanic uniques: conditions and trade-offs.
+  {
+    id: 'duelistoath', name: "Duelist's Oath", base: 'war_sword', level: 14, weight: 7, flavour: 'Dance first. Then strike.',
+    mods: [F(mod('damage', 'more', 30, ['cond:recentDodge'])), F(mod('attackSpeed', 'inc', 15, ['cond:recentDodge'])), F(mod('dodgeCooldown', 'flat', -0.15)), F(mod('critMulti', 'flat', 30))],
+  },
+  {
+    id: 'bloodreaver', name: 'Bloodreaver', base: 'war_axe', level: 16, weight: 6, flavour: 'It keeps a tally in red.',
+    mods: [F(mod('bleedChance', 'flat', 40)), F(mod('damage', 'more', 25, ['vs:bleeding'])), F(mod('lifeLeech', 'flat', 1)), F(mod('ailmentEffect', 'inc', 30))],
+  },
+  {
+    id: 'serpentkiss', name: "Serpent's Kiss", base: 'kris', level: 18, weight: 6, flavour: 'The bite is gentle. The rest is not.',
+    mods: [Pw({ stat: 'addedChaos', kind: 'flat', value: 3, max: 7, tags: ['attack'] }), F(mod('poisonChance', 'flat', 50)), F(mod('damage', 'inc', 40, ['vs:poisoned'])), F(mod('moveSpeed', 'inc', 6, ['cond:recentKill']))],
+  },
+  {
+    id: 'thoughtcrown', name: 'Thoughtcrown', base: 'circlet', level: 12, weight: 7, flavour: 'It thinks so you do not have to.',
+    mods: [D(mod('mana', 'flat', 40)), F(mod('manaRegen', 'inc', 50)), F(mod('castSpeed', 'inc', 15)), F(mod('cost', 'inc', -20, ['spell']))],
+  },
+  {
+    id: 'thornsiron', name: 'Crown of Thorns and Iron', base: 'great_helm', level: 22, weight: 5, flavour: 'Pain is a lantern. This crown keeps it lit.',
+    mods: [D(mod('life', 'flat', 50)), F(mod('armor', 'inc', 60)), F(mod('damage', 'more', 25, ['cond:lowLife'])), F(mod('lowLifeThreshold', 'flat', 15))],
+  },
+  {
+    id: 'oxgirdle', name: 'Girdle of the Ox', base: 'heavy_belt', level: 8, weight: 8, flavour: 'Pull, and the mountain follows.',
+    mods: [F(mod('life', 'inc', 12)), F(mod('stunThreshold', 'inc', 80)), F(mod('damage', 'inc', 30, ['melee'])), F(mod('flaskEffect', 'inc', 20))],
+  },
+  {
+    id: 'heartember', name: 'Heart-Ember Shard', base: 'jewel_crimson', level: 6, weight: 8, flavour: 'Still beating, faintly, out of habit.',
+    mods: [F(mod('life', 'inc', 6)), D(mod('lifeOnKill', 'flat', 5)), F(mod('damage', 'inc', 15, ['cond:fullLife']))],
+  },
 ];
 
 export const UNIQUE_BY_ID: Record<string, UniqueDef> = Object.fromEntries(UNIQUES.map((u) => [u.id, u]));
