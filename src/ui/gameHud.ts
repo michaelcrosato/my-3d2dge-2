@@ -112,7 +112,7 @@ export class GameHud {
         else if (e.mode === 'town') this.showBanner(String(e.title ?? 'Haven'), String(e.subtitle ?? ''), '', 2.5);
         break;
       case 'stage.clear':
-        this.showBanner('Depth cleared', `${Math.round((e.time as number) / 60)}s · ${e.kills} kills · +${e.gold} gold${e.first ? ' · +1 passive point' : ''}`, 'A portal has opened. Step in to go deeper, or use the town portal near the entrance.', 6);
+        this.showBanner('Depth cleared', `${fmtTime((e.time as number) / 60)} · ${e.kills} kills${e.mechanicKills ? ` (${e.mechanicKills} by tricks)` : ''} · +${e.gold} gold${e.first ? ' · +1 passive point' : ''}`, 'A portal has opened. Step in to go deeper, or use the town portal near the entrance.', 6);
         break;
       case 'levelup':
         this.showBanner(`Level ${e.level}`, `${treePoints(game.hero!)} passive point${treePoints(game.hero!) === 1 ? '' : 's'} to spend (P)`, '', 3);
@@ -199,7 +199,7 @@ export class GameHud {
     this.lifeOrb.label.textContent = String(Math.ceil(ch.life));
     this.manaOrb.label.textContent = String(Math.floor(ch.mana));
     this.xp.label.textContent = '';
-    const timer = game.mode === 'dungeon' ? ` · ${fmtTime(sim.stage.time / 60)}` : '';
+    const timer = game.mode === 'dungeon' ? ` · ${fmtTime(sim.stage.time / 60)}${sim.stage.mechanicKills ? ` · ${sim.stage.mechanicKills} trick kills` : ''}` : '';
     const pts = treePoints(hero);
     const titleText = `${sim.level.title ?? ''}|Lv ${hero.level} · ${hero.gold}g${timer}${pts > 0 ? ` · ${pts} pts` : ''}`;
     if (this.title.dataset.t !== titleText) {

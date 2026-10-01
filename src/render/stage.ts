@@ -26,6 +26,7 @@ import { isoBasis, snapToGrid, subPixel, type IsoBasis, type V3 } from './pixelG
 import { LAYER, type PixelPipeline } from './pixelPipeline';
 import { merge } from './geo';
 import { decorMesh, propMesh } from './propMeshes';
+import { SHRINE_COLORS } from '../sim/mechanics';
 import { checkerTexture, crateTexture, floorTexture, wallTexture } from './textures';
 import { Vfx } from './vfx';
 
@@ -130,6 +131,7 @@ interface PropView {
   obj: THREE.Group;
   part: THREE.Object3D | null;
   glow: THREE.Object3D | null;
+  fx: THREE.Mesh | null;
   light: { y: number; color: THREE.ColorRepresentation; intensity: number; range: number; flicker?: number } | null;
   kind: string;
 }
@@ -166,6 +168,7 @@ export class Stage {
   private levelBounds = { width: 16, depth: 16, grid: false };
   private time = 0;
   private flames: THREE.Object3D[] = [];
+  private dark = false;
 
   constructor(readonly lib: AssetLibrary) {
     this.scene.add(this.env, this.hemi, this.vfx.group, this.lights.group);
@@ -218,9 +221,10 @@ export class Stage {
     // Light rig from the theme (or the sandbox defaults).
     this.hemi.color.set(th?.sky ?? 0xc4ccff);
     this.hemi.groundColor.set(th?.ground ?? 0x3d3446);
-    this.hemi.intensity = th ? th.ambient * 1.35 : 1.35;
+    this.hemi.intensity = (th ? th.ambient * 1.35 : 1.35) * (level.dark ? 0.22 : 1);
     this.sun.color.set(th?.sun.color ?? 0xfff0dc);
-    this.sun.intensity = th ? th.sun.intensity * 2 : 2.4;
+    this.sun.intensity = (th ? th.sun.intensity * 2 : 2.4) * (level.dark ? 0.08 : 1);
+    this.dark = !!level.dark;
 
     if (gridLevel && th) {
       const floor = new THREE.Mesh(floorGeometry(level), toonMaterial(0xffffff, floorTexture(level, th)));
@@ -349,7 +353,15 @@ export class Stage {
     body.castShadow = true;
     body.receiveShadow = true;
     obj.add(body);
-    let glow: THREE.Object3D | null = null, part: THREE.Object3D | null = null;
+    let glow: THREE.Object3D | null = null, part: THREE.Object3D | null = null, fx: THREE.Mesh | null = null;
+    if (m.fx) {
+      fx = new THREE.Mesh(m.fx.geo, writesNormals(new THREE.MeshBasicMaterial({ color: m.fx.color, transparent: true, opacity: m.fx.opacity, depthWrite: false, side: THREE.DoubleSide }), 'fx'));
+      fx.layers.set(LAYER.FX);
+      fx.renderOrder = 4;
+      fx.position.y = 0.03;
+      fx.scale.setScalar(p.scale);
+      obj.add(fx);
+    }
     if (m.glow) {
       const gm = glowMaterial(0xffffff);
       gm.vertexColors = true;
@@ -367,9 +379,10 @@ export class Stage {
     }
     obj.position.set(p.x, p.y, p.z);
     obj.rotation.y = p.yaw;
-    obj.scale.setScalar(p.scale);
+    // Field props scale only their overlay (the radius), not the fixture in the middle.
+    if (!m.fx) obj.scale.setScalar(p.scale);
     this.env.add(obj);
-    v = { obj, part, glow, light: m.light ?? null, kind: p.kind };
+    v = { obj, part, glow, fx, light: m.light ?? null, kind: p.kind };
     this.propViews.set(p.id, v);
     return v;
   }
@@ -462,8 +475,8 @@ export class Stage {
     if (hero && this.levelBounds.grid) {
       // The hero's lantern: stronger in dark themes, scaled by light radius.
       const lr = hero.state !== 'dead' && sim.characters.has(hero.id) ? sim.stats(hero).get('lightRadius') / 100 : 1;
-      const dark = Math.max(0, 1.2 - this.theme.ambient);
-      this.lights.add({ x: hero.pos.x, y: 2.2, z: hero.pos.z, color: '#ffe0b0', intensity: 0.8 + dark * 3, range: (5 + dark * 6) * lr, priority: 4 });
+      const dark = this.dark ? 1.1 : Math.max(0, 1.2 - this.theme.ambient);
+      this.lights.add({ x: hero.pos.x, y: 2.2, z: hero.pos.z, color: '#ffe0b0', intensity: 0.8 + dark * 3, range: (this.dark ? 4.5 * 1.6 : 5 + dark * 6) * lr, priority: 4 });
     }
 
     this.vfx.update(sim, dt, this.lights, this.follow);
@@ -548,8 +561,64 @@ export class Stage {
       const wob = p.timer > 0 && (v.kind === 'urn' || v.kind === 'crate' || v.kind === 'barrel' || v.kind === 'coffin') ? Math.sin(p.timer * 2) * 0.12 : 0;
       v.obj.rotation.z = wob;
       if (v.part && v.kind === 'chest') v.part.rotation.x = p.state === 'used' ? -1.9 : 0;
-      if (v.glow) v.glow.rotation.y = this.time * (v.kind === 'portal' ? 2 : 0.6);
-      if (v.light && v.obj.visible) this.lights.add({ x: p.x, y: p.y + v.light.y, z: p.z, color: v.light.color, intensity: v.light.intensity * (p.state === 'used' && v.kind !== 'portal' ? 0.3 : 1), range: v.light.range, priority: 1 });
+      if (v.glow) v.glow.rotation.y = this.time * (v.kind === 'portal' || v.kind === 'rift' ? 2 : 0.6);
+      let lightK = p.state === 'used' && v.kind !== 'portal' ? 0.3 : 1;
+      let lightColor: THREE.ColorRepresentation = v.light?.color ?? '#ffffff';
+      switch (v.kind) {
+        case 'spikes':
+          if (v.part) v.part.position.y = p.state === 'up' ? 0 : p.state === 'warn' ? -0.28 + Math.sin(this.time * 60) * 0.02 : -0.42;
+          break;
+        case 'keg':
+          if (p.state === 'lit') {
+            v.obj.rotation.z = Math.sin(this.time * 40) * 0.06;
+            if (v.glow) v.glow.scale.setScalar(1 + Math.sin(this.time * 30) * 0.4);
+            this.lights.add({ x: p.x, y: 1.1, z: p.z, color: '#ff9a3d', intensity: 2.5, range: 3, priority: 2 });
+            if (Math.random() < 0.5) this.vfx.emit(p.x + 0.1, 1.1, p.z, 1, { color: '#ffd070', speed: 0.6, up: 1.5, life: 0.3, size: 0.06 });
+          }
+          break;
+        case 'shrine': {
+          const c = SHRINE_COLORS[(p.data.buff as string) ?? 'power'] ?? '#ffffff';
+          lightColor = c;
+          if (v.glow) {
+            v.glow.visible = p.state !== 'used';
+            ((v.glow as THREE.Mesh).material as THREE.MeshBasicMaterial).color.set(c);
+            v.glow.position.y = Math.sin(this.time * 2) * 0.08;
+          }
+          lightK = p.state === 'used' ? 0 : 1;
+          break;
+        }
+        case 'beacon':
+          if (v.glow) v.glow.visible = p.state === 'lit';
+          lightK = p.state === 'lit' ? 1 + Math.sin(this.time * 9 + p.x) * 0.12 : 0;
+          break;
+        case 'vent':
+          if (v.glow) ((v.glow as THREE.Mesh).material as THREE.MeshBasicMaterial).color.set(p.state === 'erupt' ? '#fff0c0' : p.state === 'warn' ? '#ff9a3d' : '#5a2010');
+          lightK = p.state === 'erupt' ? 1 : p.state === 'warn' ? 0.4 : 0;
+          if (p.state === 'erupt' && v.obj.visible) {
+            this.vfx.emit(p.x, 0.2, p.z, 4, { color: Math.random() < 0.5 ? '#ff6a2a' : '#ffd070', speed: 0.8, up: 7, life: 0.45, size: 0.18, gravity: -2 });
+            this.lights.add({ x: p.x, y: 1.2, z: p.z, color: '#ff7a3a', intensity: 4, range: 6, priority: 2 });
+          } else if (p.state === 'warn' && Math.random() < 0.3) this.vfx.emit(p.x, 0.15, p.z, 1, { color: '#ff9a3d', speed: 0.3, up: 1.5, life: 0.4, size: 0.08 });
+          break;
+        case 'well':
+          if (v.fx) v.fx.rotation.y = -this.time * 2.5;
+          if (v.obj.visible && Math.random() < 0.6) {
+            const a = Math.random() * Math.PI * 2, r = p.scale * (0.6 + Math.random() * 0.4);
+            this.vfx.emit(p.x + Math.cos(a) * r, 0.15, p.z + Math.sin(a) * r, 1, { color: '#9a8cff', speed: 0.2, up: 0.4, life: 0.5, size: 0.08, gravity: 0 });
+          }
+          break;
+        case 'chrono':
+          if (v.fx) ((v.fx.material) as THREE.MeshBasicMaterial).opacity = 0.14 + Math.sin(this.time * 1.5) * 0.05;
+          if (v.glow) v.glow.rotation.y = this.time * 0.4;
+          break;
+        case 'launchpad':
+          if (v.glow) v.glow.position.y = p.timer > 0 ? 0.1 : Math.abs(Math.sin(this.time * 3)) * 0.08;
+          break;
+        case 'totem':
+          lightK = 0.7 + Math.sin(this.time * 4) * 0.3;
+          v.obj.rotation.z = p.timer > 0 ? Math.sin(p.timer * 2) * 0.1 : 0;
+          break;
+      }
+      if (v.light && v.obj.visible && lightK > 0) this.lights.add({ x: p.x, y: p.y + v.light.y, z: p.z, color: lightColor, intensity: v.light.intensity * lightK, range: v.light.range, priority: 1 });
     }
     for (const [id, v] of this.propViews) {
       if (alive.has(id)) continue;
@@ -619,7 +688,7 @@ function statusTint(ch: Character): StatusTint {
   for (const s of ch.statuses) {
     if (s.id === 'freeze') return 'frozen';
     if (s.id === 'shielded') best = 'shielded';
-    else if (best === 'none') best = s.id === 'ignite' ? 'burning' : s.id === 'shock' ? 'shocked' : s.id === 'poison' ? 'poisoned' : s.id === 'chill' ? 'chilled' : s.id === 'empowered' || s.id === 'enraged' ? 'empowered' : 'none';
+    else if (best === 'none') best = s.id === 'ignite' ? 'burning' : s.id === 'shock' ? 'shocked' : s.id === 'poison' ? 'poisoned' : s.id === 'chill' || s.id === 'slowed' ? 'chilled' : s.id === 'empowered' || s.id === 'enraged' || s.id === 'shrouded' ? 'empowered' : 'none';
   }
   return best;
 }

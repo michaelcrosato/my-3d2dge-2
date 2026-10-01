@@ -188,7 +188,8 @@ export function startSkill(sim: Sim, ch: Character, id: string, aim: P2 | null, 
   if (m && (m.kind === 'dash' || m.kind === 'leap' || m.kind === 'blink')) {
     const maxD = m.distance ?? 5;
     const want = m.toAim ? Math.min(maxD, Math.max(m.kind === 'blink' ? 1 : 2.5, dl)) : maxD;
-    const dest = sim.nav.clampLine({ x: ch.pos.x, z: ch.pos.z }, { x: ch.pos.x + dirX * want, z: ch.pos.z + dirZ * want });
+    const goal = { x: ch.pos.x + dirX * want, z: ch.pos.z + dirZ * want };
+    const dest = m.over ? sim.nav.nearestFree(goal) : sim.nav.clampLine({ x: ch.pos.x, z: ch.pos.z }, goal);
     destX = dest.x;
     destZ = dest.z;
   }
@@ -224,13 +225,15 @@ export interface ActionOutput {
   /** Acceleration multiplier (>=3 = snap to the wanted velocity). */
   control: number;
   ghost: boolean;
+  /** Flying over walls: no collisions at all. */
+  fly: boolean;
   done: boolean;
 }
 
 export function updateAction(sim: Sim, ch: Character, held: boolean, moveX: number, moveZ: number, runSpeed: number): ActionOutput {
   const a = ch.action!;
   const s = skillDef(a.skill);
-  const out: ActionOutput = { wantX: 0, wantZ: 0, control: 3, ghost: false, done: false };
+  const out: ActionOutput = { wantX: 0, wantZ: 0, control: 3, ghost: false, fly: false, done: false };
   const dt = sim.dt;
   const prevT = a.t;
   a.t += dt / Math.max(0.05, a.dur);
@@ -270,6 +273,7 @@ export function updateAction(sim: Sim, ch: Character, held: boolean, moveX: numb
         out.wantZ = a.dirZ * v;
       }
       out.ghost = !!m.ghost;
+      out.fly = !!m.over && a.t <= m.to;
       if (m.kind === 'leap') {
         const u = Math.min(1, Math.max(0, (a.t - m.from) / (m.to - m.from)));
         ch.lift = (m.height ?? 1.5) * 4 * u * (1 - u);

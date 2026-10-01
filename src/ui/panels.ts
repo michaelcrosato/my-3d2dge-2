@@ -9,6 +9,9 @@ import { describeMod, STATS } from '../content/stats';
 import { HERO_SKILLS, HOTBAR_SKILLS, SKILL_NAMES, SKILLS } from '../content/skills';
 import { NPC_LINES } from '../content/town';
 import { TREE, SECTOR_NAME } from '../content/tree';
+import { stageMechanics, stageTitle } from '../content/campaign';
+import { MECHANICS } from '../content/mechanics';
+import { fmtTime } from './gameHud';
 import type { Game } from '../game';
 import { IconRenderer } from '../render/icons';
 import { cooldownOf, costOf } from '../sim/actions';
@@ -439,14 +442,18 @@ export class Panels {
     const max = Math.max(1, hero.progress.unlocked);
     for (let n = 1; n <= max; n++) {
       const best = hero.progress.cleared[String(n)];
+      const mechs = stageMechanics(n);
       rows.push(h('div', { class: 'row' },
-        h('div', { class: 'grow' }, h('b', {}, `Depth ${n}`), ' ', h('small', {}, best ? `cleared · best ${Math.round(best / 60)}s` : n === max ? 'new' : 'not cleared')),
+        h('div', { class: 'grow' },
+          h('b', {}, `${n}. ${stageTitle(n)}`), ' ',
+          h('small', {}, best ? `cleared · best ${fmtTime(best / 60)}` : n === max ? 'new' : 'not cleared'),
+          h('div', {}, ...mechs.map((m) => h('span', { class: 'mech', title: MECHANICS[m].tip }, MECHANICS[m].name)))),
         h('button', { class: `ui-btn small${n === max ? ' primary' : ''}`, onclick: () => { this.close(); void this.game.enterStage(n); } }, 'Enter')));
     }
     rows.reverse();
     return [h('section', { class: 'stagelist' },
       h('h3', {}, 'Choose a depth'),
-      h('p', { class: 'note' }, 'Clear a depth\'s boss to unlock the next. There is no bottom: past the authored depths, new ones are generated forever.'),
+      h('p', { class: 'note' }, 'Each depth is named after its trick: use it, or ignore it and swing harder. Clear the boss to unlock the next. Past depth 24 new depths combine tricks forever.'),
       ...rows)];
   }
 }

@@ -29,7 +29,8 @@ import { buildHero, gainXp, heroSkills, type Hero, type HeroBuild } from './hero
 import { dropLoot, pickupItem } from './loot';
 import { affixOnDeath, stepAffixes } from './monsterAffixes';
 import { FlowField, NavGrid, type P2 } from './nav';
-import { mechanicHit, propSpec, stepProps } from './props';
+import { fieldAt, mechanicHit, propSpec, stepProps, stepSystems } from './props';
+import { impTreasure } from './mechanics';
 import { Rng } from './rng';
 import { defense, monsterLife, monsterXp, xpPenalty } from './scaling';
 import { StatBlock } from './stats';
@@ -55,6 +56,8 @@ const groups = (membership: number, filter = ALL_GROUPS) => ((membership << 16) 
 const BLOCKERS = groups(ALL_GROUPS, GROUP.STATIC | GROUP.CRATE);
 const MOVE_SOLID = groups(ALL_GROUPS, GROUP.STATIC | GROUP.CRATE | GROUP.CHARACTER | GROUP.PROP);
 const MOVE_GHOST = groups(ALL_GROUPS, GROUP.STATIC | GROUP.CRATE | GROUP.PROP);
+/** Matches nothing: flying characters (launch pads) pass over walls. */
+const MOVE_FLY = groups(ALL_GROUPS, 0);
 
 let rapierReady: Promise<void> | null = null;
 export const initPhysics = () => (rapierReady ??= RAPIER.init());
@@ -143,6 +146,8 @@ export class Sim {
   private eventQueue = new RAPIER.EventQueue(true);
   private readonly ray = new RAPIER.Ray({ x: 0, y: 0, z: 0 }, { x: 0, y: -1, z: 0 });
   private statCache = new Map<string, { version: number; block: StatBlock }>();
+  /** True when any prop has a standing field (skips the per-character lookup otherwise). */
+  hasFields = false;
 
   /** Physics must be initialised first: `await initPhysics()`. */
   constructor(readonly level: Level, readonly clips: ClipTable, readonly seed = 1, opts: SimOptions = {}) {
@@ -158,6 +163,7 @@ export class Sim {
     this.flow = new FlowField(this.nav);
     this.buildStatic();
     for (const p of level.props ?? []) this.addProp(p);
+    this.hasFields = [...this.props.values()].some((p) => propSpec(p.kind)?.field);
     if (this.hero) this.heroBuild = buildHero(this.hero);
     for (const def of level.characters) this.spawn(def);
   }
@@ -672,6 +678,7 @@ export class Sim {
     stepProjectiles(this);
     stepZones(this);
     stepProps(this);
+    stepSystems(this);
     this.stepPickups();
     this.cleanupDead();
     this.eventQueue.drainCollisionEvents((h1, h2, started) => {
@@ -1026,6 +1033,7 @@ export class Sim {
     }
     let control = 1;
     let ghost = false;
+    let fly = false;
     const isHero = ch.id === this.heroId && !!this.hero;
     const legacy = !this.hero && (ch.brain === 'input' || ch.brain === 'dummy' || ch.brain === 'wander' || ch.brain === 'idle');
 
@@ -1121,6 +1129,7 @@ export class Sim {
         wantZ = out.wantZ;
         control = out.control;
         ghost = out.ghost;
+        fly = out.fly;
         if (out.done && ch.action === a) {
           ch.action = null;
           ch.spin = 0;
@@ -1202,6 +1211,14 @@ export class Sim {
       control = 3;
     }
 
+    // Standing fields: ice keeps momentum, gravity wells pull.
+    if (this.hasFields && ch.grounded && !fly) {
+      const f = fieldAt(this, ch.pos.x, ch.pos.z);
+      if (f.control < 1 && control < 3) control *= f.control;
+      else if (f.control < 1 && ch.state === 'hit') control = f.control * 2;
+      wantX += f.pushX;
+      wantZ += f.pushZ;
+    }
     // Horizontal velocity: accelerate toward the wanted velocity.
     const accel = config['sim.accel'] * control * dt;
     const dvx = wantX - ch.vel.x, dvz = wantZ - ch.vel.z;
@@ -1220,7 +1237,7 @@ export class Sim {
 
     // Kinematic move through Rapier's character controller.
     if (ch.collider.isEnabled()) {
-      this.kcc.computeColliderMovement(ch.collider, { x: ch.vel.x * dt, y: ch.vel.y * dt, z: ch.vel.z * dt }, undefined, ghost ? MOVE_GHOST : MOVE_SOLID);
+      this.kcc.computeColliderMovement(ch.collider, { x: ch.vel.x * dt, y: fly ? 0 : ch.vel.y * dt, z: ch.vel.z * dt }, undefined, fly ? MOVE_FLY : ghost ? MOVE_GHOST : MOVE_SOLID);
       const mv = this.kcc.computedMovement();
       const wasGrounded = ch.grounded;
       ch.grounded = this.kcc.computedGrounded();
@@ -1455,7 +1472,7 @@ export class Sim {
 
   // ---------------------------------------------------------------- death, rewards, respawn
 
-  kill(t: Character, by: Character | null, silent = false) {
+  kill(t: Character, by: Character | null, silent = false, viaEnv = false) {
     if (t.state === 'dead') return;
     t.life = 0;
     t.action = null;
@@ -1478,7 +1495,14 @@ export class Sim {
     }
     if (!t.monster || silent) return;
     affixOnDeath(this, t, credit);
-    if (credit && credit.team === 'hero' && this.hero) this.reward(t);
+    if (viaEnv && credit?.team === 'hero') {
+      this.stage.mechanicKills++;
+      this.emit('mechanic.kill', { id: t.id, x: t.pos.x, z: t.pos.z });
+    }
+    if (credit && credit.team === 'hero' && this.hero) {
+      this.reward(t, viaEnv);
+      if (t.monster.def === 'imp') impTreasure(this, t);
+    }
     if (t.monster.boss) {
       this.stage.bossDead = true;
       this.openExit();
@@ -1486,7 +1510,7 @@ export class Sim {
     }
   }
 
-  private reward(t: Character) {
+  private reward(t: Character, viaEnv = false) {
     const hero = this.hero!;
     const heroCh = this.player;
     const st = heroCh ? this.stats(heroCh) : null;
@@ -1504,7 +1528,8 @@ export class Sim {
         heroCh.mana = Math.min(heroCh.maxMana, heroCh.mana + st.get('manaOnKill'));
       }
     }
-    const xp = t.monster!.xp * xpPenalty(hero.level, t.level) * ((st?.get('xpGain') ?? 100) / 100) * config['tune.xp'];
+    // Mechanic kills are worth half again: the reward for playing the level's trick.
+    const xp = t.monster!.xp * xpPenalty(hero.level, t.level) * ((st?.get('xpGain') ?? 100) / 100) * config['tune.xp'] * (viaEnv ? 1.5 : 1);
     this.stage.xp += xp;
     const levels = gainXp(hero, xp);
     this.emit('xp', { amount: Math.round(xp), from: t.id });

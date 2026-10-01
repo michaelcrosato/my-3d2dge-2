@@ -209,6 +209,11 @@ export function thinkMonster(sim: Sim, ch: Character): CharacterInput {
 
   // Movement.
   intent.gait = 'run';
+  if (arch.id === 'fleer') {
+    const away0 = dist > 1e-3 ? { x: -dx / dist, z: -dz / dist } : { x: 1, z: 0 };
+    steer(intent, safeDir(sim, ch, away0), sep);
+    return intent;
+  }
   const away = dist > 1e-3 ? { x: -dx / dist, z: -dz / dist } : { x: 1, z: 0 };
   const side = { x: -away.z * ai.strafeDir, z: away.x * ai.strafeDir };
   if (arch.flee && ch.life < ch.maxLife * arch.flee && ai.mode !== 'flee' && ch.since.hurt < 60) {

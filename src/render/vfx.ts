@@ -14,6 +14,7 @@ import { cone, merge, octa, sphere, box } from './geo';
 import type { LightPool } from './lights';
 import { writesNormals } from './materials';
 import { LAYER } from './pixelPipeline';
+import { SHRINE_COLORS } from '../sim/mechanics';
 
 const MAX_PARTICLES = 3000;
 
@@ -443,6 +444,34 @@ export class Vfx {
       }
       case 'exit.open':
         this.pillar(e.x as number, e.z as number, '#7ab8ff', 1.5);
+        break;
+      case 'keg.lit':
+        this.emit(e.x as number, 1.05, e.z as number, 6, { color: '#ffd070', speed: 1, up: 2, life: 0.3, size: 0.07 });
+        break;
+      case 'spikes.up':
+        this.emit(e.x as number, 0.1, e.z as number, 4, { color: '#a89a88', speed: 1, up: 1.5, life: 0.3, size: 0.08, glow: false });
+        break;
+      case 'shrine':
+        this.pillar(e.x as number, e.z as number, SHRINE_COLORS[e.buff as string] ?? '#ffffff', 1.2);
+        this.emit(e.x as number, 1.2, e.z as number, 30, { color: SHRINE_COLORS[e.buff as string] ?? '#ffffff', speed: 2.5, up: 3, life: 0.8, size: 0.1 });
+        break;
+      case 'launch':
+        this.emit(e.x as number, 0.2, e.z as number, 18, { color: '#7affd8', speed: 2.5, up: 3, life: 0.5, size: 0.1 });
+        this.shockwave(e.x as number, e.z as number, 2, '#7affd8', 0.3);
+        break;
+      case 'beacon.lit':
+        this.emit(e.x as number, 1.5, e.z as number, 30, { color: '#ffd070', speed: 2.5, up: 3, life: 0.7, size: 0.1 });
+        this.flash(e.x as number, 1.6, e.z as number, '#ffd070', 6, 12, 0.6);
+        break;
+      case 'boulder':
+        this.emit(e.x as number, 0.3, e.z as number, 10, { color: '#8a8070', speed: 2, up: 2, life: 0.6, size: 0.12, glow: false });
+        this.shake = Math.max(this.shake, 1);
+        break;
+      case 'imp.escape':
+        this.emit(e.x as number, 0.6, e.z as number, 24, { color: '#ffd84a', speed: 2, up: 2, life: 0.6, size: 0.1 });
+        break;
+      case 'mechanic.kill':
+        this.emit(e.x as number, 1, e.z as number, 8, { color: '#ffe14d', speed: 1.5, up: 3, life: 0.5, size: 0.08 });
         break;
       case 'summon': {
         const c = ch(e.id);
