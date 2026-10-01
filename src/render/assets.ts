@@ -1,6 +1,7 @@
 /** Loads the manifest, models and clip libraries built by `npm run assets`, and retargets clips on demand. */
 import * as THREE from 'three';
 import { GLTFLoader, type GLTF } from 'three/addons/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import type { ClipTable } from '../sim/sim';
 import { restPoseOf, retargetClip, type RestPose } from './retarget';
 
@@ -44,7 +45,8 @@ export function firstSkinnedMesh(root: THREE.Object3D): THREE.SkinnedMesh {
 
 export class AssetLibrary {
   manifest!: Manifest;
-  private loader = new GLTFLoader();
+  /** Runtime GLBs are packed losslessly (meshopt buffers, WebP textures; tools/lib/pack.mjs). */
+  private loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
   private models = new Map<string, Promise<GLTF>>();
   private loaded = new Map<string, GLTF>();
   private raw = new Map<string, THREE.AnimationClip>();
