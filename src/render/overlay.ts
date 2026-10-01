@@ -4,6 +4,7 @@
  * including smooth-scroll offsets). It holds floating damage numbers, health bars, elite names,
  * ground-loot labels (clickable), interaction prompts and the minimap with fog of war.
  */
+import { config } from '../config';
 import * as THREE from 'three';
 import { RARITY_COLOR } from '../content/items';
 import { gridAt } from '../content/level';
@@ -190,7 +191,9 @@ export class Overlay {
     }
     // Ground loot labels (clickable), stacked so they don't overlap.
     const placed: LabelRect[] = [];
-    const items = sim.pickups.filter((p) => p.kind === 'item' && p.item);
+    const minRank = { all: 0, magic: 1, rare: 2 }[config['ui.lootFilter'] as 'all'] ?? 0;
+    const rank = { normal: 0, magic: 1, rare: 2, unique: 3 } as const;
+    const items = sim.pickups.filter((p) => p.kind === 'item' && p.item && rank[p.item.rarity] >= minRank);
     for (const p of items) {
       const s = this.project(stage, w, h, p.x, 0.5, p.z);
       const name = p.item!.name.length > 24 ? `${p.item!.name.slice(0, 23)}.` : p.item!.name;
