@@ -213,7 +213,9 @@ browser console (`agent.call`), the terminal (`npm run agent`) and MCP (`npm run
   long headless steps show effects at their true age, as a player would see that frame.
 - **Make new things from parts.** `species.create` assembles a monster from a body plan plus
   genome edits (legs, horns, wings, spikes, proportions), an archetype, attack modules and a
-  palette; `level.generate` remixes any depth with any mechanics; `item.roll` rolls any base.
+  palette; `level.generate` remixes any depth with any mechanics; `item.roll` rolls any base;
+  `unique.design` prototypes a unique from the stat vocabulary and ranks its power against the
+  slot's existing uniques before it goes into `uniques.ts`.
 - **Measure, don't guess.** `monster.inspect` and `hero.build` produce stat sheets with damage
   per skill, `skill.test` casts a skill at dummies and reports what really landed (hits, damage
   by type, ailments, kills, minions), `balance.curve` tabulates hits-to-kill and hits-to-die by level, `loot.simulate`

@@ -1,5 +1,7 @@
 /** Unique items: every line is built from vocabulary the stat engine understands, and every base hosts one. */
 import { beforeAll, expect, it } from 'vitest';
+import { callTool } from '../src/agent/registry';
+import '../src/agent/tools/content';
 import manifest from '../public/assets/manifest.json';
 import { probeSim } from '../src/agent/probe';
 import { SKILLS } from '../src/content/skills';
@@ -8,17 +10,11 @@ import { skillTags } from '../src/sim/combat';
 import { initPhysics, type ClipTable } from '../src/sim/sim';
 import { BASES } from '../src/content/items';
 import { HERO_SKILLS, SKILL_NAMES } from '../src/content/skills';
-import { STATS, type Tag } from '../src/content/stats';
+import { KNOWN_TAGS, STATS, type Tag } from '../src/content/stats';
 import { UNIQUES } from '../src/content/uniques';
 import { describeItem, rollItem } from '../src/sim/items';
 import { Rng } from '../src/sim/rng';
 
-const KNOWN_TAGS = new Set<string>([
-  'attack', 'spell', 'melee', 'projectile', 'area', 'movement', 'dot', 'minion', 'aura', 'warcry', 'channel',
-  'physical', 'fire', 'cold', 'lightning', 'chaos', 'elemental',
-  'cond:lowLife', 'cond:fullLife', 'cond:moving', 'cond:stationary', 'cond:shrine', 'cond:recentKill', 'cond:recentDodge',
-  'vs:burning', 'vs:chilled', 'vs:shocked', 'vs:poisoned', 'vs:bleeding', 'vs:boss', 'vs:elite',
-]);
 const heroSkills = new Set(HERO_SKILLS.map((s) => s.id));
 const clips: ClipTable = Object.fromEntries(manifest.clips.map((c) => [c.name, { duration: c.duration, loop: c.loop, rootSpeed: c.rootSpeed }]));
 
@@ -78,4 +74,18 @@ it('skill uniques change only their skill in the live stat engine', async () => 
   expect(get('projectiles', 'icespear')).toBe(before.ice);
   expect(get('chain', 'chainlightning')).toBe(before.cl + 2);
   sim.dispose();
+});
+
+it('unique.design validates a prototype and ranks it against the slot\'s uniques', async () => {
+  const env = { game: null, clips };
+  const bad = await callTool('unique.design', { base: 'iron_ring', mods: [{ stat: 'dmg', kind: 'inc', value: 1 }, { stat: 'damage', kind: 'inc', value: 5, tags: ['skill:nope'] }] }, env);
+  expect(bad.ok && (bad.data as { problems: string[] }).problems).toEqual(['mods[0]: unknown stat "dmg" (catalog.list stats)', 'mods[1]: unknown tag "skill:nope"']);
+  const good = await callTool('unique.design', { name: 'Test Band', base: 'iron_ring', mods: [{ stat: 'damage', kind: 'more', value: 50 }], level: 30 }, env);
+  if (!good.ok) throw new Error(good.error);
+  const d = good.data as { lines: string[]; power: { gain: number; rank: string } };
+  expect(d.lines).toContain('50% more Damage');
+  expect(d.power.gain).toBeGreaterThan(1.2);
+  expect(d.power.rank).toMatch(/^1 of \d+ uniques/);
+  // The prototype never leaks into the drop tables.
+  expect(UNIQUES.some((u) => u.name === 'Test Band')).toBe(false);
 });

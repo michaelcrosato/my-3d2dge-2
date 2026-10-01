@@ -5,7 +5,7 @@
       "identifier": "urn:air:depthward:game:agent-tools",
       "displayName": "Depthward agent tools (MCP server)",
       "type": "application/mcp-server-card+json",
-      "description": "43 tools to build, generate, render and inspect a pixel-art ARPG: creature genomes and custom species, monsters, items and loot simulation, procedural levels with maps, the passive tree, balance curves and bot playtests, and live-game control and capture.",
+      "description": "44 tools to build, generate, render and inspect a pixel-art ARPG: creature genomes and custom species, monsters, items and loot simulation, procedural levels with maps, the passive tree, balance curves and bot playtests, and live-game control and capture.",
       "data": {
         "name": "depthward",
         "description": "Depthward engine tools over MCP (stdio). Run from a clone of the repository.",

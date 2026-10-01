@@ -9,7 +9,7 @@ import { AFFIXES } from '../../content/affixes';
 import { DESIGN_ARCHETYPES, DESIGN_BODIES, DESIGN_SKILLS, designProblems, designStats, monsterId, registerDesign, releasedSpecies, setReleased, type SpeciesDesign } from '../../content/bestiary';
 import { AUTHORED, campaignStage, stageMechanics, stageTitle } from '../../content/campaign';
 import { PRESETS } from '../../content/characters';
-import { BASES, ITEM_BASES, type ItemRarity, type SlotKind } from '../../content/items';
+import { BASES, EQUIP_SLOTS, ITEM_BASES, SLOT_KIND, type EquipSlot, type Item, type ItemRarity, type SlotKind } from '../../content/items';
 import type { Level } from '../../content/level';
 import { MECHANIC_IDS, MECHANICS, placeMechanics } from '../../content/mechanics';
 import { applyPactsToSpec, PACT_BY_ID, PACTS, stampPacts } from '../../content/pacts';
@@ -19,11 +19,11 @@ import { generateDungeon } from '../../content/procgen/dungeon';
 import { rollPack } from '../../content/procgen/encounters';
 import { HERO_SKILLS, HOTBAR_SKILLS, SKILL_NAMES, SKILLS, skill as skillDef } from '../../content/skills';
 import { stageMonsterLevel, stageSpec } from '../../content/stages';
-import { describeMod, STATS } from '../../content/stats';
+import { describeMod, KNOWN_TAGS, STATS, type Mod, type Tag } from '../../content/stats';
 import { STATUSES } from '../../content/statuses';
 import { THEMES, DUNGEON_THEMES } from '../../content/themes';
 import { pathTo, SECTOR_NAME, TREE } from '../../content/tree';
-import { UNIQUES } from '../../content/uniques';
+import { UNIQUE_BY_ID, UNIQUES } from '../../content/uniques';
 import { autoEquip, autoHero, heroPower, spendPoints, type BuildFocus } from '../../sim/autobuild';
 import { runBot, type BotReport } from '../../sim/bot';
 import { dropLoot } from '../../sim/loot';
@@ -279,6 +279,81 @@ defineTool({
       const item = rollItem(rng, { ilvl: a.ilvl, rarity: a.rarity as ItemRarity | undefined, base: a.base, slot: a.slot as SlotKind | undefined, uid: `roll${i}` });
       return { name: item.name, base: item.base, rarity: item.rarity, ilvl: item.ilvl, unique: item.unique ?? null, value: itemValue(item), lines: describeItem(item, SKILL_NAMES).map((l) => l.text), item };
     });
+  },
+});
+
+defineTool({
+  name: 'unique.design', group: 'item',
+  desc: 'Prototypes a unique item from the stat vocabulary without editing code: validates every line (stat, kind, tags, skill ids), shows the tooltip, and measures how much it strengthens an auto-built hero, ranked against every existing unique for that slot. Add the result to src/content/uniques.ts to ship it.',
+  params: {
+    name: { type: 'string', default: 'Prototype', desc: 'Item name.' },
+    base: { type: 'string', required: true, enum: ITEM_BASES.filter((b) => b.slot !== 'flask').map((b) => b.id), desc: 'Base item (catalog.list bases).' },
+    mods: { type: 'array', required: true, items: { type: 'object' }, desc: 'Lines: {stat, kind: flat|inc|more|flag, value, max?, tags?: [...], scale?: fixed|power|defense}. Tags: skill kinds, damage types, cond:* / vs:* conditions, skill:<id>.' },
+    flavour: { type: 'string', default: '', desc: 'Flavour text.' },
+    level: { type: 'integer', default: 20, min: 1, max: 500, desc: 'Item level and the level of the hero it is tested on.' },
+    focus: { type: 'string', default: 'balanced', enum: FOCI, desc: 'Auto-build focus of the test hero.' },
+  },
+  example: { name: 'Emberwake Treads', base: 'leather_boots', mods: [{ stat: 'moveSpeed', kind: 'inc', value: 20 }, { stat: 'damage', kind: 'inc', value: 40, tags: ['skill:flamesurge'] }, { stat: 'life', kind: 'flat', value: 20, scale: 'defense' }], level: 30, focus: 'spell' },
+  async run(a, ctx) {
+    const problems: string[] = [];
+    const heroIds = new Set(HERO_SKILLS.map((s) => s.id));
+    const lines: Array<[Mod, 'power' | 'defense' | 'fixed']> = [];
+    (a.mods as Array<Record<string, unknown>>).forEach((raw, i) => {
+      const at = `mods[${i}]`;
+      const stat = String(raw.stat ?? ''), kind = String(raw.kind ?? '');
+      if (!(stat in STATS)) return void problems.push(`${at}: unknown stat "${stat}" (catalog.list stats)`);
+      if (!['flat', 'inc', 'more', 'flag'].includes(kind)) return void problems.push(`${at}: kind must be flat, inc, more or flag`);
+      const value = kind === 'flag' ? 1 : Number(raw.value);
+      if (!Number.isFinite(value)) return void problems.push(`${at}: value must be a number`);
+      const tags = Array.isArray(raw.tags) ? raw.tags.map(String) : [];
+      for (const t of tags) {
+        if (t.startsWith('skill:') ? !heroIds.has(t.slice(6)) : !KNOWN_TAGS.has(t)) problems.push(`${at}: unknown tag "${t}"`);
+      }
+      const scale = raw.scale === 'power' || raw.scale === 'defense' ? raw.scale : 'fixed';
+      const m: Mod = { stat: stat as Mod['stat'], kind: kind as Mod['kind'], value, ...(raw.max !== undefined ? { max: Number(raw.max) } : {}), ...(tags.length ? { tags: tags as Tag[] } : {}) };
+      lines.push([m, scale]);
+    });
+    if (problems.length) return { ok: false, problems };
+    const slot = BASES[a.base].slot;
+    const id = '__design__';
+    const item = (unique: string, name: string): Item => ({ uid: `design-${unique}`, base: UNIQUE_BY_ID[unique].base, rarity: 'unique', ilvl: a.level, name, affixes: [], quality: 0, seed: 1, unique });
+    UNIQUE_BY_ID[id] = { id, name: a.name, base: a.base, level: a.level, weight: 0, flavour: a.flavour, mods: lines };
+    const hero = autoHero({ level: a.level, focus: a.focus as BuildFocus });
+    const sim = await probeSim(ctx.clips, hero);
+    try {
+      const target: EquipSlot | null = slot === 'jewel' ? null : EQUIP_SLOTS.find((s) => SLOT_KIND[s] === slot)!;
+      const gain = (it: Item) => {
+        const keepEquip = { ...hero.equipment }, keepJewels = { ...hero.jewels };
+        if (target) hero.equipment[target] = it;
+        else hero.jewels.__design = it;
+        sim.refreshHero();
+        const p = heroPower(sim);
+        hero.equipment = keepEquip;
+        hero.jewels = keepJewels;
+        sim.refreshHero();
+        return p;
+      };
+      sim.refreshHero();
+      const base = Math.max(1e-9, heroPower(sim));
+      const mine = gain(item(id, a.name)) / base;
+      const rivals = UNIQUES.filter((u) => BASES[u.base].slot === slot && u.level <= a.level)
+        .map((u) => ({ id: u.id, name: u.name, gain: +(gain(item(u.id, u.name)) / base).toFixed(3) }))
+        .sort((x, y) => y.gain - x.gain);
+      return {
+        ok: true, name: a.name, base: a.base, slot, level: a.level,
+        lines: describeItem(item(id, a.name), SKILL_NAMES).map((l) => l.text).filter(Boolean),
+        power: {
+          testHero: { level: a.level, focus: a.focus, replaces: target ? hero.equipment[target]?.name ?? 'nothing' : 'an empty jewel socket' },
+          gain: +mine.toFixed(3),
+          rank: `${rivals.filter((r) => r.gain > mine).length + 1} of ${rivals.length + 1} uniques for this slot`,
+          rivals: rivals.slice(0, 8),
+        },
+        note: 'gain = hero power with the item / without (damage x survival, the same measure as the inventory upgrade arrows). Skill lines only count if that skill is on the test hero\'s hotbar.',
+      };
+    } finally {
+      delete UNIQUE_BY_ID[id];
+      sim.dispose();
+    }
   },
 });
 

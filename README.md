@@ -90,7 +90,7 @@ The CLI and the MCP server start Vite in-process and drive headless Chromium (`-
 | --- | --- |
 | meta, catalog | `help`, `catalog.list` (skills, monsters, archetypes, palettes, affixes, body plans, bases, uniques, mechanics, themes, statuses, stats, presets) |
 | creature | `creature.genome`, `species.design` (Workshop rules: stats from parts, threat budget; save and release into the depths), `species.create` (free-form monster from parts), `bestiary.list`, `monster.inspect`, `encounter.roll` |
-| item | `item.roll`, `loot.simulate` (thousands of kills through the real drop code) |
+| item | `item.roll`, `loot.simulate` (thousands of kills through the real drop code), `unique.design` (validate a prototype unique and rank its power against the slot's uniques) |
 | level | `campaign.list`, `level.generate` (any depth or a remix of theme / layout / mechanics, with a map image and critical path) |
 | tree, hero | `tree.inspect`, `tree.path`, `tree.render`, `hero.build` (auto-built hero of any level), `skill.inspect`, `skill.test` (cast at dummies, report hits, damage, ailments, kills) |
 | balance | `balance.curve` (power curves by level), `balance.run` (the autoplayer bot plays a depth headless at ~60x speed: clear rate, time, deaths), `balance.campaign` (one hero plays depth after depth, equipping drops and spending points: the progression curve) |
