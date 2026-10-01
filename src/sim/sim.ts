@@ -800,6 +800,16 @@ export class Sim {
     return this.events.slice(lo);
   }
 
+  /**
+   * Events after `seq` from the last `frames` frames. Views use it so a long headless step (an
+   * agent's `game.step` or `bot.play`) does not replay every swing and number at once on the
+   * next draw: those effects would have faded long ago.
+   */
+  recentEvents(seq: number, frames: number): SimEvent[] {
+    const since = this.frame - frames;
+    return this.eventsSince(seq).filter((e) => e.frame >= since);
+  }
+
   get lastEventSeq() {
     return this.eventSeq;
   }

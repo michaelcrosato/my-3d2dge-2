@@ -56,6 +56,20 @@ describe('determinism', () => {
   });
 });
 
+describe('events', () => {
+  it('recentEvents skips events that are older than the window', () => {
+    const sim = new Sim(DEFAULT_LEVEL, clips, 5);
+    const seq = sim.lastEventSeq;
+    sim.emit('test.old');
+    for (let i = 0; i < 90; i++) sim.step();
+    sim.emit('test.new');
+    const types = (es: { type: string }[]) => es.map((e) => e.type).filter((t) => t.startsWith('test.'));
+    expect(types(sim.eventsSince(seq))).toEqual(['test.old', 'test.new']);
+    expect(types(sim.recentEvents(seq, 60))).toEqual(['test.new']);
+    sim.dispose();
+  });
+});
+
 describe('Rapier queries', () => {
   it('probes the ground under characters, including crate tops', () => {
     const sim = new Sim(levelWith([{ id: 'player', preset: 'ranger', x: 0, z: 4.5, brain: 'input' }]), clips, 1);
