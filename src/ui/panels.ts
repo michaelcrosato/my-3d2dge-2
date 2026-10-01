@@ -14,6 +14,7 @@ import { MECHANICS } from '../content/mechanics';
 import { fmtTime } from './gameHud';
 import type { Game } from '../game';
 import { IconRenderer } from '../render/icons';
+import { upgradeGains } from '../sim/autobuild';
 import { PACTS, pactRewardText, pactsOf } from '../content/pacts';
 import { cooldownOf, costOf } from '../sim/actions';
 import { estimateSkill } from '../sim/combat';
@@ -54,6 +55,7 @@ export class Panels {
   private wasPaused = false;
   private treeView: TreeView | null = null;
   private craftSeed = 1;
+  private gainCache: { key: string; map: Map<string, number> } | null = null;
 
   constructor(private game: Game, private toast: (t: string, color?: string) => void) {
     this.icons = new IconRenderer(game.renderer, game.pipeline);
@@ -179,8 +181,17 @@ export class Panels {
 
   // ---------------------------------------------------------------- items
 
+  /** Upgrade estimates for bag items, recomputed only when gear, level or the tree change. */
+  private gains(): Map<string, number> {
+    const hero = this.hero;
+    const key = [hero.level, hero.tree.length, hero.hotbar.join(), ...hero.inventory.map((i) => i?.uid ?? '-'), ...Object.values(hero.equipment).map((i) => i?.uid ?? '-')].join('|');
+    if (this.gainCache?.key !== key) this.gainCache = { key, map: upgradeGains(this.game.sim) };
+    return this.gainCache.map;
+  }
+
   private cell(item: Item | null, loc: ops.Loc, label = ''): HTMLElement {
     const sel = this.selected && this.selected.area === loc.area && this.selected.index === loc.index && this.selected.slot === loc.slot;
+    const gain = item && loc.area === 'inventory' ? this.gains().get(item.uid) ?? 0 : 0;
     const el = h('button', {
       class: `cell${item ? ` r-${item.rarity}` : ''}${sel ? ' sel' : ''}`,
       'aria-label': item ? item.name : label || 'Empty',
@@ -192,6 +203,7 @@ export class Panels {
       ondblclick: () => item && this.quickAction(loc),
     },
     item ? h('img', { class: 'pix', src: this.icons.icon({ base: item.base, rarity: item.rarity, seed: item.seed, unique: item.unique }), alt: '' }) : null,
+    gain > 1.02 ? h('span', { class: 'up', title: `Upgrade: about +${Math.round((gain - 1) * 100)}% overall power` }, '▲') : null,
     !item && label ? h('span', { class: 'lbl' }, label) : null);
     return el;
   }
@@ -237,6 +249,11 @@ export class Panels {
     const slot = ops.slotFor(hero, item);
     const compare = loc.area !== 'equip' && slot ? hero.equipment[slot] ?? null : null;
     box.append(this.tooltip(item, compare));
+    const gain = loc.area === 'inventory' ? this.gains().get(item.uid) : undefined;
+    if (gain !== undefined) {
+      const pct = Math.round((gain - 1) * 100);
+      box.append(h('p', { class: 'note', style: { color: pct > 1 ? '#5ad06a' : pct < -1 ? '#ff8a8a' : undefined } }, pct > 1 ? `▲ Upgrade: about +${pct}% overall power (damage and survival)` : pct < -1 ? `▼ About ${pct}% overall power if equipped` : 'About the same overall power if equipped'));
+    }
     const actions = h('div', { class: 'actions' });
     const btn = (label: string, fn: () => string | null, primary = false, ok?: string) => actions.append(h('button', { class: `ui-btn small${primary ? ' primary' : ''}`, onclick: () => this.act(fn(), ok) }, label));
     const kind = itemBase(item.base).slot;

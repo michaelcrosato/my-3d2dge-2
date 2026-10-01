@@ -77,6 +77,7 @@ body.touchui #ghud .buffs { top: max(92px, calc(env(safe-area-inset-top) + 88px)
 .cell img { width: 88%; height: 88%; }
 .cell.sel { outline: 2px solid #ffcf5a; outline-offset: -1px; }
 .cell.r-magic { border-color: #5a5abf; } .cell.r-rare { border-color: #bfbf4a; } .cell.r-unique { border-color: #c4702a; background: #1a0f08; }
+.cell .up { position: absolute; right: 2px; top: 0; font: 900 12px system-ui; color: #5ad06a; text-shadow: 0 1px 0 #000, 0 0 3px #000; pointer-events: none; }
 .cell .lbl { position: absolute; left: 2px; top: 1px; font: 9px ui-monospace, monospace; color: var(--gp-dim); pointer-events: none; }
 .doll { display: grid; grid-template-columns: repeat(4, minmax(46px, 64px)); gap: 4px; justify-content: start; }
 .tip { border: 1px solid var(--gp-line); background: #0b0a10; padding: 8px 10px; font: 12px/1.45 ui-monospace, Consolas, monospace; }

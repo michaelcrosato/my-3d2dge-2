@@ -14,6 +14,7 @@ import { newHero, type Hero } from './hero';
 import { equip } from './heroOps';
 import { rollItem } from './items';
 import { Rng } from './rng';
+import { armorReduction, evadeChance, monsterDamage } from './scaling';
 import type { Sim } from './sim';
 
 export type BuildFocus = 'melee' | 'spell' | 'balanced';
@@ -156,8 +157,14 @@ export function heroPower(sim: Sim): number {
     const cd = cooldownOf(sim, ch, s);
     dps = Math.max(dps, cd > 0 ? Math.min(e.perSecond, e.hit / cd) : e.perSecond);
   }
+  // Survival: life behind resistances, armour against a typical hit at this level, evasion and block.
   const res = (['resFire', 'resCold', 'resLightning'] as const).reduce((a, k) => a + Math.min(75, st.get(k)), 0) / 3;
-  const ehp = ch.maxLife / Math.max(0.25, 1 - res / 100) * (1 + st.get('armor') / 2000);
+  const hit = 6 * monsterDamage(hero.level);
+  const armour = armorReduction(st.get('armor'), hit);
+  const evade = evadeChance(st.get('evasion'), hero.level);
+  const block = sim.heroBuild?.blocking ? Math.min(75, st.get('block')) / 100 : 0;
+  const taken = Math.max(0.05, (1 - 0.5 * res / 100 - 0.5 * armour) * (1 - evade) * (1 - block * 0.8));
+  const ehp = ch.maxLife / taken;
   return Math.pow(Math.max(1, dps), 0.6) * Math.pow(Math.max(1, ehp), 0.4);
 }
 
@@ -189,4 +196,37 @@ export function autoEquip(sim: Sim): string[] {
     }
   }
   return equipped;
+}
+
+/**
+ * For every inventory item: the hero's power if it were equipped in its best slot, relative to
+ * now (1.1 = 10% stronger). Tries each fitting slot and restores equipment, inventory, life and
+ * mana exactly, so the inventory can show upgrade arrows without touching the game state.
+ */
+export function upgradeGains(sim: Sim): Map<string, number> {
+  const out = new Map<string, number>();
+  const hero = sim.hero, ch = sim.player;
+  if (!hero || !ch) return out;
+  const life = ch.life, mana = ch.mana;
+  const base = Math.max(1e-9, heroPower(sim));
+  for (let i = 0; i < hero.inventory.length; i++) {
+    const item = hero.inventory[i];
+    if (!item) continue;
+    const kind = BASES[item.base]?.slot;
+    if (!kind || kind === 'jewel' || kind === 'flask') continue;
+    let best = 0;
+    for (const slot of EQUIP_SLOTS.filter((s) => SLOT_KIND[s] === kind)) {
+      const equipment = { ...hero.equipment }, inventory = [...hero.inventory];
+      if (equip(hero, { area: 'inventory', index: i }, slot)) continue;
+      sim.refreshHero();
+      best = Math.max(best, heroPower(sim) / base);
+      hero.equipment = equipment;
+      hero.inventory = inventory;
+    }
+    if (best > 0) out.set(item.uid, best);
+  }
+  sim.refreshHero();
+  ch.life = life;
+  ch.mana = mana;
+  return out;
 }

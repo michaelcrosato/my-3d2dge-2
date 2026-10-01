@@ -184,3 +184,31 @@ describe('balance guard (bot campaign)', () => {
     }
   });
 });
+
+describe('upgrade arrows', () => {
+  it('rates bag items against the equipped ones and leaves the hero untouched', async () => {
+    const { heroPower, upgradeGains } = await import('../src/sim/autobuild');
+    const { newHero, addToInventory } = await import('../src/sim/hero');
+    const { rollItem } = await import('../src/sim/items');
+    const { Rng } = await import('../src/sim/rng');
+    const { probeSim } = await import('../src/agent/probe');
+    const hero = newHero();
+    hero.level = 12;
+    const good = rollItem(new Rng(5), { ilvl: 12, rarity: 'rare', base: 'war_sword', uid: 'good' });
+    const bad = rollItem(new Rng(6), { ilvl: 1, rarity: 'normal', base: 'rusted_sword', uid: 'bad' });
+    addToInventory(hero, good);
+    addToInventory(hero, bad);
+    const sim = await probeSim(clips, hero);
+    const p = sim.player!;
+    p.life = p.maxLife * 0.5;
+    const before = { power: heroPower(sim), life: p.life, eq: JSON.stringify(hero.equipment), inv: JSON.stringify(hero.inventory) };
+    const gains = upgradeGains(sim);
+    expect(gains.get('good')!).toBeGreaterThan(1.05);
+    expect(gains.get('bad')!).toBeLessThanOrEqual(1.001);
+    expect(heroPower(sim)).toBeCloseTo(before.power, 6);
+    expect(p.life).toBe(before.life);
+    expect(JSON.stringify(hero.equipment)).toBe(before.eq);
+    expect(JSON.stringify(hero.inventory)).toBe(before.inv);
+    sim.dispose();
+  });
+});
