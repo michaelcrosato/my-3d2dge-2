@@ -6,7 +6,7 @@
  */
 import { hashSeed, Rng } from '../sim/rng';
 import type { Level } from './level';
-import { MECHANIC_IDS, MECHANICS, placeMechanics } from './mechanics';
+import { MECHANIC_IDS_V1, MECHANICS, placeMechanics, withLaterMechanics } from './mechanics';
 import { applyPactsToSpec, PACTS, stampPacts } from './pacts';
 import { generateDungeon } from './procgen/dungeon';
 import { stageSpec } from './stages';
@@ -32,7 +32,7 @@ export function dateKey(d = new Date()): string {
 export function dailyTrial(key: string, frontier: number): TrialSpec {
   const r = new Rng(hashSeed('daily', key));
   const depth = Math.max(3, frontier);
-  const mechanics = r.shuffle([...MECHANIC_IDS]).slice(0, r.chance(0.5) ? 3 : 2);
+  const mechanics = withLaterMechanics(r.shuffle([...MECHANIC_IDS_V1]).slice(0, r.chance(0.5) ? 3 : 2), (id) => hashSeed(`daily:${id}`, key));
   const liked = mechanics.flatMap((m) => MECHANICS[m].themes).filter((t) => DUNGEON_THEMES.includes(t));
   const theme = liked.length ? r.pick(liked) : r.pick(DUNGEON_THEMES);
   const pacts = r.shuffle(PACTS.filter((p) => p.minDepth <= depth).map((p) => p.id)).slice(0, 2);

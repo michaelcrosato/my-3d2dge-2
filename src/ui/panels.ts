@@ -609,7 +609,7 @@ export class Panels {
       h('section', { class: 'stagelist' },
         h('h3', {}, 'Choose a depth'),
         this.replayFileButton(),
-        h('p', { class: 'note' }, 'Each depth is named after its trick: use it, or ignore it and swing harder. Clear the boss to unlock the next. Past depth 24 new depths combine tricks forever.'),
+        h('p', { class: 'note' }, 'Each depth is named after its trick: use it, or ignore it and swing harder. Clear the boss to unlock the next. Past depth 25 new depths combine tricks forever.'),
         ...rows)];
   }
 }

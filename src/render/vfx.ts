@@ -482,6 +482,13 @@ export class Vfx {
         this.emit(e.x as number, 0.2, e.z as number, 18, { color: '#7affd8', speed: 2.5, up: 3, life: 0.5, size: 0.1 });
         this.shockwave(e.x as number, e.z as number, 2, '#7affd8', 0.3);
         break;
+      case 'pylon.arc':
+        this.lightning([[e.ax as number, e.az as number], [e.bx as number, e.bz as number]], '#bfe8ff');
+        break;
+      case 'pylon.charge':
+        this.emit(e.x as number, 1.9, e.z as number, 14, { color: '#9fdcff', speed: 1.8, up: 1.5, life: 0.4, size: 0.08 });
+        this.flash(e.x as number, 2, e.z as number, '#9fdcff', 3, 5, 0.25);
+        break;
       case 'beacon.lit':
         this.emit(e.x as number, 1.5, e.z as number, 30, { color: '#ffd070', speed: 2.5, up: 3, life: 0.7, size: 0.1 });
         this.flash(e.x as number, 1.6, e.z as number, '#ffd070', 6, 12, 0.6);

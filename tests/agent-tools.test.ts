@@ -6,6 +6,7 @@ import { allTools, callTool, schemaOf, validateArgs, tool } from '../src/agent/r
 import type { Img } from '../src/agent/capture';
 import { resetConfig, config } from '../src/config';
 import { campaignStage } from '../src/content/campaign';
+import { MECHANIC_IDS } from '../src/content/mechanics';
 import { registerMonster } from '../src/content/monsters';
 import { generateDungeon } from '../src/content/procgen/dungeon';
 import { generateGenome } from '../src/content/procgen/creature';
@@ -235,7 +236,7 @@ describe('WebMCP bridge', () => {
     const cat = registered.find((t) => t.name === 'catalog_list')!;
     const ok = await cat.execute({ kind: 'mechanics' });
     expect(ok.isError).toBeFalsy();
-    expect(JSON.parse(ok.content[0].text as string).length).toBe(13);
+    expect(JSON.parse(ok.content[0].text as string).length).toBe(MECHANIC_IDS.length);
     const bad = await cat.execute({ kind: 'nope' });
     expect(bad.isError).toBe(true);
     // provideContext fallback, and no-ops without WebMCP.

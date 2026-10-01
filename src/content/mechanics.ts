@@ -321,9 +321,57 @@ export const MECHANICS: Record<string, MechanicDef> = {
       }
     },
   },
+  pylons: {
+    id: 'pylons', name: 'Storm Pylons', noun: 'Pylons', adjective: 'Thundering', themes: ['ruins', 'foundry', 'temple'],
+    tip: 'Strike a pylon to charge it for 6 seconds. Two charged pylons in sight of each other arc lightning that shocks every monster crossing it. Lure packs through the beam, or ignore them.',
+    place(level, rng, k) {
+      const pl = new Placer(level);
+      for (const room of combatRooms(level)) {
+        const free = pl.tiles(room, 1).filter((t) => pl.free(t.c, t.r, 1));
+        if (free.length < 4) continue;
+        const pylons = room.w * room.h > 140 && rng.chance(0.5 * k) ? 3 : 2;
+        const first = rng.pick(free);
+        const placed = [first];
+        for (let n = 1; n < pylons; n++) {
+          // 5-8 m from every pylon already in the room: far enough to sweep a pack, near enough to arc.
+          const ok = free.filter((t) => placed.every((q) => {
+            const d = Math.hypot(t.c - q.c, t.r - q.r) * pl.grid.cell;
+            return d >= 5 && d <= 8;
+          }));
+          if (!ok.length) break;
+          placed.push(rng.pick(ok));
+        }
+        if (placed.length < 2) continue;
+        for (const t of placed) {
+          pl.take(t.c, t.r);
+          const at = cellCenter(pl.grid, t.c, t.r);
+          prop(level, 'pylon', at.x, at.z, { yawDeg: 45 });
+        }
+      }
+    },
+  },
 };
 
 export const MECHANIC_IDS = Object.keys(MECHANICS);
+
+/**
+ * The thirteen mechanics generated content was first drawn from, in their original order. Endless
+ * depths and Daily Trials keep drawing from this list, so adding a mechanic doesn't reshuffle
+ * content players already know; each later one replaces a pick in a quarter of the draws, decided
+ * by its own seeded roll (`withLaterMechanics`).
+ */
+export const MECHANIC_IDS_V1 = ['kegs', 'spikes', 'shrines', 'launchpads', 'ice', 'lightless', 'boulders', 'rifts', 'vents', 'totems', 'wells', 'chrono', 'imps'];
+const LATER_MECHANICS = MECHANIC_IDS.filter((id) => !MECHANIC_IDS_V1.includes(id));
+
+/** Swaps later mechanics into a draw from MECHANIC_IDS_V1 (seeded by `seed`, independent of the draw). */
+export function withLaterMechanics(picks: string[], seed: (id: string) => number): string[] {
+  const out = [...picks];
+  for (const id of LATER_MECHANICS) {
+    const q = new Rng(seed(id));
+    if (q.chance(0.25)) out[q.int(0, out.length - 1)] = id;
+  }
+  return out;
+}
 
 /** Places every listed mechanic into a generated level (deterministic for the level seed). */
 /** Adds one more mechanic to an already furnished level (pacts that bring darkness). */

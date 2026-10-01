@@ -4,7 +4,8 @@ import manifest from '../public/assets/manifest.json';
 import { resetConfig } from '../src/config';
 import { AUTHORED, campaignStage, stageMechanics, stageTitle } from '../src/content/campaign';
 import type { Level } from '../src/content/level';
-import { MECHANIC_IDS } from '../src/content/mechanics';
+import { MECHANIC_IDS, MECHANICS } from '../src/content/mechanics';
+import { PYLON_CHARGE, PYLON_RANGE } from '../src/sim/mechanics';
 import { skill } from '../src/content/skills';
 import { generateDungeon } from '../src/content/procgen/dungeon';
 import { newHero } from '../src/sim/hero';
@@ -47,9 +48,10 @@ function calm(sim: Sim, except: Character[] = []) {
 
 describe('campaign', () => {
   it('introduces every mechanic once, names levels after them, then combines and goes on forever', () => {
-    const intro = AUTHORED.slice(0, MECHANIC_IDS.length);
-    expect(new Set(intro.flatMap((a) => a.mechanics))).toEqual(new Set(MECHANIC_IDS));
-    for (const a of intro) expect(a.mechanics).toHaveLength(1);
+    // Each mechanic has exactly one authored depth of its own (the first thirteen, then later ones after the combinations).
+    const intro = AUTHORED.filter((a) => a.mechanics.length === 1);
+    expect(intro.map((a) => a.mechanics[0]).sort()).toEqual([...MECHANIC_IDS].sort());
+    for (const a of intro) expect(a.name).toBe(MECHANICS[a.mechanics[0]].name);
     expect(stageTitle(1)).toBe('Blast Kegs');
     for (const n of [30, 77, 250, 1000]) {
       expect(stageMechanics(n).length).toBeGreaterThanOrEqual(2);
@@ -63,9 +65,10 @@ describe('campaign', () => {
   it('places each mechanic\'s props into its level', () => {
     const expectKind: Record<string, string> = {
       kegs: 'keg', spikes: 'spikes', shrines: 'shrine', launchpads: 'launchpad', ice: 'ice', lightless: 'beacon', boulders: 'chute',
-      rifts: 'rift', vents: 'vent', totems: 'totem', wells: 'well', chrono: 'chrono',
+      rifts: 'rift', vents: 'vent', totems: 'totem', wells: 'well', chrono: 'chrono', pylons: 'pylon',
     };
-    AUTHORED.slice(0, 13).forEach((a, i) => {
+    AUTHORED.forEach((a, i) => {
+      if (a.mechanics.length !== 1) return;
       const level = stageLevel(i + 1);
       const m = a.mechanics[0];
       if (m === 'imps') expect(level.characters.some((c) => c.monster?.def === 'imp')).toBe(true);
@@ -215,6 +218,41 @@ describe('mechanics in the sim', () => {
     for (let i = 0; i < 10; i++) sim.hitProps({ kind: 'circle', radius: 3 }, p.pos.x, p.pos.z, 0, p, skill('slash1'), undefined);
     expect(totem.dead).toBe(true);
     expect(p.statuses.some((s) => s.id === 'power')).toBe(true);
+    sim.dispose();
+  });
+
+  it('Storm Pylons: struck pylons arc lightning through monsters, never the hero', () => {
+    const n = AUTHORED.findIndex((a) => a.mechanics[0] === 'pylons') + 1;
+    const { sim, p } = stageSim(n);
+    const pylons = propsOf(sim, 'pylon');
+    // A pair in one room, in sight of each other.
+    const [a, b] = pylons.flatMap((x) => pylons.filter((y) => y !== x && Math.hypot(x.x - y.x, x.z - y.z) <= PYLON_RANGE).map((y) => [x, y]))[0];
+    const m = monsters(sim)[0];
+    calm(sim, [m]);
+    m.ai.awake = false;
+    const mid = { x: (a.x + b.x) / 2, z: (a.z + b.z) / 2 };
+    put(sim, m, mid.x, mid.z);
+    put(sim, p, mid.x + 0.3, mid.z + 0.3);
+    const life = m.life, heroLife = p.life;
+    // One pylon alone does nothing.
+    put(sim, p, a.x + 1.2, a.z);
+    sim.hitProps({ kind: 'circle', radius: 2 }, p.pos.x, p.pos.z, 0, p, skill('slash1'), undefined);
+    steps(sim, 30);
+    expect(a.state).toBe('charged');
+    expect(m.life).toBe(life);
+    // Both charged: arcs every 12 frames shock the monster on the line; the hero standing in it is unharmed.
+    put(sim, p, b.x + 1.2, b.z);
+    sim.hitProps({ kind: 'circle', radius: 2 }, p.pos.x, p.pos.z, 0, p, skill('slash1'), undefined);
+    put(sim, p, mid.x + 0.2, mid.z);
+    const before = p.life;
+    steps(sim, 60);
+    expect(sim.events.some((e) => e.type === 'pylon.arc')).toBe(true);
+    expect(m.life).toBeLessThan(life);
+    expect(m.statuses.some((s) => s.id === 'shock')).toBe(true);
+    expect(p.life).toBeGreaterThanOrEqual(Math.min(before, heroLife));
+    // Charges run out.
+    steps(sim, PYLON_CHARGE);
+    expect(a.state).toBe('idle');
     sim.dispose();
   });
 
