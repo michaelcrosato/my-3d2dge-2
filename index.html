@@ -23,7 +23,10 @@
       #toolbar button { min-width: 44px; min-height: 38px; padding: 4px 8px; font-size: 12px; }
       #toolbar #settings-open { font-size: 18px; padding: 2px 8px; }
       #loading { position: fixed; inset: 40% 20px auto; color: #fff4db; text-align: center; font: 16px system-ui; }
-      .agent-mode #toolbar, .agent-mode #touch { display: none; }
+      .agent-mode #toolbar, .agent-mode #touch, .agent-mode #mapbtn { display: none; }
+      #mapbtn { position: fixed; z-index: 14; padding: 0; margin: 0; border: 0; background: transparent; cursor: pointer; }
+      #mapbtn[hidden] { display: none; }
+      #mapbtn:focus-visible { outline: 3px solid #ffcf5a; outline-offset: 2px; }
       @media (max-height: 450px) { #hud { font-size: 10px; max-width: 48vw; } }
       @media (max-width: 380px) { #toolbar button { padding: 4px 6px; font-size: 11px; min-width: 40px; } }
     </style>
@@ -33,6 +36,7 @@
     <pre id="hud"></pre>
     <div id="loading" role="status">Loading engine, models and animations…</div>
     <nav id="toolbar" aria-label="Game menus"><button id="menu-open" aria-label="Pause menu" title="Pause menu (Esc)">☰</button><button id="bag" title="Inventory (I)">Bag</button><button id="treebtn" title="Passive tree (P)">Tree</button><button id="charbtn" title="Character and skills (C)">Char</button><button id="mode" title="Pixel art / plain 3D (F2)">3D</button><button id="settings-open" aria-label="Settings" aria-haspopup="dialog" title="Settings">⚙</button></nav>
+    <button id="mapbtn" hidden aria-label="Map" title="Map (Tab)"></button>
     <div id="touch" role="group" aria-label="Game controls" hidden></div>
     <div id="toast" role="status" aria-live="polite"></div>
     <div id="gtoast" role="status" aria-live="polite"></div>

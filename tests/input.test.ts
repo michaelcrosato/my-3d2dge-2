@@ -63,6 +63,16 @@ describe('normalizeProfile', () => {
     expect(p.graphics).toEqual({ 'render.outlines': false, 'render.palette': 'pico8' });
   });
 
+  it('gives actions added later their default keys unless the player already uses them', () => {
+    const saved = structuredClone(profileFromTemplate('standard', 'Mine', 'mine')) as unknown as { keys: Record<string, string[]> };
+    delete saved.keys.map;
+    expect(normalizeProfile(structuredClone(saved)).keys.map).toEqual(['Tab']);
+    saved.keys.skill2 = ['Tab'];
+    const p = normalizeProfile(saved);
+    expect(p.keys.skill2).toEqual(['Tab']);
+    expect(p.keys.map).toEqual([]);
+  });
+
   it('falls back to defaults for an empty or duplicate-id settings file', () => {
     expect(normalizeSettings(null).profiles).toHaveLength(TEMPLATE_IDS.length);
     const a = profileFromTemplate('standard', 'A', 'same');

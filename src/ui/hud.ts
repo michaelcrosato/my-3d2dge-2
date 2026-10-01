@@ -13,7 +13,7 @@ function keyHints(p: Profile): string[] {
   const skills = (['skill1', 'skill2', 'skill3', 'skill4', 'skill5'] as const).map(k).filter(Boolean).join('/');
   const lines = [
     [move, hint('attack', 'attack'), skills ? `${skills} skills` : '', hint('dodge', 'roll'), hint('interact', 'use'), hint('flask1', 'life'), hint('flask2', 'mana')],
-    [hint('inventory', 'bag'), hint('tree', 'tree'), hint('character', 'char'), hint('townPortal', 'town'), hint('menu', 'menu'), hint('help', 'help'), hint('stats', 'stats')],
+    [hint('inventory', 'bag'), hint('tree', 'tree'), hint('character', 'char'), hint('townPortal', 'town'), hint('map', 'map'), hint('menu', 'menu'), hint('help', 'help'), hint('stats', 'stats')],
     [hint('togglePixel', 'pixel/3D'), hint('toggleOutlines', 'outlines'), hint('cyclePalette', 'palette'), hint('toggleColliders', 'colliders'), hint('pause', 'freeze'), hint('step', 'step')],
   ];
   return lines.map((l) => l.filter(Boolean).join('  ')).filter(Boolean);
@@ -26,7 +26,7 @@ function padHints(p: Profile): string[] {
   return [
     [`${stick} move`, 'other stick aims', hint('attack', 'attack'), hint('dodge', 'roll'), hint('interact', 'use')].filter(Boolean).join('  '),
     [hint('skill1', 's1'), hint('skill2', 's2'), hint('skill3', 's3'), hint('skill4', 's4'), hint('skill5', 's5'), hint('flask1', 'life'), hint('flask2', 'mana')].filter(Boolean).join('  '),
-    [hint('menu', 'menu'), hint('inventory', 'bag'), hint('tree', 'tree'), hint('character', 'char')].filter(Boolean).join('  '),
+    [hint('menu', 'menu'), hint('inventory', 'bag'), hint('tree', 'tree'), hint('character', 'char'), hint('map', 'map')].filter(Boolean).join('  '),
   ];
 }
 
