@@ -6,7 +6,7 @@
  * Rendered in the low-res pass like everything else, so effects become crisp pixel art.
  */
 import * as THREE from 'three';
-import type { Shape } from '../content/skills';
+import { SKILLS, type Shape } from '../content/skills';
 import { DAMAGE_COLORS, type DamageType } from '../content/stats';
 import type { Sim, SimEvent } from '../sim/sim';
 import type { Projectile, Zone } from '../sim/types';
@@ -343,7 +343,8 @@ export class Vfx {
       case 'strike': {
         const c = ch(e.id);
         if (!c) break;
-        this.slashArc(c.pos.x, c.pos.y, c.pos.z, e.yaw as number, e.shape as Shape, c.team === 'hero' ? '#f4f0ff' : '#ffb0a0');
+        const tint = SKILLS[String(e.skill)]?.color;
+        this.slashArc(c.pos.x, c.pos.y, c.pos.z, e.yaw as number, e.shape as Shape, tint ?? (c.team === 'hero' ? '#f4f0ff' : '#ffb0a0'));
         break;
       }
       case 'death': {
@@ -481,28 +482,71 @@ export class Vfx {
     }
   }
 
+  /**
+   * Strike trail: a thin crescent at weapon height for swings (bright where the swing ends,
+   * feathered on the inside), a tapered streak along the ground for line strikes, and a thin
+   * ground ring for area strikes. Per-vertex alpha, tinted by the skill.
+   */
   private slashArc(x: number, y: number, z: number, yaw: number, shape: Shape, color: string) {
-    let g: THREE.BufferGeometry;
+    const col = new THREE.Color(color);
+    const pos: number[] = [], rgba: number[] = [], idx: number[] = [];
+    const vert = (px: number, pz: number, a: number) => {
+      pos.push(px, 0, pz);
+      rgba.push(col.r, col.g, col.b, a);
+      return pos.length / 3 - 1;
+    };
+    let height = 0.9, peak = 0.8;
     if (shape.kind === 'cone') {
       const half = (shape.arc / 2) * (Math.PI / 180);
-      g = new THREE.RingGeometry(shape.radius * 0.55, shape.radius * 0.95, 18, 1, Math.PI / 2 - half, half * 2);
-    } else if (shape.kind === 'circle' || shape.kind === 'ring') g = new THREE.RingGeometry(shape.radius * 0.6, shape.radius * 0.95, 28);
-    else {
-      g = new THREE.PlaneGeometry(shape.width * 0.8, shape.length);
-      g.translate(0, shape.length / 2, 0);
+      const r1 = shape.radius * 0.95, r0 = shape.radius * 0.72, n = 16;
+      for (let i = 0; i <= n; i++) {
+        const t = i / n, th = -half + t * half * 2;
+        const a = Math.pow(t, 1.4);
+        vert(Math.sin(th) * r0, Math.cos(th) * r0, a * 0.15);
+        vert(Math.sin(th) * r1, Math.cos(th) * r1, a);
+        if (i) idx.push(2 * i - 2, 2 * i - 1, 2 * i, 2 * i - 1, 2 * i + 1, 2 * i);
+      }
+    } else if (shape.kind === 'circle' || shape.kind === 'ring') {
+      const r1 = shape.radius * 0.95, r0 = shape.radius * 0.82, n = 32;
+      for (let i = 0; i <= n; i++) {
+        const th = (i / n) * Math.PI * 2;
+        vert(Math.sin(th) * r0, Math.cos(th) * r0, 0.1);
+        vert(Math.sin(th) * r1, Math.cos(th) * r1, 1);
+        if (i) idx.push(2 * i - 2, 2 * i - 1, 2 * i, 2 * i - 1, 2 * i + 1, 2 * i);
+      }
+      height = 0.07;
+      peak = 0.55;
+    } else {
+      const n = 8;
+      for (let i = 0; i <= n; i++) {
+        const t = i / n, w = (shape.width / 2) * (1 - 0.7 * t);
+        const a = 1 - t;
+        vert(-w, t * shape.length, a * 0.25);
+        vert(0, t * shape.length, a);
+        vert(w, t * shape.length, a * 0.25);
+        if (i) {
+          const b = 3 * (i - 1), c = 3 * i;
+          idx.push(b, b + 1, c, b + 1, c + 1, c, b + 1, b + 2, c + 1, b + 2, c + 2, c + 1);
+        }
+      }
+      height = 0.07;
+      peak = 0.6;
     }
-    g.rotateX(-Math.PI / 2);
-    g.rotateY(Math.PI);
-    const mesh = new THREE.Mesh(g, fxMaterial(color, 0.75));
-    mesh.position.set(x, y + 0.9, z);
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    g.setAttribute('color', new THREE.Float32BufferAttribute(rgba, 4));
+    g.setIndex(idx);
+    const mat = writesNormals(new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: peak, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -3 }), 'fx');
+    const mesh = new THREE.Mesh(g, mat);
+    mesh.position.set(x, y + height, z);
     mesh.rotation.y = yaw;
     mesh.renderOrder = 8;
     mesh.layers.set(LAYER.FX);
     this.group.add(mesh);
     this.transients.push({
       mesh, t: 0, max: 0.16, update: (o, u) => {
-        (((o as THREE.Mesh).material) as THREE.MeshBasicMaterial).opacity = 0.75 * (1 - u);
-        o.scale.setScalar(0.85 + u * 0.25);
+        (((o as THREE.Mesh).material) as THREE.MeshBasicMaterial).opacity = peak * (1 - u * u);
+        o.scale.setScalar(0.9 + u * 0.18);
       },
     });
   }
