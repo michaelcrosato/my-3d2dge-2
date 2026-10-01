@@ -154,10 +154,13 @@ export function thinkMonster(sim: Sim, ch: Character): CharacterInput {
   if (m?.boss) {
     const md = MONSTERS[m.def];
     const frac = ch.life / Math.max(1, ch.maxLife);
-    if (m.phase === 1 && frac < 0.5) {
-      m.phase = 2;
-      sim.emit('boss.phase', { id: ch.id, phase: 2 });
+    // Phases split the life bar evenly (2 phases: 50%; 3 phases: 67% and 33%).
+    const phases = Math.max(1, md.boss?.phases ?? 2);
+    if (m.phase < phases && frac < 1 - m.phase / phases) {
+      m.phase++;
+      sim.emit('boss.phase', { id: ch.id, phase: m.phase, final: m.phase === phases });
       for (const k of Object.keys(ch.cooldowns)) ch.cooldowns[k] = 0;
+      if (md.boss?.adds && md.minion) sim.summon(ch, md.minion, md.boss.adds, -1, { rarity: m.phase === phases ? 'magic' : 'normal' });
     }
     if (md.boss?.enrageAt && frac < md.boss.enrageAt && !ch.statuses.some((s) => s.id === 'enraged')) {
       addStatus(sim, ch, 'enraged', 9999, 1, ch.id);

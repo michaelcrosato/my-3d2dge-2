@@ -134,7 +134,7 @@ export class GameHud {
         this.toast('Inventory is full', '#ff6a6a');
         break;
       case 'boss.phase':
-        this.showBanner('The boss grows desperate', '', '', 2);
+        this.showBanner(e.final ? 'Final phase' : 'The boss grows desperate', e.final ? 'It calls its kin. Finish it.' : '', '', 2.5);
         break;
       case 'exit.open':
         this.toast('A portal to the next depth has opened', '#7ab8ff');

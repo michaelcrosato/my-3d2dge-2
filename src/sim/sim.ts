@@ -26,7 +26,7 @@ import { autoTarget, blockedReason, inShape, segmentCircle, startSkill, stepProj
 import { thinkMonster } from './ai';
 import { addStatus, affixMods, applyPacket, hostile, isDead, rollPacket, tickStatuses } from './combat';
 import { buildHero, gainXp, heroSkills, type Hero, type HeroBuild } from './hero';
-import { dropLoot, pickupItem } from './loot';
+import { dropLoot, dropPinnacle, pickupItem } from './loot';
 import { affixOnDeath, stepAffixes } from './monsterAffixes';
 import { FlowField, NavGrid, type P2 } from './nav';
 import { fieldAt, mechanicHit, propSpec, stepProps, stepSystems } from './props';
@@ -1514,6 +1514,7 @@ export class Sim {
       if (t.monster.def === 'imp') impTreasure(this, t);
     }
     if (t.monster.boss) {
+      if (credit?.team === 'hero' && MONSTERS[t.monster.def]?.boss?.pinnacle) dropPinnacle(this, t.pos.x, t.pos.z, t.level);
       this.stage.bossDead = true;
       this.openExit();
       this.emit('boss.dead', { id: t.id, name: t.name });
