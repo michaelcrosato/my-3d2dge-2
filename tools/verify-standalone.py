@@ -1,12 +1,15 @@
-import asyncio, json
+import asyncio, json, os
 from pathlib import Path
 from playwright.async_api import async_playwright
 
-URL=(Path(__file__).resolve().parents[1] / 'standalone/3dpixel2d.html').as_uri()
+URL=(Path(__file__).resolve().parents[1] / 'standalone/3dpixel2d.html').as_uri()+'?demo'
 async def main():
  async with async_playwright() as p:
-  for engine in ['chromium','webkit','firefox']:
-   browser=await getattr(p,engine).launch()
+  for engine in os.environ.get('STANDALONE_ENGINES','chromium,webkit,firefox').split(','):
+   opts_launch=dict(headless=os.environ.get(engine.upper()+'_HEADLESS','1')!='0')
+   if os.environ.get(engine.upper()+'_PATH'): opts_launch['executable_path']=os.environ[engine.upper()+'_PATH']
+   if engine=='chromium': opts_launch['args']=['--no-sandbox','--disable-dev-shm-usage','--enable-unsafe-swiftshader','--use-gl=angle','--use-angle=swiftshader']
+   browser=await getattr(p,engine).launch(**opts_launch)
    opts=dict(viewport={'width':375,'height':667},has_touch=True,offline=engine!="webkit")
    if engine!='firefox': opts['is_mobile']=True
    ctx=await browser.new_context(**opts)
