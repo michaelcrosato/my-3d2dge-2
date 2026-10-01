@@ -451,6 +451,9 @@ export class Game {
   }
 
   /** Advance exactly n sim frames (deterministic, independent of wall-clock), then draw. */
+  /** The sim and frame of the last draw. */
+  private drawn: { sim: Sim | null; frame: number } = { sim: null, frame: 0 };
+
   step(n = 1, draw = true) {
     for (let i = 0; i < n; i++) {
       if (this.busy) break;
@@ -459,10 +462,17 @@ export class Game {
     }
     this.pump();
     this.acc = 0;
-    if (draw) this.render(1, n / 60);
+    if (draw) this.render(1);
   }
 
-  render(alpha = this.lastAlpha, dt = 0) {
+  /**
+   * Draws a frame. `dt` ages effects (trails, particles, floating numbers); without one it is the
+   * sim time since the last draw, so a draw after a long headless step (an agent tool) shows
+   * those effects as they would be now instead of all at once.
+   */
+  render(alpha = this.lastAlpha, dt?: number) {
+    dt ??= this.drawn.sim === this.sim ? Math.max(0, this.sim.frame - this.drawn.frame) / 60 : 0;
+    this.drawn = { sim: this.sim, frame: this.sim.frame };
     const t0 = performance.now();
     this.lastAlpha = alpha;
     this.renderer.info.reset();

@@ -56,6 +56,8 @@ export class Overlay {
   private explored: Uint8Array | null = null;
   private tmp = new THREE.Vector3();
   private manaWarnAt = -999;
+  /** Start time for numbers spawned now (see Vfx.born): older events start older. */
+  private born = 0;
   enabled = true;
 
   constructor() {
@@ -70,7 +72,7 @@ export class Overlay {
 
   private float(x: number, y: number, z: number, text: string, color: string, scale = 1, max = 0.9) {
     if (this.floats.length > 120) this.floats.shift();
-    this.floats.push({ x, y, z, text, color, t: 0, max, scale, drift: (Math.random() - 0.5) * 8 });
+    this.floats.push({ x, y, z, text, color, t: this.born, max, scale, drift: (Math.random() - 0.5) * 8 });
   }
 
   private onEvent(sim: Sim, e: SimEvent, heroId: string) {
@@ -146,7 +148,11 @@ export class Overlay {
       // Town needs no exploring.
       if (this.explored && sim.level.kind === 'town') this.explored.fill(1);
     }
-    for (const e of sim.eventsSince(this.lastSeq)) this.onEvent(sim, e, o.heroId);
+    for (const e of sim.recentEvents(this.lastSeq, 60)) {
+      this.born = (sim.frame - e.frame) / 60 - dt;
+      this.onEvent(sim, e, o.heroId);
+    }
+    this.born = 0;
     this.lastSeq = sim.lastEventSeq;
     if (this.canvas.width !== w || this.canvas.height !== h) {
       this.canvas.width = w;

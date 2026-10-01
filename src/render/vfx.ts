@@ -82,6 +82,12 @@ export class Vfx {
   private sim: Sim | null = null;
   /** Screen shake in art pixels (decays). */
   shake = 0;
+  /**
+   * Start time for effects spawned now (seconds; negative = not yet aged by this draw). Events
+   * from earlier frames start older, so a draw after many headless frames shows each effect at
+   * its true age.
+   */
+  private born = 0;
 
   constructor() {
     this.group.name = 'vfx';
@@ -112,18 +118,19 @@ export class Vfx {
       });
       const p = this.particles[this.particles.length - 1];
       p.max = p.life;
+      p.life -= this.born;
     }
   }
 
   /** Short point light (explosions, hits, blinks). */
   flash(x: number, y: number, z: number, color: string, intensity: number, range: number, time: number) {
-    this.flashes.push({ x, y, z, color, intensity, range, t: 0, max: time });
+    this.flashes.push({ x, y, z, color, intensity, range, t: this.born, max: time });
   }
 
   private transient(mesh: THREE.Object3D, max: number, update: Transient['update']) {
     mesh.layers.set(LAYER.MAIN);
     this.group.add(mesh);
-    this.transients.push({ mesh, t: 0, max, update });
+    this.transients.push({ mesh, t: this.born, max, update });
   }
 
   // ---------------------------------------------------------------- per frame
@@ -134,7 +141,11 @@ export class Vfx {
       this.sim = sim;
       this.lastSeq = sim.lastEventSeq;
     }
-    for (const e of sim.eventsSince(this.lastSeq)) this.onEvent(sim, e, heroId);
+    for (const e of sim.recentEvents(this.lastSeq, 60)) {
+      this.born = (sim.frame - e.frame) / 60 - dt;
+      this.onEvent(sim, e, heroId);
+    }
+    this.born = 0;
     this.lastSeq = sim.lastEventSeq;
     this.syncZones(sim);
     this.syncProjectiles(sim, lights);
@@ -544,7 +555,7 @@ export class Vfx {
     mesh.layers.set(LAYER.FX);
     this.group.add(mesh);
     this.transients.push({
-      mesh, t: 0, max: 0.16, update: (o, u) => {
+      mesh, t: this.born, max: 0.16, update: (o, u) => {
         (((o as THREE.Mesh).material) as THREE.MeshBasicMaterial).opacity = peak * (1 - u * u);
         o.scale.setScalar(0.9 + u * 0.18);
       },
@@ -559,7 +570,7 @@ export class Vfx {
     mesh.layers.set(LAYER.FX);
     this.group.add(mesh);
     this.transients.push({
-      mesh, t: 0, max: time, update: (o, u) => {
+      mesh, t: this.born, max: time, update: (o, u) => {
         const k = inward ? r * (1 - u) + 0.2 : r * (0.2 + 0.8 * u);
         o.scale.set(k, k, 1);
         (((o as THREE.Mesh).material) as THREE.MeshBasicMaterial).opacity = 0.7 * (1 - u);
@@ -574,7 +585,7 @@ export class Vfx {
     mesh.layers.set(LAYER.FX);
     this.group.add(mesh);
     this.transients.push({
-      mesh, t: 0, max: time, update: (o, u) => {
+      mesh, t: this.born, max: time, update: (o, u) => {
         o.scale.set(1 - u * 0.7, 1, 1 - u * 0.7);
         (((o as THREE.Mesh).material) as THREE.MeshBasicMaterial).opacity = 0.45 * (1 - u);
       },
@@ -607,7 +618,7 @@ export class Vfx {
     const mesh = new THREE.Mesh(g, writesNormals(new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide })));
     mesh.layers.set(LAYER.MAIN);
     this.group.add(mesh);
-    this.transients.push({ mesh, t: 0, max: 0.18, update: (o, u) => (o.visible = u < 0.4 || u > 0.6) });
+    this.transients.push({ mesh, t: this.born, max: 0.18, update: (o, u) => (o.visible = u < 0.4 || u > 0.6) });
   }
 
   get particleCount() {
