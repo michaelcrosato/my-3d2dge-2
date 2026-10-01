@@ -241,7 +241,12 @@ export function applyPacket(sim: Sim, t: Character, p: Packet, fromX: number, fr
     t.since.hurt = 0;
   }
   // Thorns affix: reflect a slice of melee damage.
-  if (attacker && t.monster?.affixes.includes('thorns') && p.tags.includes('melee') && total > 0) damageRaw(sim, attacker, total * 0.15, 'physical', t.id);
+  // Thorns reflect part of a melee hit, bounded by the monster's own strength and the attacker's
+  // life: reflect that scaled with the hero's damage one-shot strong heroes (bot runs, depth 80).
+  if (attacker && t.monster?.affixes.includes('thorns') && p.tags.includes('melee') && total > 0) {
+    const cap = Math.min(6 * monsterDamage(t.level) * sim.monsterDamageMult(t), attacker.maxLife * 0.1);
+    damageRaw(sim, attacker, Math.min(total * 0.15, cap), 'physical', t.id);
+  }
   // Leech / on-hit recovery for the attacker.
   if (attacker && attacker.state !== 'dead' && total > 0) {
     const ast = sim.stats(attacker);
