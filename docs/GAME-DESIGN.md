@@ -119,6 +119,16 @@ important requests near the camera: torches (flickering), braziers, fireballs, e
 loot beams, portals, elite auras and the hero's lantern (stronger in dark themes). Toon
 materials quantize the falloff into crisp bands.
 
+## Sound
+
+Sounds are data too (`src/content/sounds.ts`): each is a few synthesized layers (oscillator or
+noise, pitch sweep, filter sweep, percussive envelope) with pitch variation, voice limits and a
+minimum gap, so a whirlwind through a pack stays crisp. `soundFor` maps game events to cues:
+swings, element-flavoured hits, crits, kills, loot chimes that rise with rarity, level-ups and one
+sound per mechanic. `THEME_AMBIENCE` gives each theme a drone. `src/audio/engine.ts` plays them
+with WebAudio, quieter with distance and panned along the screen axis, behind a soft compressor.
+Agents inspect sounds as images with `audio.inspect` (waveform + spectrogram).
+
 ## Difficulty and tuning
 
 `tune.*` config keys (pause menu → Difficulty & tuning): hero damage/life/speed, enemy

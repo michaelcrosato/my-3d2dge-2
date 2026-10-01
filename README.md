@@ -12,6 +12,7 @@
   - Behaviour archetypes, elite affixes, champion and rare packs, and bosses with phases and enrage.
 - **Level mechanics:** each depth is named after one trick (Blast Kegs, Spike Traps, Shrines, Launch Pads, Black Ice, Lightless, Rolling Boulders, Rift Gates, Fire Vents, Totems, Gravity Wells, Chrono Fields, Loot Imps). You can ignore them and fight, or exploit them for +50% XP trick kills and speedrun routes. Depths 14–24 combine them, and past that the endless generator mixes mechanics, themes, palettes and species forever.
 - **World:** procedural dungeons with themes, iso-aware walls with a hero cutaway, torches and dynamic lights, breakables and chests. Haven is the town hub with animated NPCs, and there is no bottom to the depths.
+- **Sound:** every sound is synthesized live from data (no audio files): swings, element-flavoured hits, crits, kills, loot chimes by rarity, level-ups, mechanic sounds, and a drone per dungeon theme. Sounds are placed and panned relative to the hero, and volumes live in Settings → Graphics & audio.
 - **Difficulty:** pause menu → Difficulty & tuning has hero and enemy damage, life and speed, plus XP, loot and density multipliers.
 
 The application lives at the repository root. Run application commands from the root. Node.js 22.12+ (Node 22 recommended) and npm are required.
@@ -70,7 +71,7 @@ The ⚙ button opens Settings. Everything is stored per **profile**; Standard, L
 
 ## Agent tools
 
-The engine ships its own tools for AI agents: 40 typed, documented tools for building, generating, rendering and inspecting the game's assets and systems. They live in `src/agent/` and run in three places:
+The engine ships its own tools for AI agents: 42 typed, documented tools for building, generating, rendering and inspecting the game's assets and systems. They live in `src/agent/` and run in three places:
 
 - **Browser console:** `await agent.call('help')`, `await agent.call('creature.render', { plan: 'spider', seed: 9 })`, `agent.tools()` (names, descriptions, JSON Schemas). Present in every mode.
 - **Terminal:** `npm run agent -- help`, `npm run agent -- level.generate stage=30 'mechanics=["kegs","ice"]'`, `npm run agent -- --script steps.json`, `npm run agent -- repl`. Images are written to `.agent/out/` (git-ignored) and their paths are printed.
@@ -86,7 +87,7 @@ The CLI and the MCP server start Vite in-process and drive headless Chromium (`-
 | level | `campaign.list`, `level.generate` (any depth or a remix of theme / layout / mechanics, with a map image and critical path) |
 | tree, hero | `tree.inspect`, `tree.path`, `tree.render`, `hero.build` (auto-built hero of any level), `skill.inspect` |
 | balance | `balance.curve` (power curves by level), `balance.run` (the autoplayer bot plays a depth headless at ~60x speed: clear rate, time, deaths), `balance.campaign` (one hero plays depth after depth, equipping drops and spending points: the progression curve) |
-| config | `config.get`, `config.set`, `difficulty.set` |
+| config, audio | `config.get`, `config.set`, `difficulty.set`, `audio.list`, `audio.inspect` (renders a sound offline: waveform + spectrogram image, loudness, brightness) |
 | render (live) | `creature.render`, `creature.lineup`, `monster.render`, `item.icon`, `scene.capture` (exact pixels, HUD, labelled boxes), `scene.stats`, `logs.read` |
 | world (live) | `game.state`, `game.goto`, `game.step`, `game.input`, `hero.set`, `hero.sheet`, `hero.give`, `monster.spawn`, `bot.play`, `bot.autopilot` |
 
