@@ -1532,6 +1532,13 @@ export class Sim {
       hero.totals.elites++;
     }
     if (t.monster!.boss) hero.totals.bosses++;
+    // The Codex remembers every species slain and every pinnacle defeated.
+    const codex = hero.progress.codex;
+    codex.kills[t.monster!.def] = (codex.kills[t.monster!.def] ?? 0) + 1;
+    if (MONSTERS[t.monster!.def]?.boss?.pinnacle && !codex.pinnacles.includes(t.monster!.def)) {
+      codex.pinnacles.push(t.monster!.def);
+      this.emit('codex.pinnacle', { def: t.monster!.def, name: t.name });
+    }
     if (heroCh) {
       heroCh.since.kill = 0;
       if (st) {

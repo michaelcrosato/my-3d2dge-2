@@ -22,6 +22,8 @@ export interface HeroProgress {
   cleared: Record<string, number>;
   /** Deepest endless stage cleared. */
   endlessBest: number;
+  /** The Codex: species slain (monster id -> kills), uniques found, pinnacle bosses defeated. */
+  codex: { kills: Record<string, number>; uniques: string[]; pinnacles: string[] };
 }
 
 export interface Hero {
@@ -62,7 +64,7 @@ export function newHero(name = 'Ranger'): Hero {
     tree: [],
     jewels: {},
     flasks: [30, 30],
-    progress: { unlocked: 1, cleared: {}, endlessBest: 0 },
+    progress: { unlocked: 1, cleared: {}, endlessBest: 0, codex: { kills: {}, uniques: [], pinnacles: [] } },
     totals: { kills: 0, deaths: 0, gold: 0, frames: 0, elites: 0, bosses: 0 },
     nextUid: 1,
   };

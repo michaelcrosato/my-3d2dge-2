@@ -14,6 +14,7 @@
 - **World:** procedural dungeons with themes, iso-aware walls with a hero cutaway, torches and dynamic lights, breakables and chests. Haven is the town hub with animated NPCs, and there is no bottom to the depths.
 - **Sound:** every sound is synthesized live from data (no audio files): swings, element-flavoured hits, crits, kills, loot chimes by rarity, level-ups, mechanic sounds, a drone per dungeon theme, and generative music: a calm town tune, dark phrases in the dungeons, and a driving pulse when a boss engages. Sounds are placed and panned relative to the hero, and volumes live in Settings → Graphics & audio.
 - **Pinnacle bosses:** every tenth depth ends in a named three-phase boss (the Hollow King, Mother of Cinders, the Glass Choir, Vael Unbound, Grull the Mountain, the Brood Tyrant). Each mixes attack kits and calls adds at every phase change, and it always drops a unique plus rares.
+- **Codex:** Character → Codex records every species you slay, with engine-rendered portraits, every unique found and every pinnacle defeated.
 - **Pacts:** optional risk-for-reward modifiers at the waypoint, unlocked as you go deeper: Brutal, Stalwart, Teeming, Swift, Champions, Volatile, Bloodthirsty, Eclipse. Each makes the depths harder in one readable way and pays in experience, item rarity, quantity or gold. They stack for power-levellers, and casual players can ignore them.
 - **Difficulty:** pause menu → Difficulty & tuning has hero and enemy damage, life and speed, plus XP, loot and density multipliers.
 

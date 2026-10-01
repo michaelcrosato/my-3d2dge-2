@@ -14,6 +14,10 @@ import { MECHANICS } from '../content/mechanics';
 import { fmtTime } from './gameHud';
 import type { Game } from '../game';
 import { IconRenderer } from '../render/icons';
+import { PortraitRenderer } from '../render/portraits';
+import { ensureMonster, MONSTERS } from '../content/monsters';
+import { PINNACLE_IDS } from '../content/pinnacles';
+import { UNIQUES } from '../content/uniques';
 import { upgradeGains } from '../sim/autobuild';
 import { PACTS, pactRewardText, pactsOf } from '../content/pacts';
 import { cooldownOf, costOf } from '../sim/actions';
@@ -54,6 +58,7 @@ export class Panels {
   private stock: { visit: number; list: ops.StockEntry[] } = { visit: -1, list: [] };
   private wasPaused = false;
   private treeView: TreeView | null = null;
+  private portraits: PortraitRenderer | null = null;
   private craftSeed = 1;
   private gainCache: { key: string; map: Map<string, number> } | null = null;
 
@@ -160,7 +165,7 @@ export class Panels {
       case 'merchant': return [['buy', 'Buy'], ['sell', 'Sell'], ['gamble', 'Gamble']];
       case 'smith': return [['craft', 'Craft'], ['salvage', 'Salvage']];
       case 'sage': return [['tree', 'Passive tree'], ['respec', 'Unmake']];
-      case 'character': return [['skills', 'Skills'], ['stats', 'Stats']];
+      case 'character': return [['skills', 'Skills'], ['stats', 'Stats'], ['codex', 'Codex']];
       default: return [['main', TITLES[id]]];
     }
   }
@@ -171,7 +176,7 @@ export class Panels {
       case 'stash': return this.stashView();
       case 'merchant': return this.tab === 'buy' ? this.buyView() : this.tab === 'sell' ? this.inventoryView('sell') : this.gambleView();
       case 'smith': return this.tab === 'craft' ? this.inventoryView('craft') : this.inventoryView('salvage');
-      case 'character': return this.tab === 'skills' ? this.skillsView() : this.statsView();
+      case 'character': return this.tab === 'skills' ? this.skillsView() : this.tab === 'codex' ? this.codexView() : this.statsView();
       case 'tree': return this.treeContent();
       case 'sage': return this.tab === 'tree' ? this.treeContent() : this.respecView();
       case 'shrine_respec': return this.respecView();
@@ -421,6 +426,51 @@ export class Panels {
       ...groups.map(([title, rows]) => h('section', {}, h('h3', {}, title), h('div', { class: 'stat' }, ...rows.flatMap(([k, v]) => row(k, v))))),
       rules.length ? h('section', {}, h('h3', {}, 'Rules'), ...[...new Set(rules)].map((r) => h('div', { class: 'note' }, r))) : null,
     ].filter((x): x is HTMLElement => !!x);
+  }
+
+  // ---------------------------------------------------------------- codex
+
+  /** Species slain (with portraits), uniques found, pinnacles defeated. */
+  private codexView(): Node[] {
+    const codex = this.hero.progress.codex;
+    const game = this.game;
+    this.portraits ??= new PortraitRenderer(game.renderer, game.pipeline, game.stage.basis, game.lib);
+    const pr = this.portraits;
+    const name = (def: string) => {
+      try {
+        return ensureMonster(def).name;
+      } catch {
+        return 'A forgotten creation';
+      }
+    };
+    const species = Object.entries(codex.kills).sort((a, b) => b[1] - a[1]);
+    const SHOW = 48;
+    const pinCards = PINNACLE_IDS.map((id, i) => {
+      const won = codex.pinnacles.includes(id);
+      const md = MONSTERS[id];
+      const src = won ? pr.portrait(id) : '';
+      return h('div', { class: `ccard${won ? '' : ' locked'}` },
+        src ? h('img', { class: 'pix', src, alt: '' }) : h('div', { class: 'ph' }, '?'),
+        h('div', {}, h('b', {}, won ? md.name : '???'), h('small', {}, won ? md.boss!.title : `Waits at depth ${(i + 1) * 10}${i + 1 + PINNACLE_IDS.length <= 99 ? `, ${(i + 1 + PINNACLE_IDS.length) * 10}` : ''}…`)));
+    });
+    const uniqueCells = UNIQUES.map((u) => {
+      const found = codex.uniques.includes(u.id);
+      return h('div', { class: `cell${found ? ' r-unique' : ''}`, title: found ? `${u.name} — ${u.flavour}` : `Undiscovered ${KIND_LABEL[itemBase(u.base).slot]}` },
+        found ? h('img', { class: 'pix', src: this.icons.icon({ base: u.base, rarity: 'unique', seed: 1, unique: u.id }), alt: u.name }) : h('span', { class: 'lbl', style: { position: 'static', fontSize: '16px' } }, '?'));
+    });
+    const speciesCards = species.slice(0, SHOW).map(([def, kills]) => {
+      const src = pr.portrait(def);
+      return h('div', { class: 'ccard' }, src ? h('img', { class: 'pix', src, alt: '' }) : h('div', { class: 'ph' }, '·'), h('div', {}, h('b', {}, name(def)), h('small', {}, `${kills.toLocaleString()} slain`)));
+    });
+    return [
+      h('section', { class: 'codex', style: { flexBasis: '100%' } },
+        h('p', { class: 'note' }, `${species.length} species slain · ${codex.uniques.length}/${UNIQUES.length} uniques found · ${codex.pinnacles.length}/${PINNACLE_IDS.length} pinnacles defeated`),
+        h('h3', {}, 'Pinnacles'), h('div', { class: 'ccards' }, ...pinCards),
+        h('h3', {}, `Uniques (${codex.uniques.length}/${UNIQUES.length})`), h('div', { class: 'grid' }, ...uniqueCells),
+        h('h3', {}, `Bestiary (${species.length})`),
+        species.length ? h('div', { class: 'ccards' }, ...speciesCards) : h('p', { class: 'note' }, 'Every species you slay is recorded here, from the humble hollow to creatures no one has named yet.'),
+        species.length > SHOW ? h('p', { class: 'note' }, `…and ${species.length - SHOW} more.`) : null),
+    ];
   }
 
   // ---------------------------------------------------------------- tree / respec / waypoint

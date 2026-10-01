@@ -142,6 +142,12 @@ export class GameHud {
       case 'flask.empty':
         this.toast('Flask is empty. Kills refill it.', '#ff9a9a');
         break;
+      case 'codex.unique':
+        this.toast(`New in the Codex: ${e.name}`, RARITY_COLOR.unique);
+        break;
+      case 'codex.pinnacle':
+        this.showBanner(`${e.name} defeated`, 'Recorded in the Codex (Character → Codex)', '', 4);
+        break;
       case 'steal':
         this.toast('Stolen power!', '#ffe14d');
         break;
