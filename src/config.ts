@@ -134,6 +134,22 @@ export const DIFFICULTY_PRESETS: Record<string, Partial<Record<ConfigKey, number
   Nightmare: { 'tune.enemyDamage': 2.2, 'tune.enemyLife': 2.2, 'tune.enemySpeed': 1.2, 'tune.loot': 1.5, 'tune.xp': 1.5 },
 };
 
+/** One line per preset for the pause menu. */
+export const DIFFICULTY_NOTES: Record<string, string> = {
+  Story: 'You hit harder and last longer; enemies are softer. For seeing the depths without the fight.',
+  Normal: 'The tuned game: bosses and late depths push back.',
+  Hard: 'Enemies hit 50% harder, last 40% longer and move faster. Even the first boss is a real fight.',
+  Nightmare: 'Enemies hit and last 2.2× and move faster; +50% experience and loot. Expect to die early on; best for heroes past depth 10.',
+};
+
+/** The preset the current `tune.*` values match, or null when they were customised. */
+export function activeDifficulty(): string | null {
+  const tune = (Object.keys(CONFIG_SPEC) as ConfigKey[]).filter((k) => k.startsWith('tune.'));
+  for (const [name, values] of Object.entries(DIFFICULTY_PRESETS))
+    if (tune.every((k) => Math.abs((config[k] as number) - (values[k] ?? (CONFIG_SPEC[k].value as number))) < 1e-6)) return name;
+  return null;
+}
+
 /** Sets every `tune.*` key to the preset's value (or its default). */
 export function applyDifficulty(name: string): Record<string, number> {
   const values = DIFFICULTY_PRESETS[name];
