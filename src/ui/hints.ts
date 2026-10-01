@@ -62,6 +62,8 @@ export class Hints {
     const g = this.game, k = this.label;
     switch (e.type) {
       case 'mode':
+        // A hint about the place just left (walk to the waypoint) no longer applies.
+        if (this.showing) this.dismiss();
         this.quiet = e.mode === 'dungeon' ? 5.5 : 3;
         if (e.mode === 'town' && (g.hero?.progress.unlocked ?? 1) <= 1) this.offer('waypoint', `Walk to the glowing <b>waypoint</b> and press <b>${k('interact')}</b> to enter the depths.`);
         if (e.mode === 'town' && (g.hero?.inventory.filter(Boolean).length ?? 0) >= 6) this.offer('town', `Back in Haven: <b>Odessa</b> buys and sells, <b>Brann</b> crafts, <b>Sage Ilmar</b> reshapes your tree, <b>Sela</b> builds creatures.`);
