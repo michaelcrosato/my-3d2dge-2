@@ -70,6 +70,14 @@ export function dropLoot(sim: Sim, t: Character) {
   if (sim.rng.chance(orb * 0.5)) spawnPickup(sim, 'orb', x, z, 0.25, null, 'mana');
 }
 
+/** A pinnacle boss's hoard: one guaranteed unique and three rares or better. */
+export function dropPinnacle(sim: Sim, x: number, z: number, ilvl: number) {
+  const unique = rollItem(sim.rng, { ilvl, rarity: 'unique', uid: uid(sim) });
+  spawnPickup(sim, 'item', x, z, 1, unique);
+  dropItems(sim, x, z, ilvl, 3, 250, 'rare');
+  for (let i = 0; i < 4; i++) spawnGold(sim, x, z, ilvl, 3);
+}
+
 /** Breakables, chests and boss chests. */
 export function dropContainer(sim: Sim, x: number, z: number, level: number, kind: 'small' | 'large' | 'chest' | 'boss') {
   const st = heroStats(sim);

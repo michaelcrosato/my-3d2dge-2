@@ -9,6 +9,7 @@
 import { Rng, hashSeed } from '../sim/rng';
 import type { Level } from './level';
 import { MECHANIC_IDS, MECHANICS, placeMechanics } from './mechanics';
+import { isPinnacleDepth, pinnacleFor } from './pinnacles';
 import type { DungeonSpec } from './procgen/dungeon';
 import { stageSpec } from './stages';
 import { DUNGEON_THEMES } from './themes';
@@ -84,8 +85,10 @@ export function campaignStage(n: number): CampaignStage {
     theme = r.chance(0.7) && liked.length ? r.pick(liked) : r.pick(DUNGEON_THEMES);
   }
   const fresh = a ? mechanics.filter((m) => !AUTHORED.slice(0, n - 1).some((b) => b.mechanics.includes(m))) : [];
+  // Every tenth depth ends in a pinnacle boss.
+  const boss = isPinnacleDepth(n) ? pinnacleFor(n) : a?.boss;
   const dungeon = stageSpec(n, {
-    theme, layout: a?.layout, boss: a?.boss, mechanics,
+    theme, layout: a?.layout, boss, mechanics,
     title: stageTitle(n), subtitle: `Depth ${n} · ${theme[0].toUpperCase()}${theme.slice(1)}`,
   });
   const tips = (fresh.length ? fresh : mechanics).map((id) => MECHANICS[id].tip);

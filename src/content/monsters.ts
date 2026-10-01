@@ -147,7 +147,8 @@ export interface MonsterDef {
   palette: string;
   armor?: number;
   resist?: Partial<Record<DamageType, number>>;
-  boss?: { title: string; phases: number; enrageAt?: number };
+  /** Boss: phases split the life bar evenly; `adds` minions arrive at each phase change; pinnacles always drop a unique. */
+  boss?: { title: string; phases: number; enrageAt?: number; adds?: number; pinnacle?: boolean };
   /** Summoned minions for summoner skills. */
   minion?: string;
 }

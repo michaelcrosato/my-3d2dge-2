@@ -119,6 +119,14 @@ important requests near the camera: torches (flickering), braziers, fireballs, e
 loot beams, portals, elite auras and the hero's lantern (stronger in dark themes). Toon
 materials quantize the falloff into crisp bands.
 
+## Pinnacle bosses
+
+`src/content/pinnacles.ts` assembles six named bosses from the usual parts (humanoid presets or
+creature genomes with edits, palettes, attack kits, add types). Every tenth depth ends in one,
+cycling past the list. Boss phases are general: `phases` splits the life bar evenly, each phase
+change resets cooldowns and calls `adds` minions (magic in the final phase), and pinnacles drop
+a guaranteed unique plus rares (`dropPinnacle`). Bot fights run 22-60 s at depths 10-30.
+
 ## Pacts (endgame risk for reward)
 
 `src/content/pacts.ts` defines modifiers chosen at the waypoint, in the spirit of Nightmare Sigils

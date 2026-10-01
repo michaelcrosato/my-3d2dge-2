@@ -380,9 +380,16 @@ export function buildCreature(g: CreatureGenome, pal: Palette3): CreatureRig {
   if (g.tail.segments > 0 && g.tail.length > 0) {
     const tdir = V(0, g.tail.up - (g.pitch > 0.5 ? 0.6 : 0), -1).normalize();
     const pts = [spinePts[0].clone()];
+    const seg = g.tail.length / g.tail.segments;
+    // Stinger tails curl up and over the back (scorpions); others run straight back.
+    const curl = g.tail.tip === 'stinger';
     for (let i = 0; i < g.tail.segments; i++) {
-      const p = pts[i].clone().addScaledVector(tdir, g.tail.length / g.tail.segments);
-      if (g.tail.tip === 'stinger') p.y += (g.tail.up * g.tail.length) / g.tail.segments;
+      let dir = tdir;
+      if (curl) {
+        const th = 0.35 + (Math.min(2.5, 1.3 + g.tail.up) - 0.35) * (i / Math.max(1, g.tail.segments - 1));
+        dir = V(0, Math.sin(th), -Math.cos(th));
+      }
+      const p = pts[i].clone().addScaledVector(dir, curl ? seg * 1.15 : seg);
       pts.push(p);
       tail.push(bone(`tail${i}`, i ? tail[i - 1] : spine[0], pts[i]));
     }
@@ -396,7 +403,10 @@ export function buildCreature(g: CreatureGenome, pal: Palette3): CreatureRig {
       b.add(cg, accent, () => [[tipBone, 1]], false, 'club');
     } else if (g.tail.tip === 'stinger') {
       const sg = new THREE.ConeGeometry(0.06, 0.3, 5);
-      T(sg, tipP.clone().add(V(0, 0.05, 0.1)), new THREE.Euler(1.8, 0, 0));
+      // Point the stinger along the end of the curl (forward and down over the back).
+      const last = tipP.clone().sub(pts[pts.length - 2]).normalize();
+      const aim = last.clone().add(V(0, -0.8, 0.6)).normalize();
+      T(sg, tipP.clone().addScaledVector(aim, 0.1), new THREE.Euler().setFromQuaternion(new THREE.Quaternion().setFromUnitVectors(V(0, 1, 0), aim)));
       b.add(sg, claw, () => [[tipBone, 1]], false, 'stinger');
     } else if (g.tail.tip === 'spikes') {
       for (const s of [-1, 1]) {
