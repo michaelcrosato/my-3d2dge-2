@@ -60,6 +60,7 @@ export const CONFIG_SPEC = {
   'sim.crateKnock': { value: 0.6, min: 0, max: 3, desc: "Sword hits shove pushable crates: speed given = the attack's knockback x this (Rapier impulse). 0 = crates ignore swords." },
   'sim.respawnSeconds': { value: 4, min: 0.5, max: 30, desc: 'Seconds before a dead character respawns.' },
   'sim.timeScale': { value: 1, min: 0, max: 4, desc: 'Real-time playback speed. Ignored by agent step(), which always advances exact frames.' },
+  'ui.hints': { value: true, desc: 'First-steps hints (each shows once per hero).' },
   'ui.screenShake': { value: 1, min: 0, max: 1.5, desc: 'Screen shake strength (0 = off). Starts at 0 when the system asks for reduced motion.' },
   'ui.damageNumbers': { value: true, desc: 'Floating damage numbers over hit characters.' },
   'ui.lootFilter': { value: 'all', options: ['all', 'magic', 'rare'], desc: 'Ground item labels to show: all, magic and better, or rare and better (uniques always show). Hidden items can still be picked up.' },

@@ -128,7 +128,7 @@ export function normalizeHero(raw: unknown): Hero {
     tree,
     jewels,
     flasks: Array.isArray(raw.flasks) ? [num(raw.flasks[0], 0, 1000, 30), num(raw.flasks[1], 0, 1000, 30)] : base.flasks,
-    progress: { unlocked: Math.round(num(p.unlocked, 1, 100000, 1)), cleared, endlessBest: Math.round(num(p.endlessBest, 0, 100000, 0)), codex: normalizeCodex(p.codex), trials: normalizeTrials(p.trials) },
+    progress: { unlocked: Math.round(num(p.unlocked, 1, 100000, 1)), cleared, endlessBest: Math.round(num(p.endlessBest, 0, 100000, 0)), codex: normalizeCodex(p.codex), trials: normalizeTrials(p.trials), hints: Array.isArray(p.hints) ? [...new Set(p.hints.filter((x): x is string => typeof x === 'string' && x.length <= 24))].slice(0, 64) : [] },
     totals: {
       kills: num(t.kills, 0, 1e12, 0), deaths: num(t.deaths, 0, 1e12, 0), gold: num(t.gold, 0, 1e15, 0),
       frames: num(t.frames, 0, 1e15, 0), elites: num(t.elites, 0, 1e12, 0), bosses: num(t.bosses, 0, 1e12, 0),
@@ -148,6 +148,12 @@ function storage(): Storage | null {
   }
 }
 
+/** A never-played default hero, as the old title backdrop left behind. */
+export function isPhantom(h: Hero): boolean {
+  return h.name === 'Ranger' && h.level === 1 && h.xp === 0 && h.gold === 0 && h.totals.kills === 0 && h.tree.length === 0
+    && h.inventory.every((x) => !x) && Object.keys(h.progress.cleared).length === 0 && h.progress.unlocked <= 1;
+}
+
 export class SaveStore {
   file: SaveFile;
   readonly persistent: boolean;
@@ -164,7 +170,8 @@ export class SaveStore {
       raw = null;
     }
     const r = isObj(raw) ? raw : {};
-    const slots = Array.isArray(r.slots) ? r.slots.slice(0, SLOTS).map((s) => (s ? normalizeHero(s) : null)) : [];
+    // Older builds saved the title screen's backdrop hero ("Ranger", untouched) into slot 1: drop it.
+    const slots = Array.isArray(r.slots) ? r.slots.slice(0, SLOTS).map((s) => (s ? normalizeHero(s) : null)).map((h) => (h && isPhantom(h) ? null : h)) : [];
     while (slots.length < SLOTS) slots.push(null);
     const tune: SaveFile['tune'] = {};
     if (isObj(r.tune)) for (const k of TUNE_KEYS) if (typeof r.tune[k] === 'number') tune[k] = r.tune[k] as number;

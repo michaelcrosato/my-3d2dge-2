@@ -64,6 +64,8 @@ export class Game {
   /** Town visits (vendor restocks each visit). */
   visits = 0;
   saves: SaveStore | null = null;
+  /** The hero is a throwaway (title backdrop, ?town / ?stage quick starts): never saved. */
+  ephemeralHero = false;
   /** True while a level is loading (stepping is suspended). */
   busy = false;
   readonly listeners = new Set<(e: GameEvent | SimEvent) => void>();
@@ -159,6 +161,7 @@ export class Game {
   /** Starts a fresh hero in a save slot and walks into town. */
   async newGame(slot = 0, name = 'Ranger') {
     this.hero = newHero(name);
+    this.ephemeralHero = false;
     this.heroSlot = slot;
     this.save();
     await this.enterTown();
@@ -169,6 +172,7 @@ export class Game {
     if (!hero) throw new Error(`save slot ${slot + 1} is empty`);
     this.hero = hero;
     this.heroSlot = slot;
+    this.ephemeralHero = false;
     await this.enterTown();
   }
 
@@ -279,7 +283,7 @@ export class Game {
   }
 
   save() {
-    if (!this.hero || !this.saves) return;
+    if (!this.hero || !this.saves || this.ephemeralHero) return;
     this.saves.saveHero(this.heroSlot, this.hero);
     this.emit({ type: 'saved' });
   }

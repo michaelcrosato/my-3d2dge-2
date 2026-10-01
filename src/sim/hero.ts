@@ -26,6 +26,8 @@ export interface HeroProgress {
   codex: { kills: Record<string, number>; uniques: string[]; pinnacles: string[] };
   /** Daily Trial best clear times in frames, by date key (YYYY-MM-DD). */
   trials: Record<string, number>;
+  /** First-steps hints this hero has already seen. */
+  hints: string[];
 }
 
 export interface Hero {
@@ -66,7 +68,7 @@ export function newHero(name = 'Ranger'): Hero {
     tree: [],
     jewels: {},
     flasks: [30, 30],
-    progress: { unlocked: 1, cleared: {}, endlessBest: 0, codex: { kills: {}, uniques: [], pinnacles: [] }, trials: {} },
+    progress: { unlocked: 1, cleared: {}, endlessBest: 0, codex: { kills: {}, uniques: [], pinnacles: [] }, trials: {}, hints: [] },
     totals: { kills: 0, deaths: 0, gold: 0, frames: 0, elites: 0, bosses: 0 },
     nextUid: 1,
   };
