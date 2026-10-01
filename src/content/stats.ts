@@ -174,6 +174,9 @@ const COND_WORDS: Record<string, string> = {
   'vs:boss': 'against Bosses', 'vs:elite': 'against Rare and Unique enemies',
 };
 
+/** Every tag a mod can carry besides `skill:<id>`: skill kinds, damage types and conditions. */
+export const KNOWN_TAGS: ReadonlySet<string> = new Set([...Object.keys(TAG_WORDS), ...Object.keys(COND_WORDS)]);
+
 const fmtNum = (v: number) => (Math.abs(v - Math.round(v)) < 1e-6 ? String(Math.round(v)) : v.toFixed(Math.abs(v) < 1 ? 2 : 1));
 
 /** Human text for a mod, PoE style: "+12 to Maximum Life", "20% increased Fire Damage". */
