@@ -13,6 +13,12 @@ const css = /* css */ `
   top: calc(max(8px, env(safe-area-inset-top)) + 4px); display: flex; gap: 10px; align-items: center; flex-wrap: wrap; justify-content: center;
   background: #14121bee; color: #f3ead6; border: 1px solid #7ab8ff; border-radius: 6px; padding: 5px 10px; font: 600 13px/1.3 system-ui, sans-serif; box-shadow: 0 6px 24px #000a; }
 #replaybar[hidden] { display: none; }
+#photobar { position: fixed; z-index: 30; left: 0; right: 0; margin: 0 auto; width: fit-content; max-width: calc(100vw - 24px); box-sizing: border-box;
+  bottom: calc(max(12px, env(safe-area-inset-bottom)) + 8px); display: flex; gap: 8px; flex-wrap: wrap; justify-content: center;
+  background: #14121bdd; border: 1px solid #5a4a30; border-radius: 8px; padding: 6px 8px; box-shadow: 0 6px 24px #000a; }
+#photobar[hidden] { display: none; }
+/* Photo mode: nothing but the scene (and the photo bar). */
+body.photo #ghud, body.photo #hud, body.photo #ghint, body.photo #toolbar, body.photo #touch, body.photo #mapbtn, body.photo #replaybar { display: none !important; }
 /* A replay ignores input: on touch screens its bar takes the controls' place at the bottom. */
 body.replaying #touch, body.replaying #toolbar, body.on-title #touch { display: none !important; }
 body.touchui #replaybar { top: auto; bottom: calc(max(12px, env(safe-area-inset-bottom)) + 12px); }

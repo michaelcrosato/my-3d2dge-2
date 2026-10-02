@@ -18,6 +18,7 @@
 - **Codex:** Character → Codex records every species you slay, with engine-rendered portraits, every unique found and every pinnacle defeated. Character → Stats → Records keeps the speedrun and power-levelling numbers: deepest depth, fastest clear, today's Daily Trial, bosses, pinnacles, deaths and time played.
 - **Daily Trial:** one seeded challenge per day at the waypoint. Everyone gets the same mechanics and pacts, at a depth set to their own progress. It keeps your best clear time for speedrunners and pays a hoard on the first clear of the day.
 - **Pacts:** optional risk-for-reward modifiers at the waypoint, unlocked as you go deeper: Brutal, Stalwart, Teeming, Swift, Champions, Volatile, Bloodthirsty, Eclipse. Each makes the depths harder in one readable way and pays in experience, item rarity, quantity or gold. They stack for power-levellers, and casual players can ignore them.
+- **Photo mode:** pause menu → Photo mode freezes the game and hides every piece of UI. Save image downloads the exact pixel art, upscaled by a whole number to about 2400 px wide; Pixel / 3D and Palette restyle the shot.
 - **Difficulty:** pause menu → Difficulty & tuning has hero and enemy damage, life and speed, plus XP, loot and density multipliers.
 
 The application lives at the repository root. Run application commands from the root. Node.js 22.12+ (Node 22 recommended) and npm are required.

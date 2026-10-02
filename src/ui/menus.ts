@@ -21,6 +21,8 @@ export interface MenuHooks {
   openSettings(): void;
   /** Opens the creature Workshop (title screen). */
   openWorkshop?(): void;
+  /** Freezes the game with all UI hidden, to take pictures. */
+  photoMode?(): void;
   openPanel(p: PanelId): void;
   toast(text: string): void;
 }
@@ -111,6 +113,7 @@ export class PauseMenu {
         g.hero && g.mode !== 'sandbox' ? btn('Character & skills (C)', () => { this.hide(); this.hooks.openPanel('character'); }) : null,
         g.mode === 'dungeon' || g.mode === 'town' ? btn(g.mapOpen ? 'Hide map (Tab)' : 'Map (Tab)', () => { this.hide(); g.toggleMap(); }) : null,
         btn('Settings & controls', () => { this.hide(); this.hooks.openSettings(); }),
+        (g.mode === 'dungeon' || g.mode === 'town') && this.hooks.photoMode ? btn('Photo mode', () => { this.hide(); this.hooks.photoMode?.(); }) : null,
         g.mode === 'dungeon' && !g.playback ? btn(g.autopilot.on ? 'Autopilot: on (stop)' : 'Autopilot (watch the bot play)', () => {
           g.setAutopilot(g.autopilot.on ? null : { strategy: 'clear' });
           this.hooks.toast(g.autopilot.on ? 'Autopilot on: the bot plays. Pause to take over.' : 'Autopilot off');
