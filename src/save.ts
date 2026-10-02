@@ -45,6 +45,31 @@ export function normalizeDesign(raw: unknown): SpeciesDesign | null {
   return designProblems(d).length ? null : d;
 }
 
+const SHARE_PREFIX = 'DW-SPECIES:';
+
+/** A design as one line of text to paste into a chat (base64 JSON of its parts, not its id). */
+export function shareCode(d: SpeciesDesign): string {
+  const { name, body, seed, genome, archetype, skills, palette, size } = d;
+  const bytes = new TextEncoder().encode(JSON.stringify({ name, body, seed, genome, archetype, skills, palette, size }));
+  let bin = '';
+  for (const b of bytes) bin += String.fromCharCode(b);
+  return SHARE_PREFIX + btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+/** The design in a share code, checked like a saved one; null when it isn't a valid code. */
+export function fromShareCode(code: string): SpeciesDesign | null {
+  const text = code.trim();
+  if (!text.startsWith(SHARE_PREFIX)) return null;
+  try {
+    const b64 = text.slice(SHARE_PREFIX.length).replace(/-/g, '+').replace(/_/g, '/');
+    const bin = atob(b64 + '='.repeat((4 - (b64.length % 4)) % 4));
+    const raw = JSON.parse(new TextDecoder().decode(Uint8Array.from(bin, (c) => c.charCodeAt(0))));
+    return normalizeDesign({ ...raw, id: 'shared', released: false });
+  } catch {
+    return null;
+  }
+}
+
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 const num = (v: unknown, min: number, max: number, d: number) => (typeof v === 'number' && Number.isFinite(v) ? Math.min(max, Math.max(min, v)) : d);
 

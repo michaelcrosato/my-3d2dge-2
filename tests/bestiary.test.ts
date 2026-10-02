@@ -5,7 +5,7 @@ import { designProblems, designStats, designToMonster, monsterId, randomDesign, 
 import { MONSTERS } from '../src/content/monsters';
 import { stageSpec } from '../src/content/stages';
 import { generateDungeon } from '../src/content/procgen/dungeon';
-import { normalizeDesign, SaveStore } from '../src/save';
+import { fromShareCode, normalizeDesign, SaveStore, shareCode } from '../src/save';
 import { newHero } from '../src/sim/hero';
 import { initPhysics, Sim } from '../src/sim/sim';
 
@@ -105,4 +105,21 @@ describe('save slots', () => {
     const s = new Store(storage);
     expect(s.file.slots.map((h) => h?.name ?? null)).toEqual([null, 'Ranger', 'Mira']);
   });
+});
+
+it('shares a species as one line of text and refuses broken codes', () => {
+  const d = randomDesign(4242);
+  d.name = 'Glimmer Ünd 🦀';
+  const code = shareCode(d);
+  expect(code).toMatch(/^DW-SPECIES:[A-Za-z0-9_-]+$/);
+  expect(code.length).toBeLessThan(1500);
+  const back = fromShareCode(`  ${code}\n`)!;
+  expect(back).not.toBeNull();
+  for (const k of ['name', 'body', 'seed', 'genome', 'archetype', 'skills', 'palette', 'size'] as const) expect(back[k]).toEqual(d[k]);
+  expect(back.released).toBe(false);
+  expect(fromShareCode('DW-SPECIES:not-json')).toBeNull();
+  expect(fromShareCode('hello')).toBeNull();
+  // A code with parts this game doesn't know is refused like a broken save.
+  const bad = shareCode({ ...d, body: 'dragon-king' });
+  expect(fromShareCode(bad)).toBeNull();
 });
