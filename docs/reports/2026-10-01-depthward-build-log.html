@@ -1,0 +1,890 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Depthward Build Log</title>
+<meta name="description" content="What was built in the Depthward session of Sep 30 to Oct 1, 2026, why each piece exists, how it was checked, and what is left.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&amp;family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,600;0,7..72,700;1,7..72,400&amp;family=Silkscreen&amp;display=swap">
+<style>
+/* Layout: a field notebook from the dungeon. One reading column, a sticky contents rail on wide
+   screens, mono timestamps and PR numbers as the margin notes. */
+:root {
+  --bg: #eef0f2;        /* pale dungeon stone */
+  --surface: #f8f9fa;   /* tables, tiles, charts */
+  --ink: #1b2129;
+  --ink-2: #4a5462;
+  --ink-3: #5f6876;
+  --rule: #d3d9df;
+  --chip: #e1e5e9;
+  --accent: #a24a15;    /* torchlight, for links and markers */
+  --bar: #b5541b;       /* chart marks */
+  --you: #2c5e9e;       /* your messages in the timeline (mana blue) */
+  --font-display: "Silkscreen", ui-monospace, "Cascadia Mono", Menlo, monospace;
+  --font-body: "Literata", Georgia, "Times New Roman", serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Menlo, Consolas, monospace;
+  --step--1: 0.8125rem;
+  --step-0: 1.0625rem;
+  --step-1: 1.25rem;
+  --step-2: 1.6rem;
+  --step-3: clamp(2rem, 1.4rem + 2.6vw, 3rem);
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #13161b; --surface: #1b1f26; --ink: #e7e4dd; --ink-2: #b5b1a8; --ink-3: #8e8b84;
+    --rule: #2d333c; --chip: #262b34; --accent: #eb9a52; --bar: #d07a36; --you: #86b2ea;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #13161b; --surface: #1b1f26; --ink: #e7e4dd; --ink-2: #b5b1a8; --ink-3: #8e8b84;
+  --rule: #2d333c; --chip: #262b34; --accent: #eb9a52; --bar: #d07a36; --you: #86b2ea;
+  color-scheme: dark;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: var(--step-0);
+  line-height: 1.6;
+  font-optical-sizing: auto;
+}
+a { color: var(--accent); text-underline-offset: 0.18em; text-decoration-thickness: 1px; }
+a:hover { text-decoration-thickness: 2px; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
+code, .mono { font-family: var(--font-mono); font-size: 0.86em; }
+code { background: var(--chip); padding: 0.05em 0.3em; border-radius: 3px; overflow-wrap: anywhere; }
+h1, h2, h3, h4 { text-wrap: balance; line-height: 1.2; margin: 0; }
+p { margin: 0; }
+
+.page {
+  max-width: 76rem;
+  margin: 0 auto;
+  padding-inline: 16px;
+  padding-block: 2.5rem 4rem;
+  display: grid;
+  gap: 2.5rem;
+}
+@media (min-width: 64rem) {
+  .page { grid-template-columns: 14rem minmax(0, 1fr); column-gap: 3.5rem; padding-inline: 2rem; }
+  .masthead { grid-column: 1 / -1; }
+}
+
+/* ---------- masthead */
+.masthead { display: grid; gap: 1rem; padding-bottom: 2rem; border-bottom: 1px solid var(--rule); }
+.eyebrow { font-family: var(--font-mono); font-size: var(--step--1); color: var(--ink-3); letter-spacing: 0.04em; }
+.wordmark {
+  font-family: var(--font-display);
+  font-size: var(--step-1);
+  letter-spacing: 0.12em;
+  color: var(--accent);
+}
+.masthead h1 { font-size: var(--step-3); font-weight: 700; letter-spacing: -0.01em; max-width: 22ch; }
+.dek { font-size: var(--step-1); color: var(--ink-2); max-width: 46rem; line-height: 1.45; }
+
+/* ---------- contents rail */
+.toc { font-family: var(--font-mono); font-size: var(--step--1); }
+.toc h2 { font-size: var(--step--1); text-transform: uppercase; letter-spacing: 0.1em; color: var(--ink-3); margin-bottom: 0.75rem; font-family: var(--font-mono); font-weight: 500; }
+.toc ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.4rem; counter-reset: toc; }
+.toc li { counter-increment: toc; display: grid; grid-template-columns: 1.6rem 1fr; }
+.toc li::before { content: counter(toc); color: var(--ink-3); }
+.toc li.unnumbered::before { content: ""; }
+.toc a { color: var(--ink-2); text-decoration: none; }
+.toc a:hover { color: var(--accent); text-decoration: underline; }
+@media (min-width: 64rem) {
+  .toc { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 1.5rem); align-self: start; max-height: calc(100vh - 3rem); overflow-y: auto; }
+}
+@media (max-width: 63.99rem) {
+  .toc { background: var(--surface); border: 1px solid var(--rule); border-radius: 6px; padding: 1rem 1.1rem; }
+  .toc ol { grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr)); column-gap: 1.5rem; }
+}
+
+/* ---------- body column */
+main { min-width: 0; display: grid; gap: 4rem; }
+section { display: grid; gap: 1.25rem; scroll-margin-top: 1.5rem; }
+.sec-num { font-family: var(--font-mono); font-size: var(--step--1); color: var(--accent); letter-spacing: 0.06em; }
+section > header { display: grid; gap: 0.35rem; }
+section h2 { font-size: var(--step-2); font-weight: 700; }
+.prose { display: grid; gap: 1rem; max-width: 42rem; }
+.prose ul, .prose ol { margin: 0; padding-left: 1.25rem; display: grid; gap: 0.4rem; }
+.lede { font-size: var(--step-1); line-height: 1.5; max-width: 42rem; }
+.note { font-size: var(--step--1); color: var(--ink-3); font-family: var(--font-mono); line-height: 1.5; }
+blockquote {
+  margin: 0; padding: 0.9rem 1.1rem; max-width: 42rem;
+  border-left: 3px solid var(--accent); background: var(--surface);
+  font-style: italic; color: var(--ink-2);
+}
+blockquote p + p { margin-top: 0.6rem; }
+
+/* ---------- stat tiles: the before/after figures are the summary */
+main { container: body / inline-size; }
+.tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; background: var(--rule); border: 1px solid var(--rule); border-radius: 6px; overflow: hidden; }
+.tile { background: var(--surface); padding: 1rem 1.1rem; display: grid; gap: 0.25rem; align-content: start; }
+.tile .fig { font-family: var(--font-mono); font-size: 1.2rem; font-weight: 500; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+.tile .fig .arrow { color: var(--ink-3); font-weight: 400; padding-inline: 0.15em; }
+.tile .lab { font-size: var(--step--1); color: var(--ink-2); line-height: 1.4; }
+@container body (min-width: 40rem) {
+  .tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .tile .fig { font-size: 1.45rem; }
+}
+
+/* ---------- tables */
+.table-wrap { overflow-x: auto; border: 1px solid var(--rule); border-radius: 6px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 0.95rem; line-height: 1.45; }
+th, td { text-align: left; vertical-align: top; padding: 0.6rem 0.8rem; border-bottom: 1px solid var(--rule); }
+tr:last-child td { border-bottom: 0; }
+th { font-family: var(--font-mono); font-size: var(--step--1); font-weight: 500; color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.06em; background: var(--bg); }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; font-family: var(--font-mono); font-size: 0.85rem; white-space: nowrap; }
+td.when { font-family: var(--font-mono); font-size: 0.85rem; white-space: nowrap; color: var(--ink-2); }
+.brief-table td:first-child { font-weight: 600; min-width: 11rem; }
+.brief-table td:last-child { white-space: nowrap; }
+.bugs td:first-child { min-width: 12rem; font-weight: 600; }
+.bugs td { min-width: 11rem; }
+
+/* PR chips */
+a.pr {
+  font-family: var(--font-mono); font-size: 0.78rem; font-weight: 500;
+  color: var(--accent); background: var(--chip); padding: 0.1em 0.4em; border-radius: 3px;
+  text-decoration: none; white-space: nowrap; font-variant-numeric: tabular-nums;
+}
+a.pr:hover { text-decoration: underline; }
+
+/* ---------- timeline: time, kind, what happened */
+.day { font-family: var(--font-mono); font-size: var(--step--1); text-transform: uppercase; letter-spacing: 0.1em; color: var(--ink-3); padding-top: 0.5rem; }
+.timeline { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; border-left: 1px solid var(--rule); margin-left: 0.3rem; }
+.timeline li { display: grid; grid-template-columns: 6.6rem minmax(0, 1fr); gap: 0.25rem 1rem; padding: 0.7rem 0 0.7rem 1rem; position: relative; }
+.timeline li::before { content: ""; position: absolute; left: -4px; top: 1.15rem; width: 7px; height: 7px; background: var(--bar); }
+.timeline li.k-you::before { background: var(--you); }
+.timeline li.k-pause::before, .timeline li.k-other::before { background: var(--bg); border: 1px solid var(--ink-3); }
+.t-time { font-family: var(--font-mono); font-size: 0.85rem; color: var(--ink-2); padding-top: 0.15rem; font-variant-numeric: tabular-nums; }
+.t-kind { font-family: var(--font-mono); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; display: block; color: var(--ink-3); }
+.k-you .t-kind { color: var(--you); }
+.k-work .t-kind { color: var(--accent); }
+.t-body { display: grid; gap: 0.3rem; }
+.t-body q { font-style: italic; color: var(--ink-2); }
+@media (max-width: 30rem) {
+  .timeline li { grid-template-columns: 1fr; }
+}
+
+/* ---------- charts: two small multiples, same hours */
+.charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: 1.25rem; }
+figure { margin: 0; }
+.chart { background: var(--surface); border: 1px solid var(--rule); border-radius: 6px; padding: 1rem 1rem 0.75rem; position: relative; display: grid; gap: 0.5rem; }
+.chart h3 { font-size: 1rem; font-weight: 600; }
+.chart .sub { font-size: var(--step--1); color: var(--ink-3); font-family: var(--font-mono); }
+.chart svg { width: 100%; height: auto; display: block; overflow: visible; }
+.chart .grid { stroke: var(--rule); stroke-width: 1; }
+.chart .axis { stroke: var(--ink-3); stroke-width: 1; }
+.chart .tick, .chart .xlab { fill: var(--ink-3); font-family: var(--font-mono); font-size: 10px; }
+.chart .val { fill: var(--ink); font-family: var(--font-mono); font-size: 10px; font-weight: 500; }
+.chart .bar { fill: var(--bar); }
+.chart .hit { fill: transparent; cursor: default; }
+.chart .hit:focus { outline: none; }
+.chart .hit:focus-visible { stroke: var(--accent); stroke-width: 1.5; }
+.chart .bar.dim { opacity: 0.45; }
+.tip {
+  position: absolute; pointer-events: none; z-index: 2;
+  background: var(--ink); color: var(--bg);
+  font-family: var(--font-mono); font-size: 0.75rem; line-height: 1.4; white-space: nowrap;
+  padding: 0.4rem 0.55rem; border-radius: 4px;
+  transform: translate(-50%, calc(-100% - 8px));
+}
+figcaption { font-size: 0.95rem; color: var(--ink-2); max-width: 42rem; margin-top: 0.75rem; }
+details { max-width: 42rem; }
+details summary { cursor: pointer; font-family: var(--font-mono); font-size: var(--step--1); color: var(--accent); }
+details[open] summary { margin-bottom: 0.6rem; }
+
+/* ---------- chapter items */
+.chapter { display: grid; gap: 1rem; padding-top: 1.5rem; border-top: 1px solid var(--rule); }
+.chapter:first-of-type { border-top: 0; padding-top: 0; }
+.chapter h3 { font-size: var(--step-1); font-weight: 700; }
+.why { max-width: 42rem; }
+.why strong { font-family: var(--font-mono); font-size: 0.78rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent); margin-right: 0.35rem; }
+.items { display: grid; gap: 0; max-width: 46rem; }
+.item { display: grid; grid-template-columns: 7.5rem minmax(0, 1fr); gap: 0.25rem 1rem; padding: 0.8rem 0; border-top: 1px dashed var(--rule); }
+.item:first-child { border-top: 0; }
+.item .refs { display: flex; flex-wrap: wrap; gap: 0.3rem; align-content: start; padding-top: 0.2rem; }
+.item h4 { font-size: 1rem; font-weight: 700; margin-bottom: 0.2rem; }
+.item p + p { margin-top: 0.45rem; }
+.item .measured { font-family: var(--font-mono); font-size: 0.82rem; color: var(--ink-2); }
+@media (max-width: 34rem) {
+  .item { grid-template-columns: 1fr; }
+}
+
+/* ---------- small lists */
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); gap: 1rem; }
+.card { background: var(--surface); border: 1px solid var(--rule); border-radius: 6px; padding: 1rem 1.1rem; display: grid; gap: 0.5rem; align-content: start; }
+.card h3 { font-size: 1.05rem; font-weight: 700; }
+.card ul { margin: 0; padding-left: 1.1rem; display: grid; gap: 0.35rem; font-size: 0.95rem; }
+.steps { margin: 0; padding-left: 1.4rem; display: grid; gap: 0.6rem; max-width: 42rem; }
+.steps li::marker { font-family: var(--font-mono); color: var(--accent); }
+dl.gloss { display: grid; grid-template-columns: minmax(9rem, 13rem) minmax(0, 1fr); gap: 0.6rem 1.5rem; margin: 0; max-width: 50rem; }
+dl.gloss dt { font-weight: 700; }
+dl.gloss dd { margin: 0; color: var(--ink-2); }
+@media (max-width: 34rem) {
+  dl.gloss { grid-template-columns: 1fr; gap: 0.15rem; }
+  dl.gloss dd { margin-bottom: 0.6rem; }
+}
+.pr-table td:nth-child(3) { min-width: 16rem; }
+
+footer.colophon { grid-column: 1 / -1; border-top: 1px solid var(--rule); padding-top: 1.5rem; font-size: var(--step--1); color: var(--ink-3); font-family: var(--font-mono); line-height: 1.6; }
+</style>
+</head>
+<body>
+<div class="page">
+
+<header class="masthead">
+  <div class="wordmark" aria-hidden="true">DEPTHWARD</div>
+  <h1>How Depthward got built</h1>
+  <p class="dek">A record of one long Claude Code session: what you asked for, what was built across 52 merged pull requests, why each piece exists, how it was checked, what went wrong, and what is left.</p>
+  <p class="eyebrow">Sep 30 – Oct 1, 2026 · repo <a href="https://github.com/michaelcrosato/my-3d2dge-2">michaelcrosato/my-3d2dge-2</a> · PRs #5–#56 · all times Pacific (PDT)</p>
+</header>
+
+<nav class="toc" aria-label="Contents">
+  <h2>Contents</h2>
+  <ol>
+    <li><a href="#summary">In short</a></li>
+    <li><a href="#brief">What you asked for</a></li>
+    <li><a href="#timeline">How the time went</a></li>
+    <li><a href="#built">What we built, and why</a></li>
+    <li><a href="#bugs">Problems found and fixed</a></li>
+    <li><a href="#checks">How every change was checked</a></li>
+    <li><a href="#mistakes">Mistakes and corrections</a></li>
+    <li><a href="#unverified">Not yet verified</a></li>
+    <li><a href="#next">What's next</a></li>
+    <li><a href="#glossary">Glossary</a></li>
+    <li class="unnumbered"><a href="#prs">Appendix: every PR</a></li>
+  </ol>
+</nav>
+
+<main>
+
+<!-- 1 ------------------------------------------------------------------ -->
+<section id="summary">
+  <header><span class="sec-num">1</span><h2>In short</h2></header>
+  <p class="lede">You asked for a complete hack-and-slash game that shows off the engine. You wanted a deep skill tree, a Path of Exile 2 or Diablo IV style loot loop, one named mechanic per level, a town, difficulty sliders, endless procedural content, and AI-agent tools built into the engine. Depthward now has all of that.</p>
+  <div class="prose">
+    <p>The work happened in two stretches: about an hour and a half on the evening of September 30, then from 10:04 to about 18:00 on October 1, with one pause of about 50 minutes. Every change followed the same routine. It ran the tests, checked the offline build in three browsers, and went through a pull request and GitHub CI before being merged, as you asked.</p>
+    <p>The early pull requests laid foundations and were large. After that came many small ones. Each one fixed something a measurement found or added a feature the brief called for.</p>
+  </div>
+  <div class="tiles" role="list">
+    <div class="tile" role="listitem"><span class="fig">52</span><span class="lab">pull requests merged, #5 to #56</span></div>
+    <div class="tile" role="listitem"><span class="fig">6.5k<span class="arrow">→</span>29.5k</span><span class="lab">lines of code in src, tests and tools</span></div>
+    <div class="tile" role="listitem"><span class="fig">26<span class="arrow">→</span>126</span><span class="lab">automated tests, all passing</span></div>
+    <div class="tile" role="listitem"><span class="fig">0<span class="arrow">→</span>46</span><span class="lab">agent tools for building and inspecting the game</span></div>
+    <div class="tile" role="listitem"><span class="fig">0<span class="arrow">→</span>14</span><span class="lab">level mechanics, each named after the depth that introduces it</span></div>
+    <div class="tile" role="listitem"><span class="fig">23.2<span class="arrow">→</span>10.7</span><span class="lab">MiB for the offline single-file build, smaller although the code is 4.5× bigger</span></div>
+  </div>
+</section>
+
+<!-- 2 ------------------------------------------------------------------ -->
+<section id="brief">
+  <header><span class="sec-num">2</span><h2>What you asked for, and what exists now</h2></header>
+  <div class="prose">
+    <p>The session started from your <code>/goal</code> brief on September 30 at 18:52. Two lines from it set the tone for everything after:</p>
+  </div>
+  <blockquote>
+    <p>“I want you to build out a hack-and-slash game with our engine as the showcase game for it. This is a fully fleshed-out game, not a vertical slice.”</p>
+    <p>“And remember everytime you make a commit, push to github and merge.”</p>
+  </blockquote>
+  <div class="prose"><p>Each requirement in the brief, with where it lives now:</p></div>
+  <div class="table-wrap">
+    <table class="brief-table">
+      <thead><tr><th>You asked for</th><th>What the game has now</th><th>PRs</th></tr></thead>
+      <tbody>
+        <tr><td>Fast, fluid hack-and-slash; keep the main character</td><td>Skills are timelines of effects shared by hero, monsters and bosses, with dodge rolls, i-frames, hitstop, combo and cancel windows. The original hero model is kept and equipment shows on it.</td><td><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/5">#5</a></td></tr>
+        <tr><td>An extremely deep skill tree</td><td>A 575-node passive tree in six sectors with 18 keystones, skill clusters, jewel sockets and masteries, plus 21 active skills.</td><td><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/5">#5</a> <a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/34">#34</a></td></tr>
+        <tr><td>Modern progression loop: XP, gold, loot (PoE2 / Diablo IV)</td><td>Rarities and rolled affixes, 49 uniques, a merchant with gambling, a blacksmith with crafting, upgrade arrows, a loot filter, Pacts for risk and reward, a Codex, a Daily Trial and Records.</td><td><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/12">#12</a> <a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/33">#33</a> <a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/55">#55</a></td></tr>
+        <tr><td>One mechanic per level, named after it, combined later; casual players can ignore it, speedrunners exploit it</td><td>14 mechanics. Depths 1–13 and 25 each introduce one and carry its name. Depths 14–24 combine them, and from depth 26 an endless generator mixes them. Kills caused by a mechanic give +50% XP. A balance pass made sure no mechanic can trap a player who ignores it.</td><td><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/6">#6</a> <a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/8">#8</a> <a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/43">#43</a></td></tr>
+        <tr><td>Town hub with fluidly animated NPCs; run-based, no story</td><td>The town of Haven with merchant, blacksmith, stash, sage and waypoint services, and later Sela the Beastwright for the Workshop. Progress is depth after depth.</td><td><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/5">#5</a> <a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/9">#9</a></td></tr>
+        <tr><td>Difficulty slider in the pause menu</td><td>Presets plus sliders for player and enemy damage, life and speed, XP, loot and density. Each preset explains itself.</td><td><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/5">#5</a> <a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/31">#31</a></td></tr>
+        <tr><td>Infinite modularity; endless procedural encounters</td><td>Monsters are body × behaviour × attacks × palette × rarity × affixes. Endless depths combine mechanics, themes, palettes and procedural species, with a pinnacle boss every tenth depth.</td><td><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/6">#6</a> <a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/16">#16</a> <a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/50">#50</a></td></tr>
+        <tr><td>“Think Spore” for monsters</td><td>Creature genomes across eight body plans, a Workshop editor where parts set stats, a bestiary whose species join the dungeons, and share codes.</td><td><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/9">#9</a> <a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/51">#51</a></td></tr>
+        <tr><td>Engine showcase: rigs, combat, lighting, animation</td><td>Procedural skinned creatures with procedural animation, a dynamic light pool, pixel-art pipeline with outlines, synthesized sound and music, frame-exact replays, ghost racing and photo mode.</td><td><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/11">#11</a> <a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/41">#41</a> <a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/53">#53</a></td></tr>
+        <tr><td>AI-agent tools built into the engine, “Show them the way”</td><td>46 tools reachable from the page, a command line, an MCP server and WebMCP: build and render creatures, roll items, generate levels, run bot playtests, and design skills, uniques and themes.</td><td><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/7">#7</a> <a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/19">#19</a> <a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/36">#36</a></td></tr>
+        <tr><td>Commit, push and merge every time</td><td>52 pull requests, each with a description of what, why, checks and limits, each merged after CI passed.</td><td><a class="pr" href="#prs">all</a></td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- 3 ------------------------------------------------------------------ -->
+<section id="timeline">
+  <header><span class="sec-num">3</span><h2>How the time went</h2></header>
+  <div class="prose">
+    <p>Merge times come from GitHub. Pauses and your messages come from the session transcript.</p>
+    <p>One thing explains the shape of the day. The <code>/goal</code> feature keeps a session working until its condition is met. From 10:04 on October 1 the condition was “resume”, which has no finish line. So after the brief's milestones were done, I kept picking the next most useful improvement. The picks came from bot playtests, the agent tools, browser audits, walking through the game as a new player, and rereading the brief. That is why the afternoon is many small, measured changes rather than a fixed plan.</p>
+  </div>
+
+  <figure>
+    <div class="charts">
+      <div class="chart" id="chart-prs">
+        <h3>Pull requests merged per hour</h3>
+        <span class="sub">Oct 1, by merge hour</span>
+      </div>
+      <div class="chart" id="chart-lines">
+        <h3>Lines added per hour</h3>
+        <span class="sub">Oct 1, by merge hour</span>
+      </div>
+    </div>
+    <figcaption>These charts show merge time, not work time. The 10:00 bar is mostly the core game, written the evening before and merged at 10:09. After the foundations, pull requests got smaller and more frequent.</figcaption>
+  </figure>
+  <details>
+    <summary>Show the chart data as a table</summary>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Hour</th><th class="num">PRs merged</th><th class="num">Lines added</th><th>PRs</th></tr></thead>
+        <tbody id="chart-table"></tbody>
+      </table>
+    </div>
+  </details>
+
+  <div class="day">Wednesday, September 30</div>
+  <ol class="timeline">
+    <li class="k-you"><span class="t-time">18:52</span><div class="t-body"><span class="t-kind">You</span><p>Set the goal with the full brief. Work started on the branch <code>agent/arpg-core</code>: stat engine, skills, monsters, items, passive tree, dungeons, creatures, rendering and UI.</p></div></li>
+    <li class="k-other"><span class="t-time">19:28</span><div class="t-body"><span class="t-kind">Another session</span><p>A separate Claude session merged its own attempt, “Emberdeep” (<a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/3">#3</a>). It was reverted at 20:57 (<a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/4">#4</a>). Neither was this session's work. Before merging the core I checked that <code>main</code> matched my branch.</p></div></li>
+    <li class="k-you"><span class="t-time">19:50</span><div class="t-body"><span class="t-kind">You</span><p><q>in case we hit our usage limits early, please automatically restart …</q> I scheduled two one-time restarts, at 20:04 and 20:23.</p></div></li>
+    <li class="k-pause"><span class="t-time">~19:55</span><div class="t-body"><span class="t-kind">Pause</span><p>A short stop at a usage limit. It reset at 20:00, as you expected, and work continued.</p></div></li>
+    <li class="k-pause"><span class="t-time">20:27</span><div class="t-body"><span class="t-kind">Pause</span><p>The weekly usage limit was reached and the session stopped for the night. The two scheduled restarts waited in the queue.</p></div></li>
+  </ol>
+
+  <div class="day">Thursday, October 1</div>
+  <ol class="timeline">
+    <li class="k-work"><span class="t-time">10:04</span><div class="t-body"><span class="t-kind">Work</span><p>The session continued automatically with the goal “resume”. Merged the core game (<a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/5">#5</a>, 10:09) and level mechanics with the named campaign (<a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/6">#6</a>, 10:24).</p></div></li>
+    <li class="k-pause"><span class="t-time">10:40</span><div class="t-body"><span class="t-kind">Pause</span><p>Usage limit until 11:31. Then the agent tools merged (<a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/7">#7</a>, 11:41).</p></div></li>
+    <li class="k-work"><span class="t-time">12:00</span><div class="t-body"><span class="t-kind">Work</span><p>Balance pass from bot playtests, the Creature Workshop, strike trails, sound, Pacts, upgrade arrows, loot filter and music (<a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/8">#8</a>–<a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/15">#15</a>).</p></div></li>
+    <li class="k-work"><span class="t-time">13:00</span><div class="t-body"><span class="t-kind">Work</span><p>Pinnacle bosses, the Codex, lighter character meshes, WebMCP and discovery files, smaller textures, the Daily Trial, comfort options, first-steps hints and the save-slot fix (<a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/16">#16</a>–<a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/23">#23</a>).</p></div></li>
+    <li class="k-you"><span class="t-time">13:06</span><div class="t-body"><span class="t-kind">You</span><p><q>how is it going, what have we got done and how much more do we think we have to go?</q> I gave a status summary and kept working.</p></div></li>
+    <li class="k-work"><span class="t-time">14:00</span><div class="t-body"><span class="t-kind">Work</span><p>GPU leak fixes, hint timing, a late-game damage ramp, effects in agent captures, the full map, tool examples and asset packing (<a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/24">#24</a>–<a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/30">#30</a>).</p></div></li>
+    <li class="k-work"><span class="t-time">15:00</span><div class="t-body"><span class="t-kind">Work</span><p>Difficulty notes, bold telegraphs, 24 uniques, four skills, an auto-build fix, <code>skill.test</code>, a skill rebalance and <code>unique.design</code> (<a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/31">#31</a>–<a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/38">#38</a>).</p></div></li>
+    <li class="k-work"><span class="t-time">16:00</span><div class="t-body"><span class="t-kind">Work</span><p>Affixes on uniques, Records, replays and replay files, Storm Pylons, <code>theme.design</code> and first-run fixes (<a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/39">#39</a>–<a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/47">#47</a>).</p></div></li>
+    <li class="k-work"><span class="t-time">17:00</span><div class="t-body"><span class="t-kind">Work</span><p>Phone item details, tree labels, two more pinnacles, species share codes, photo mode, a WebKit redraw fix and unique crafting (<a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/48">#48</a>–<a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/55">#55</a>).</p></div></li>
+    <li class="k-you"><span class="t-time">17:25</span><div class="t-body"><span class="t-kind">You</span><p><q>what are you doing with a neon-fare.js catalog output? Is that from my github?</q> This message was taken back out of the queue before it reached the session.</p></div></li>
+    <li class="k-you"><span class="t-time">17:39</span><div class="t-body"><span class="t-kind">You</span><p><q>did I see something related to neon-fare being looked at?</q> No. Nothing in this session opened or ran anything by that name; the full transcript has no such command or output. If it showed up on screen, it came from somewhere else, such as another Claude session that was running on the machine at the time.</p></div></li>
+    <li class="k-you"><span class="t-time">17:41</span><div class="t-body"><span class="t-kind">You</span><p>Asked for an hour-by-hour account and a roadmap. Answered in chat. This report expands on it.</p></div></li>
+    <li class="k-you"><span class="t-time">17:48</span><div class="t-body"><span class="t-kind">You</span><p><q>lets commit all changes and push to github and merge</q> Ghost racing, already in progress, merged at 17:51 (<a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/56">#56</a>).</p></div></li>
+    <li class="k-you"><span class="t-time">17:55</span><div class="t-body"><span class="t-kind">You</span><p>Asked for this report: <q>just a document so I can read and understand what we did and why we did it</q>.</p></div></li>
+  </ol>
+</section>
+
+<!-- 4 ------------------------------------------------------------------ -->
+<section id="built">
+  <header><span class="sec-num">4</span><h2>What we built, and why</h2></header>
+  <div class="prose">
+    <p>Grouped by theme rather than by date. Each group opens with the reason it exists. The PR numbers link to the full write-ups on GitHub, which list every check that was run.</p>
+  </div>
+
+  <div class="chapter" id="b-foundation">
+    <h3>4.1 The foundation</h3>
+    <p class="why"><strong>Why</strong>The brief asked for a complete game that scales forever. So the game is built from data “vocabularies” that combine: stats and modifiers, skills as timelines of effects, statuses, monster parts, items and affixes, the tree, themes. New content is mostly new data, not new code. The simulation is also deterministic: 60 fixed steps per second with a seeded random generator, so the same inputs always give the same result. That decision paid for itself later. Bots can playtest, tests can check exact outcomes, and replays work.</p>
+    <div class="items">
+      <div class="item"><div class="refs"><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/5">#5</a></div><div>
+        <h4>The ARPG core (13,876 lines)</h4>
+        <p>Combat with strikes, projectiles, zones, chain lightning, buffs, summons, telegraphs, i-frames and cancel windows. Monster AI built from behaviour archetypes that share one pathfinding field, elite affixes, bosses with phases and enrage. Loot, breakables and chests. A tree of about 550 nodes. Nine dungeon themes with procedural layouts. The town and its NPCs. Creature genomes across eight body plans.</p>
+        <p>On the rendering side: procedural creatures with procedural animation, a pooled dynamic light system (torches, projectiles, explosions, loot beams, the hero's lantern), dithered wall cutaways around the hero, VFX, engine-rendered item icons, and a pixel-font overlay with damage numbers, labels and a minimap. Controls work with keyboard and mouse, gamepad with twin-stick aim, and touch.</p>
+        <p class="measured">43 tests · offline build passed in Chromium, WebKit and Firefox at phone size · 24 of 24 screen layouts clean</p>
+      </div></div>
+    </div>
+  </div>
+
+  <div class="chapter" id="b-mechanics">
+    <h3>4.2 Level mechanics and the campaign</h3>
+    <p class="why"><strong>Why</strong>The brief: one mechanic per level, named after it, combined later. Casual players must be able to ignore it and speedrunners must be able to exploit it. Each mechanic is optional, and kills it causes (“trick kills”) give +50% XP as the reward for learning it.</p>
+    <div class="items">
+      <div class="item"><div class="refs"><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/6">#6</a></div><div>
+        <h4>13 mechanics, a named campaign, endless depths</h4>
+        <p>Blast Kegs, Spike Traps, Shrines, Launch Pads, Black Ice, Lightless, Rolling Boulders, Rift Gates, Fire Vents, Totems, Gravity Wells, Chrono Fields and Loot Imps. Depths 1–13 introduce one each and are named after it. Depths 14–24 are authored combinations such as “Kegs on Ice” and “The Gauntlet”. Beyond that, a generator draws two or three mechanics, a theme that suits them, palettes and procedural species from the depth's seed, and builds a title from the mechanics' names.</p>
+      </div></div>
+      <div class="item"><div class="refs"><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/43">#43</a><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/44">#44</a></div><div>
+        <h4>A 14th mechanic: Storm Pylons</h4>
+        <p>Strike two pylons near each other and lightning arcs between them, shocking monsters that cross the beam. It is introduced at depth 25 and named after it, keeping the one-mechanic-per-level rule. The bot learned to use it: mechanic kills per run went from 0.3 to 1.3.</p>
+        <p>The careful part was not breaking existing content. Adding a mechanic to the list would have reshuffled every endless depth and every Daily Trial. Instead, endless and daily draws still use the original 13, and later mechanics swap into about a quarter of draws. Only 23% of depths 25–400 changed, and that day's trial stayed the same.</p>
+      </div></div>
+    </div>
+  </div>
+
+  <div class="chapter" id="b-tools">
+    <h3>4.3 Tools for AI agents</h3>
+    <p class="why"><strong>Why</strong>The brief asked for agent tools built into the engine that “help build assets and somehow inspect them”, and to “show them the way”. They served two purposes. Future agents can build content with them, and I could measure the game instead of guessing. Many fixes in this report started as a tool measurement.</p>
+    <div class="items">
+      <div class="item"><div class="refs"><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/7">#7</a></div><div>
+        <h4>Tool registry, command line, MCP server, autoplayer bot</h4>
+        <p>Each tool has typed parameters, validation, defaults and a worked example. The groups cover catalogs, creature genomes, custom species, monster and item inspection, loot simulation, level generation with maps, the tree, hero builds, balance curves, bot playtests, renders and live-game control. They are reachable from the page (<code>window.agent</code>), from a terminal (<code>npm run agent</code>) and as an MCP server (<code>npm run mcp</code>). The autoplayer bot explores, fights, dodges, loots and uses mechanics. It also powers Autopilot in the pause menu.</p>
+      </div></div>
+      <div class="item"><div class="refs"><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/19">#19</a></div><div>
+        <h4>An agent-discoverable web build</h4>
+        <p>In browsers with WebMCP, the page registers 40 of its tools for an in-browser AI assistant (40 is Lighthouse's recommended maximum). <code>llms.txt</code> and an AI catalog describe the game to agents.</p>
+        <p class="measured">Lighthouse agentic browsing 50 → 100 · SEO 82 → 100 · best practices 96 → 100</p>
+      </div></div>
+      <div class="item"><div class="refs"><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/36">#36</a><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/38">#38</a><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/45">#45</a><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/52">#52</a></div><div>
+        <h4>Design tools: skills, uniques, themes, species</h4>
+        <p><code>skill.test</code> casts any skill at dummies and reports what actually landed. <code>unique.design</code> prototypes a unique item and ranks its power against existing ones. <code>theme.design</code> builds a dungeon look and walks the hero into it. <code>species.design</code> returns a share code a player can paste into the Workshop, so an agent can hand a creature to a person.</p>
+      </div></div>
+      <div class="item"><div class="refs"><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/29">#29</a></div><div>
+        <h4>Every tool proves its own example</h4>
+        <p>Calling all 42 tools from their own documentation found three without examples, so agents copying from <code>help</code> got errors. A test now requires a working example for any tool with required parameters.</p>
+      </div></div>
+    </div>
+  </div>
+
+  <div class="chapter" id="b-balance">
+    <h3>4.4 Balance by measurement</h3>
+    <p class="why"><strong>Why</strong>The brief said “challenging, but don't worry about overtuning”. Without human playtesters, the autoplayer bot played the campaign and reported deaths, clear times, boss fight lengths and how low its life got. Each change below came from a number.</p>
+    <div class="items">
+      <div class="item"><div class="refs"><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/8">#8</a></div><div>
+        <h4>First balance pass</h4>
+        <p>Before: hero damage grew about 28,000× from level 1 to 85 while monster life grew about 860×. Bosses fell in 0.5–3 seconds from depth 8. A fresh hero died twice to the first boss, and depths 22, 24 and 34 could not be cleared. Fixes: monster life ramps with the hero's growth, early bosses are eased, and an XP catch-up applies. Mechanics can no longer trap a player who ignores them: gravity-well pull is capped, bosses ignore launch pads, and totems heal bosses slowly.</p>
+        <p class="measured">After: no failed depths in 40 · first boss about 25 s · 0.3 deaths on average at depth 1</p>
+      </div></div>
+      <div class="item"><div class="refs"><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/10">#10</a></div><div>
+        <h4>Thorns stopped killing strong heroes</h4>
+        <p>The thorns affix reflected 15% of the hero's own hit, so a strong hero killed itself. Bot runs at depth 80 died about 45 times in 400 seconds. The reflect is now bounded.</p>
+        <p class="measured">Depth 80: 0% clear, ~45 deaths → 100% clear, 0 deaths</p>
+      </div></div>
+      <div class="item"><div class="refs"><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/26">#26</a></div><div>
+        <h4>Tension back in the mid and late game</h4>
+        <p>A later check found the game had become a power walk: no deaths in 40 depths, and the hero rarely dropped below 75% life. Monster damage now rises 1.2% per level past 12, capped at +80%. The opening is unchanged.</p>
+        <p class="measured">Melee, depths 11–20, median lowest life: 0.78 → 0.61</p>
+      </div></div>
+      <div class="item"><div class="refs"><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/31">#31</a></div><div>
+        <h4>Harder presets, explained</h4>
+        <p>On Hard the bot died 3 times in 20 depths. On Nightmare it died 12 times, half of them to the depth-1 boss. That is fair for an opt-in preset, but nothing told players what they were choosing. Each preset now has a one-line note in the pause menu.</p>
+      </div></div>
+      <div class="item"><div class="refs"><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/36">#36</a><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/37">#37</a></div><div>
+        <h4>Skills measured, minions fixed</h4>
+        <p><code>skill.test</code>'s first run found Spirit Wolves doing 56 damage per second against a basic Slash's 1,751. Hero minions used the numbers tuned for monsters hitting the hero, and enemy pact buffs leaked into them. They now hit on the hero's spell curve: 419 per second at level 30.</p>
+        <p>A sweep of all 22 hero skills then trimmed Flame Surge (2.7× Fireball, because recasts stacked) and Molten Strike (1.9× Cleave), and buffed Ice Spear.</p>
+      </div></div>
+      <div class="item"><div class="refs"><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/39">#39</a></div><div>
+        <h4>Uniques that stay worth wearing</h4>
+        <p>Only 26% of uniques were upgrades at level 60, because their fixed lines don't grow with item level. Uniques now also roll three regular affixes, the Diablo IV pattern: the powers define the build and the affixes keep the item competitive.</p>
+        <p class="measured">Upgrades at level 60: 26% → 43%</p>
+      </div></div>
+      <div class="item"><div class="refs"><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/35">#35</a></div><div>
+        <h4>Smarter auto-builds</h4>
+        <p>The auto-builder behind bots and Autopilot spent points on enhancements for skills that weren't on the hotbar. It no longer does.</p>
+      </div></div>
+    </div>
+  </div>
+
+  <div class="chapter" id="b-creatures">
+    <h3>4.5 Creatures: the “think Spore” brief</h3>
+    <p class="why"><strong>Why</strong>Your example was Spore: build the base system traditionally, then make it modular and procedural so it feeds endless content. Creatures are where that shows most.</p>
+    <div class="items">
+      <div class="item"><div class="refs"><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/9">#9</a></div><div>
+        <h4>The Creature Workshop</h4>
+        <p>An editor (from the title screen, or from Sela the Beastwright in town) for body plan, proportions, legs, heads, horns, tails, spikes, wings, palette, behaviour and attacks, with a live preview at the game's pixel density. Parts set the stats: bulk gives life and slows the creature, horns and spikes give damage, legs and wings give speed. A threat budget keeps outliers in check. Released designs join the dungeons from depth 2, and the Proving Grounds let you fight your design and its matriarch.</p>
+      </div></div>
+      <div class="item"><div class="refs"><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/16">#16</a><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/50">#50</a></div><div>
+        <h4>Pinnacle bosses every tenth depth</h4>
+        <p>Eight named bosses assembled from existing parts: The Hollow King, Mother of Cinders, The Glass Choir, Vael Unbound, Grull the Mountain, The Brood Tyrant, The Frostshell Matriarch and The Rot Colossus. Each has a title, an attack kit, adds and a guaranteed unique drop. Scorpion tails were fixed to curl over the back. A serpent design was dropped because it read as a pale tube at boss size.</p>
+      </div></div>
+      <div class="item"><div class="refs"><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/51">#51</a><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/52">#52</a></div><div>
+        <h4>Share a species as one line of text</h4>
+        <p>Half of Spore's fun is sharing. A species now fits in a code of about 225 characters (<code>DW-SPECIES:…</code>) that can be copied and imported. Codes go through the same checks as saved designs, so broken ones are refused.</p>
+      </div></div>
+    </div>
+  </div>
+
+  <div class="chapter" id="b-loot">
+    <h3>4.6 The loot and progression loop</h3>
+    <p class="why"><strong>Why</strong>The brief named Path of Exile 2 and Diablo IV. Those games run on chase items, build-defining powers, endgame levers and reasons to come back each day.</p>
+    <div class="items">
+      <div class="item"><div class="refs"><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/33">#33</a><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/55">#55</a></div><div>
+        <h4>49 uniques, and a smith that works on them</h4>
+        <p>24 uniques were added so that every item base has at least one. They include starters that hint at a build, skill uniques (an extra Fireball, two more Chain Lightning chains) and play-style uniques (after a dodge, at low life, against bleeding enemies). The blacksmith can now reforge and temper a unique's regular affixes, the way Diablo IV's enchanting works.</p>
+      </div></div>
+      <div class="item"><div class="refs"><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/34">#34</a></div><div>
+        <h4>Four new skills</h4>
+        <p>Lacerate, Knife Rain, Flame Surge and Molten Strike evened out the tree's sectors, giving 21 active skills and 575 nodes. New clusters were added only where no existing node id shifts, so saved heroes keep their allocations. I checked this by comparing the tree before and after.</p>
+      </div></div>
+      <div class="item"><div class="refs"><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/12">#12</a></div><div>
+        <h4>Pacts</h4>
+        <p>Eight risk-for-reward modifiers chosen at the waypoint, in the spirit of Diablo IV's sigils and Path of Exile's map mods. Examples: Brutal (+40% monster damage), Teeming (+50% packs), Eclipse (darkness). Each pairs one readable risk with more XP, rarity or gold.</p>
+        <p class="measured">All eight at depth 10: 30% clear rate, 161 items, 26.9k XP (vs 100%, 70, 11.3k without)</p>
+      </div></div>
+      <div class="item"><div class="refs"><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/13">#13</a><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/14">#14</a></div><div>
+        <h4>Upgrade arrows and a loot filter</h4>
+        <p>A green arrow marks bag items that would make the hero stronger. It uses the same power measure the bots use to pick gear. A loot filter hides labels for plain items, which were almost half of all drops.</p>
+      </div></div>
+      <div class="item"><div class="refs"><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/17">#17</a><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/21">#21</a><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/40">#40</a></div><div>
+        <h4>Codex, Daily Trial and Records</h4>
+        <p>The Codex collects species slain (with portraits), uniques found and pinnacles defeated. The Daily Trial is one seeded challenge per day, the same for everyone, with a best time for speedrunners and a first-clear hoard for power-levelers. Records gather deepest depth, fastest clear, bosses slain, deaths and time played.</p>
+      </div></div>
+    </div>
+  </div>
+
+  <div class="chapter" id="b-audio">
+    <h3>4.7 Sound and music</h3>
+    <p class="why"><strong>Why</strong>The game had no sound at all. I kept the project's generated-from-code approach: no audio files and no licences to track.</p>
+    <div class="items">
+      <div class="item"><div class="refs"><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/11">#11</a><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/15">#15</a></div><div>
+        <h4>Synthesized effects and generative music</h4>
+        <p>53 sound recipes are synthesized live and mapped to game events, quieter with distance and panned across the screen. Each theme has an ambient drone. The music is composed bar by bar in four moods (town, dungeon, dark, boss) and follows the game, switching to the boss mood when an awake boss is near. <code>audio.inspect</code> renders a sound as a waveform and spectrogram, so an agent can “see” what it can't hear.</p>
+        <p class="measured">Levels were set by measured peak and RMS; nobody has listened to it yet</p>
+      </div></div>
+    </div>
+  </div>
+
+  <div class="chapter" id="b-replays">
+    <h3>4.8 Replays and ghost racing</h3>
+    <p class="why"><strong>Why</strong>Because the simulation is deterministic, a whole run is described by its start and the player's input on each frame. That makes replays tiny and exact. It is a strong engine showcase and something speedrunners want.</p>
+    <div class="items">
+      <div class="item"><div class="refs"><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/41">#41</a><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/42">#42</a></div><div>
+        <h4>Replays you can watch and share</h4>
+        <p>Each save slot keeps its best run per depth and per Daily Trial. Watching one re-simulates it frame by frame, then compares a fingerprint of the final game state with the recorded one and shows “✓ Frame-exact”. Runs can be saved as files of about 12 KB for a 33-second clear and opened in another browser session. A run where the build changed mid-depth isn't kept, because it couldn't be reproduced.</p>
+      </div></div>
+      <div class="item"><div class="refs"><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/56">#56</a></div><div>
+        <h4>Race your best run's ghost</h4>
+        <p>Your best run plays in a second simulation beside you, drawn as a translucent pale-blue figure, and a toast tells you when it would have cleared. The first build of the ghost was invisible. Copying the hero's materials dropped a small shader addition the renderer needs, so the draw calls failed. That is now fixed, with a test so it can't silently come back.</p>
+        <p class="measured">A run recorded with the ghost beside it still replays frame-exact · a simulation step costs about 0.13 ms</p>
+      </div></div>
+    </div>
+  </div>
+
+  <div class="chapter" id="b-perf">
+    <h3>4.9 Performance and stability</h3>
+    <p class="why"><strong>Why</strong>The game has to survive phones, long sessions and a single-file download. These changes kept the look identical while cutting cost.</p>
+    <div class="items">
+      <div class="item"><div class="refs"><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/18">#18</a><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/20">#20</a><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/30">#30</a></div><div>
+        <h4>Smaller models at the same pixels</h4>
+        <p>Characters are drawn about 48 art pixels tall, so most mesh detail never reached the screen. Meshes were simplified from 129k to 47k triangles, with no visible difference at game resolution. Textures went from 512 to 256 px with 0.0% of pixels changed. Models were then packed losslessly, and renders before and after were byte-identical.</p>
+        <p class="measured">Busy depth-80 frame: 618k → 252k triangles · offline build 23.7 → 10.7 MiB</p>
+      </div></div>
+      <div class="item"><div class="refs"><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/24">#24</a></div><div>
+        <h4>GPU memory no longer climbs</h4>
+        <p>A four-minute Autopilot soak showed GPU textures growing from 157 to 1,043 over eight depths, which ends in a crash on a phone. Each character's skeleton and materials were never freed on level change. They are now freed, and the offline-build verifier fails if memory grows across reloads.</p>
+      </div></div>
+      <div class="item"><div class="refs"><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/27">#27</a><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/54">#54</a></div><div>
+        <h4>What you see is what happened</h4>
+        <p>Agent captures after a headless run showed 32 white wedges around the hero: every slam from the run, drawn at once. Effects now start at their true age. Separately, in WebKit a single redraw while paused could stay off screen, so a change while paused now draws two frames.</p>
+      </div></div>
+    </div>
+  </div>
+
+  <div class="chapter" id="b-ux">
+    <h3>4.10 Player experience, accessibility and phones</h3>
+    <p class="why"><strong>Why</strong>A complete game has to be learnable and comfortable on every device. These came from walking the new-player flow and checking layouts on phones, tablets and wide screens.</p>
+    <div class="items">
+      <div class="item"><div class="refs"><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/23">#23</a></div><div>
+        <h4>Save slot 1 could be overwritten</h4>
+        <p>The title screen's backdrop used a throwaway hero, and it saved itself into slot 1. A player who started a real game in slot 1 lost it to a fresh level-1 hero on the next launch. Throwaway heroes no longer save, and leftover phantom saves are cleaned up. The same PR added first-steps hints that name the right control for the device in use.</p>
+      </div></div>
+      <div class="item"><div class="refs"><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/28">#28</a></div><div>
+        <h4>A full map</h4>
+        <p>Tab, or tap the minimap. It shows every explored room, the exit, chests, shrines, NPCs, the boss and good loot. A seventh toolbar button for it collided with the Skill 5 touch button on an iPhone SE, so the minimap itself became the button.</p>
+      </div></div>
+      <div class="item"><div class="refs"><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/22">#22</a><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/32">#32</a></div><div>
+        <h4>Comfort and colour-blind options</h4>
+        <p>A screen-shake slider (it starts at zero when the system asks for reduced motion), a damage-number toggle and richer controller rumble. Bold telegraphs turn enemy attack warnings magenta with a white outline, because red is hard to see on brown and green floors for red-green colour-blind players.</p>
+      </div></div>
+      <div class="item"><div class="refs"><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/25">#25</a><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/46">#46</a><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/47">#47</a><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/48">#48</a><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/49">#49</a></div><div>
+        <h4>First minutes and phone polish</h4>
+        <p>Hints wait for the arrival banner. Touch controls no longer show through the title screen. New heroes see the depth list before the Daily Trial. The title text is readable. Tapping an item on a phone scrolls its details into view. Passive-tree labels no longer print over each other.</p>
+      </div></div>
+      <div class="item"><div class="refs"><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/53">#53</a></div><div>
+        <h4>Photo mode</h4>
+        <p>From the pause menu: the game freezes, every piece of UI hides, and Save image downloads the exact pixel art at about 2,400 px wide. Pixel/3D and palette can be switched for the shot.</p>
+      </div></div>
+    </div>
+  </div>
+</section>
+
+<!-- 5 ------------------------------------------------------------------ -->
+<section id="bugs">
+  <header><span class="sec-num">5</span><h2>Problems found and fixed</h2></header>
+  <div class="prose"><p>The most important bugs, what caused them, and how they were noticed. Most were found by a tool or a measurement rather than by chance.</p></div>
+  <div class="table-wrap">
+    <table class="bugs">
+      <thead><tr><th>What went wrong</th><th>Cause</th><th>Fix</th><th>Found by</th></tr></thead>
+      <tbody>
+        <tr><td>A real save in slot 1 could be replaced by a level-1 hero</td><td>The title backdrop's throwaway hero saved like a real one</td><td>Throwaway heroes never save; phantom saves removed <a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/23">#23</a></td><td>Walking the first-run flow</td></tr>
+        <tr><td>Strong heroes killed themselves</td><td>Thorns reflected 15% of the hero's own hit</td><td>Reflect capped <a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/10">#10</a></td><td>Bot runs at depth 80</td></tr>
+        <tr><td>GPU memory grew every level</td><td>Skeleton bone textures and copied materials were never freed</td><td>Freed on level change; verifier guard <a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/24">#24</a></td><td>A long Autopilot soak</td></tr>
+        <tr><td>Spirit Wolves did 56 damage per second</td><td>Minions used monster tuning and got enemy pact buffs</td><td>Hero spell curve ×2.2 <a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/36">#36</a></td><td><code>skill.test</code>'s first run</td></tr>
+        <tr><td>Gravity wells could hold a hero in place</td><td>Overlapping pulls beat the run speed</td><td>Pull capped at 60% of run speed <a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/8">#8</a></td><td>A stuck bot</td></tr>
+        <tr><td>Boss fights looped or never ended</td><td>Launch pads flung bosses; totems healed them 3% a second</td><td>Bosses ignore pads; slow totem heal <a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/8">#8</a></td><td>Bot campaigns</td></tr>
+        <tr><td>Flame Surge burned through walls</td><td>Lingering line zones ignored walls</td><td>Lines stop at the first wall <a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/34">#34</a></td><td>Captures during skill tests</td></tr>
+        <tr><td>32 white wedges in agent screenshots</td><td>A headless run drew all of its effects at once</td><td>Effects start at their true age <a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/27">#27</a></td><td><code>scene.capture</code> at depth 30</td></tr>
+        <tr><td>Long tool runs lost their early events</td><td>The game keeps only its last 1,500 events</td><td>Tools collect events every frame <a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/37">#37</a></td><td>The skill sweep</td></tr>
+        <tr><td>Deep uniques felt like downgrades</td><td>Fixed unique lines don't grow with item level</td><td>Three regular affixes per unique <a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/39">#39</a></td><td>A unique power survey</td></tr>
+        <tr><td>The map button covered Skill 5 on iPhone SE</td><td>A seventh toolbar button</td><td>The minimap is the button <a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/28">#28</a></td><td>Phone layout screenshots</td></tr>
+        <tr><td>A change while paused stayed off screen in WebKit</td><td>WebKit may not show a single paused frame</td><td>Draw two frames <a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/54">#54</a></td><td>Photo mode checks</td></tr>
+        <tr><td>The best-run ghost was invisible</td><td>Copying a material dropped a shader addition the renderer needs</td><td>Re-applied, with a test <a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/56">#56</a></td><td>Screenshots before merging</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- 6 ------------------------------------------------------------------ -->
+<section id="checks">
+  <header><span class="sec-num">6</span><h2>How every change was checked</h2></header>
+  <div class="prose">
+    <p>Your instruction to push and merge every commit meant <code>main</code> had to work after every merge. So each change went through the same routine, in this order:</p>
+  </div>
+  <ol class="steps">
+    <li>A branch of its own (<code>agent/…</code>), so each change can be reviewed and reverted alone.</li>
+    <li><code>npm run check</code>: typecheck, production build and the automated tests (26 at the start, 126 now). Meaningful logic changes added a regression test that fails without the fix.</li>
+    <li>For anything that runs in the game: rebuild the offline single-file version and run its verifier in Chromium, WebKit (Safari's engine) and Firefox. It plays title → town → touch controls → rebinding a key → panels → merchant → a fight in depth 1 → render modes. It fails on any console error, any network request, or GPU memory that grows across reloads.</li>
+    <li>For UI changes: screenshots on small phones, foldables, tablets and ultrawide screens, iPhones in WebKit, then looking at them. Screenshots stay outside the repository.</li>
+    <li>For balance or performance changes: before and after numbers from the agent tools, written into the PR.</li>
+    <li>Commit, push, open a PR that says what changed, why, which checks ran and what wasn't covered. Wait for GitHub CI (and the Vercel preview build), merge, update the local copy.</li>
+  </ol>
+</section>
+
+<!-- 7 ------------------------------------------------------------------ -->
+<section id="mistakes">
+  <header><span class="sec-num">7</span><h2>Mistakes and corrections</h2></header>
+  <div class="prose">
+    <p>Things I got wrong along the way, and what happened to each:</p>
+    <ul>
+      <li>The commit for <a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/39">#39</a> claimed about 40% of uniques became upgrades before I had measured it. The measured figure was 43%, and I corrected the PR description to say so.</li>
+      <li>The ghost was invisible in its first build. Screenshots caught it before it was committed.</li>
+      <li>The Workshop's import button first went inside a group that is collapsed for new players, so they couldn't see it. It moved to the action row before merge (<a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/51">#51</a>).</li>
+      <li>A map button in the toolbar collided with a touch button on small phones (<a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/28">#28</a>).</li>
+      <li>A serpent pinnacle boss looked wrong at boss size and was replaced (<a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/50">#50</a>).</li>
+      <li>A Daily Trial test assumed a level's mechanics always equal the trial's list. A dark pact adds one, and the test was corrected (<a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/43">#43</a>).</li>
+      <li>The agent instructions file said there were 42 tools after there were 46. Fixed in <a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/56">#56</a>.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- 8 ------------------------------------------------------------------ -->
+<section id="unverified">
+  <header><span class="sec-num">8</span><h2>Not yet verified</h2></header>
+  <div class="prose">
+    <p>These were not checked, or were checked only in part:</p>
+    <ul>
+      <li><strong>Real iPhones.</strong> iOS Safari isn't available on this machine. WebKit with iPhone screen sizes was the closest check.</li>
+      <li><strong>Human players.</strong> All balance numbers come from the autoplayer bot. Its footwork is simple, so it overstates melee deaths and understates ranged ones. Spell builds stay quite safe late, and Nightmare's first boss is harsh.</li>
+      <li><strong>How it sounds.</strong> Sound and music levels were set from measurements; nobody has listened yet.</li>
+      <li><strong>WebMCP in a real browser.</strong> The installed Chromium didn't expose it yet, so it was tested against a stand-in that follows the documented API.</li>
+      <li><strong>Replays across browsers.</strong> Replays and ghosts are exact within one browser engine and game version. A run from Chrome may desync in Safari, by design.</li>
+      <li><strong>Phone performance.</strong> Lighthouse performance (about 40) was measured with software rendering here. It needs a real device.</li>
+      <li><strong>Rumble.</strong> It needs a physical gamepad and wasn't exercised.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- 9 ------------------------------------------------------------------ -->
+<section id="next">
+  <header><span class="sec-num">9</span><h2>What's next</h2></header>
+  <div class="prose"><p>Every milestone in the original brief is merged. What follows adds depth and polish.</p></div>
+  <div class="cards">
+    <div class="card">
+      <h3>Next few hours</h3>
+      <ul>
+        <li>Tune Nightmare's early game, then re-run bot campaigns on every difficulty.</li>
+        <li>A full screen-size and browser sweep of everything added today, plus Lighthouse.</li>
+        <li>Split the 1,729-line simulation file, using replays to prove nothing changed.</li>
+        <li>More content made with the agent tools, then refresh README, design doc and <code>llms.txt</code>.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Roadmap</h3>
+      <ul>
+        <li><strong>Stabilize:</strong> balance, the device sweep, frame rate on low-end phones.</li>
+        <li><strong>Depth:</strong> more mechanic mixes, pinnacles and uniques; a stronger endgame chase.</li>
+        <li><strong>Human playtesting:</strong> the biggest gap. It needs you, on your devices or through a public preview link if you ask for one.</li>
+        <li><strong>Release.</strong></li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Decisions for you</h3>
+      <ul>
+        <li><strong>Hosting.</strong> The repository's homepage points at a Vercel deployment, and every PR gets a preview build. Should that be the public home?</li>
+        <li><strong>Leaderboards</strong> for ghosts and the Daily Trial. These need a server.</li>
+        <li><strong>Direction:</strong> keep adding features, or switch to polish only.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- 10 ----------------------------------------------------------------- -->
+<section id="glossary">
+  <header><span class="sec-num">10</span><h2>Glossary</h2></header>
+  <dl class="gloss">
+    <dt>Pull request (PR)</dt><dd>A proposed change on its own branch, with a description, that is checked and then merged into <code>main</code>.</dd>
+    <dt>CI</dt><dd>Continuous integration: GitHub runs the checks on every PR before it can be merged.</dd>
+    <dt>Deterministic simulation</dt><dd>The game logic runs in fixed 1/60-second steps with a seeded random generator, so the same start and inputs always produce the same result.</dd>
+    <dt>Seed</dt><dd>A number that fixes what the random generator produces, so a depth or a Daily Trial is the same for everyone.</dd>
+    <dt>Offline build</dt><dd><code>standalone/3dpixel2d.html</code>: the whole game in one file that runs without a network.</dd>
+    <dt>WebKit</dt><dd>The browser engine behind Safari. It is used here to approximate iPhones.</dd>
+    <dt>Agent tool</dt><dd>A function an AI agent can call to inspect or build parts of the game, such as rendering a creature or running a bot playtest.</dd>
+    <dt>MCP / WebMCP</dt><dd>Model Context Protocol: a standard way for AI assistants to call tools. WebMCP is the in-browser version.</dd>
+    <dt>Bot / Autopilot</dt><dd>The built-in autoplayer. It plays depths for balance measurements, and players can switch it on from the pause menu.</dd>
+    <dt>Affix</dt><dd>A rolled stat line on an item, such as “+40 life”.</dd>
+    <dt>Unique</dt><dd>A named item with fixed special powers that can define a build.</dd>
+    <dt>Keystone</dt><dd>A passive-tree node that changes a rule of the game rather than adding numbers.</dd>
+    <dt>Pact</dt><dd>An optional modifier chosen at the waypoint: more danger for more reward.</dd>
+    <dt>Pinnacle</dt><dd>The named boss at the end of every tenth depth.</dd>
+    <dt>Telegraph</dt><dd>The marked area that warns where an attack is about to land.</dd>
+    <dt>Trick kill</dt><dd>A kill caused by a level mechanic (a keg, a pylon, a boulder). It gives +50% XP.</dd>
+    <dt>State hash</dt><dd>A short fingerprint of the whole game state. If a replay ends with the same hash as the recording, it reproduced the run exactly.</dd>
+  </dl>
+</section>
+
+<!-- Appendix ----------------------------------------------------------- -->
+<section id="prs">
+  <header><span class="sec-num">Appendix</span><h2>Every pull request</h2></header>
+  <div class="prose"><p>All 52 pull requests from this session, in order. Times are merge times. Lines are additions and deletions as GitHub counts them.</p></div>
+  <div class="table-wrap">
+    <table class="pr-table">
+      <thead><tr><th>PR</th><th>Merged</th><th>Title</th><th class="num">+ lines</th><th class="num">− lines</th></tr></thead>
+      <tbody>
+        <tr><td><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/5">#5</a></td><td class="when">Oct 1 10:09</td><td>Depthward: ARPG showcase core (combat, loot, passive tree, procedural creatures, town)</td><td class="num">13,876</td><td class="num">758</td></tr>
+        <tr><td><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/6">#6</a></td><td class="when">Oct 1 10:24</td><td>Level mechanics, the named campaign and endless depths</td><td class="num">1,441</td><td class="num">69</td></tr>
+        <tr><td><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/7">#7</a></td><td class="when">Oct 1 11:41</td><td>Native agent tools: registry, CLI, MCP server, autoplayer bot</td><td class="num">3,141</td><td class="num">73</td></tr>
+        <tr><td><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/8">#8</a></td><td class="when">Oct 1 12:11</td><td>Balance pass driven by bot campaign playtests</td><td class="num">353</td><td class="num">25</td></tr>
+        <tr><td><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/9">#9</a></td><td class="when">Oct 1 12:25</td><td>Creature Workshop: Spore-style species editor, bestiary and Proving Grounds</td><td class="num">1,054</td><td class="num">42</td></tr>
+        <tr><td><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/10">#10</a></td><td class="when">Oct 1 12:33</td><td>Polish: strike trails, bounded thorns reflect</td><td class="num">105</td><td class="num">17</td></tr>
+        <tr><td><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/11">#11</a></td><td class="when">Oct 1 12:41</td><td>Procedural audio: synthesized SFX, theme ambience, audio inspection tool</td><td class="num">685</td><td class="num">46</td></tr>
+        <tr><td><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/12">#12</a></td><td class="when">Oct 1 12:48</td><td>Pacts: endgame risk-for-reward depth modifiers</td><td class="num">279</td><td class="num">32</td></tr>
+        <tr><td><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/13">#13</a></td><td class="when">Oct 1 12:52</td><td>Upgrade arrows on inventory items</td><td class="num">99</td><td class="num">12</td></tr>
+        <tr><td><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/14">#14</a></td><td class="when">Oct 1 12:55</td><td>Loot filter for ground item labels</td><td class="num">13</td><td class="num">9</td></tr>
+        <tr><td><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/15">#15</a></td><td class="when">Oct 1 12:58</td><td>Generative music that follows the game</td><td class="num">250</td><td class="num">20</td></tr>
+        <tr><td><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/16">#16</a></td><td class="when">Oct 1 13:04</td><td>Pinnacle bosses every tenth depth; curled scorpion tails</td><td class="num">152</td><td class="num">20</td></tr>
+        <tr><td><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/17">#17</a></td><td class="when">Oct 1 13:08</td><td>Codex: species slain, uniques found, pinnacles defeated</td><td class="num">253</td><td class="num">14</td></tr>
+        <tr><td><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/18">#18</a></td><td class="when">Oct 1 13:14</td><td>Simplify character meshes to a pixel-art triangle budget</td><td class="num">122</td><td class="num">16</td></tr>
+        <tr><td><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/19">#19</a></td><td class="when">Oct 1 13:22</td><td>Agent-discoverable web build: WebMCP tools, llms.txt, AI catalog</td><td class="num">164</td><td class="num">9</td></tr>
+        <tr><td><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/20">#20</a></td><td class="when">Oct 1 13:25</td><td>Shrink character textures to 256 px (pixel-identical, -3.6 MB)</td><td class="num">55</td><td class="num">27</td></tr>
+        <tr><td><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/21">#21</a></td><td class="when">Oct 1 13:29</td><td>Daily Trial: one seeded challenge per day</td><td class="num">178</td><td class="num">12</td></tr>
+        <tr><td><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/22">#22</a></td><td class="when">Oct 1 13:32</td><td>Comfort options: screen shake, damage numbers, richer rumble</td><td class="num">30</td><td class="num">13</td></tr>
+        <tr><td><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/23">#23</a></td><td class="when">Oct 1 13:40</td><td>First-steps hints; fix title backdrop overwriting save slot 1</td><td class="num">196</td><td class="num">13</td></tr>
+        <tr><td><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/24">#24</a></td><td class="when">Oct 1 14:00</td><td>Fix GPU resource leaks across levels and long sessions</td><td class="num">86</td><td class="num">11</td></tr>
+        <tr><td><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/25">#25</a></td><td class="when">Oct 1 14:05</td><td>Hold hints until the arrival banner has faded</td><td class="num">6</td><td class="num">2</td></tr>
+        <tr><td><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/26">#26</a></td><td class="when">Oct 1 14:20</td><td>Restore mid/late-game tension with a monster damage ramp</td><td class="num">22</td><td class="num">14</td></tr>
+        <tr><td><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/27">#27</a></td><td class="when">Oct 1 14:31</td><td>Show effects at their true age after headless steps</td><td class="num">64</td><td class="num">13</td></tr>
+        <tr><td><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/28">#28</a></td><td class="when">Oct 1 14:43</td><td>Add a full map overlay (Tab, or tap the minimap)</td><td class="num">207</td><td class="num">53</td></tr>
+        <tr><td><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/29">#29</a></td><td class="when">Oct 1 14:48</td><td>Give every agent tool with required parameters an example</td><td class="num">9</td><td class="num">2</td></tr>
+        <tr><td><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/30">#30</a></td><td class="when">Oct 1 14:56</td><td>Pack runtime GLBs losslessly (assets 7.6 → 5.3 MB, standalone 13.7 → 10.7 MiB)</td><td class="num">92</td><td class="num">19</td></tr>
+        <tr><td><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/31">#31</a></td><td class="when">Oct 1 15:02</td><td>Explain difficulty presets in the pause menu; add Map there</td><td class="num">65</td><td class="num">21</td></tr>
+        <tr><td><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/32">#32</a></td><td class="when">Oct 1 15:07</td><td>Add bold telegraphs for colour-blind players and busy fights</td><td class="num">59</td><td class="num">47</td></tr>
+        <tr><td><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/33">#33</a></td><td class="when">Oct 1 15:13</td><td>Add 24 uniques: one for every base, plus skill and play-style uniques</td><td class="num">181</td><td class="num">1</td></tr>
+        <tr><td><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/34">#34</a></td><td class="when">Oct 1 15:27</td><td>Add four skills: Lacerate, Knife Rain, Flame Surge, Molten Strike</td><td class="num">201</td><td class="num">12</td></tr>
+        <tr><td><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/35">#35</a></td><td class="when">Oct 1 15:31</td><td>Auto-builds value skill enhancements only for skills on the hotbar</td><td class="num">7</td><td class="num">2</td></tr>
+        <tr><td><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/36">#36</a></td><td class="when">Oct 1 15:47</td><td>Add skill.test; make hero minions worth summoning</td><td class="num">159</td><td class="num">24</td></tr>
+        <tr><td><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/37">#37</a></td><td class="when">Oct 1 15:54</td><td>Rebalance three skills from a skill.test sweep; keep every event in tools</td><td class="num">55</td><td class="num">31</td></tr>
+        <tr><td><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/38">#38</a></td><td class="when">Oct 1 15:59</td><td>Add unique.design: prototype a unique and rank its power</td><td class="num">116</td><td class="num">26</td></tr>
+        <tr><td><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/39">#39</a></td><td class="when">Oct 1 16:04</td><td>Uniques roll three regular affixes; flat recovery lines scale</td><td class="num">15</td><td class="num">6</td></tr>
+        <tr><td><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/40">#40</a></td><td class="when">Oct 1 16:08</td><td>Add Records to Character → Stats</td><td class="num">27</td><td class="num">3</td></tr>
+        <tr><td><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/41">#41</a></td><td class="when">Oct 1 16:27</td><td>Add replays: re-simulate your best run, frame for frame</td><td class="num">673</td><td class="num">56</td></tr>
+        <tr><td><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/42">#42</a></td><td class="when">Oct 1 16:32</td><td>Share replays as files</td><td class="num">77</td><td class="num">17</td></tr>
+        <tr><td><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/43">#43</a></td><td class="when">Oct 1 16:43</td><td>Add a 14th mechanic: Storm Pylons (depth 25)</td><td class="num">249</td><td class="num">60</td></tr>
+        <tr><td><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/44">#44</a></td><td class="when">Oct 1 16:47</td><td>Bot and Autopilot use Storm Pylons</td><td class="num">29</td><td class="num">5</td></tr>
+        <tr><td><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/45">#45</a></td><td class="when">Oct 1 16:51</td><td>Add theme.design: build a dungeon theme and walk into it</td><td class="num">94</td><td class="num">13</td></tr>
+        <tr><td><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/46">#46</a></td><td class="when">Oct 1 16:54</td><td>Smooth the first minutes for a new hero</td><td class="num">19</td><td class="num">12</td></tr>
+        <tr><td><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/47">#47</a></td><td class="when">Oct 1 16:58</td><td>Title screen: readable subtitle, no minimap over the backdrop</td><td class="num">5</td><td class="num">3</td></tr>
+        <tr><td><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/48">#48</a></td><td class="when">Oct 1 17:01</td><td>Phones: tapping an item shows its details</td><td class="num">5</td><td class="num">2</td></tr>
+        <tr><td><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/49">#49</a></td><td class="when">Oct 1 17:05</td><td>Passive tree: labels no longer overlap</td><td class="num">21</td><td class="num">5</td></tr>
+        <tr><td><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/50">#50</a></td><td class="when">Oct 1 17:09</td><td>Add two pinnacle bosses: the Frostshell Matriarch and the Rot Colossus</td><td class="num">9</td><td class="num">4</td></tr>
+        <tr><td><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/51">#51</a></td><td class="when">Oct 1 17:13</td><td>Share Workshop species as one line of text</td><td class="num">76</td><td class="num">9</td></tr>
+        <tr><td><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/52">#52</a></td><td class="when">Oct 1 17:16</td><td>species.design returns a Workshop share code</td><td class="num">25</td><td class="num">12</td></tr>
+        <tr><td><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/53">#53</a></td><td class="when">Oct 1 17:22</td><td>Add photo mode</td><td class="num">79</td><td class="num">2</td></tr>
+        <tr><td><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/54">#54</a></td><td class="when">Oct 1 17:25</td><td>Draw two frames for a change while paused (WebKit)</td><td class="num">10</td><td class="num">6</td></tr>
+        <tr><td><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/55">#55</a></td><td class="when">Oct 1 17:28</td><td>Blacksmith: reforge and temper a unique&#x27;s regular affixes</td><td class="num">39</td><td class="num">7</td></tr>
+        <tr><td><a class="pr" href="https://github.com/michaelcrosato/my-3d2dge-2/pull/56">#56</a></td><td class="when">Oct 1 17:51</td><td>Race your best run&#x27;s ghost</td><td class="num">155</td><td class="num">19</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+</main>
+
+<footer class="colophon">
+  Written by Claude (Opus 5.5) in Claude Code at the end of the session, on October 1, 2026, from the session transcript, the git history and the pull-request descriptions. Times are Pacific (PDT). Line counts cover TypeScript, scripts and tests under src, tests and tools.
+</footer>
+
+</div>
+
+<script>
+(() => {
+  // Merged PRs per hour on Oct 1 (PDT), from GitHub merge times.
+  const HOURS = [
+    { h: 10, prs: 2, lines: 15317, range: '#5–#6' },
+    { h: 11, prs: 1, lines: 3141, range: '#7' },
+    { h: 12, prs: 8, lines: 2838, range: '#8–#15' },
+    { h: 13, prs: 8, lines: 1150, range: '#16–#23' },
+    { h: 14, prs: 7, lines: 486, range: '#24–#30' },
+    { h: 15, prs: 8, lines: 843, range: '#31–#38' },
+    { h: 16, prs: 9, lines: 1188, range: '#39–#47' },
+    { h: 17, prs: 9, lines: 419, range: '#48–#56' },
+  ];
+  const NS = 'http://www.w3.org/2000/svg';
+  const fmt = (n) => n.toLocaleString('en-US');
+  const el = (name, attrs, text) => {
+    const e = document.createElementNS(NS, name);
+    for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+    if (text !== undefined) e.textContent = text;
+    return e;
+  };
+
+  function barChart(host, key, max, ticks, tickLabel, unit, title) {
+    const W = 320, H = 170, L = 36, R = 6, T = 14, B = 22;
+    const pw = W - L - R, ph = H - T - B, band = pw / HOURS.length, bw = band - 8;
+    const y = (v) => T + ph - (v / max) * ph;
+    const svg = el('svg', { viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': `${title}, 10:00 to 17:00: ` + HOURS.map((d) => `${d.h}:00 ${fmt(d[key])}`).join(', ') });
+    for (const t of ticks) {
+      svg.append(el('line', { class: 'grid', x1: L, x2: W - R, y1: y(t), y2: y(t) }));
+      svg.append(el('text', { class: 'tick', x: L - 6, y: y(t) + 3.5, 'text-anchor': 'end' }, tickLabel(t)));
+    }
+    const top = Math.max(...HOURS.map((d) => d[key]));
+    const tip = document.createElement('div');
+    tip.className = 'tip';
+    tip.hidden = true;
+    host.append(tip);
+    const bars = [];
+    HOURS.forEach((d, i) => {
+      const x = L + i * band + 4, v = d[key], h = Math.max(1, (v / max) * ph), r = Math.min(4, bw / 2, h);
+      const yt = T + ph - h;
+      const path = `M${x},${T + ph} V${yt + r} Q${x},${yt} ${x + r},${yt} H${x + bw - r} Q${x + bw},${yt} ${x + bw},${yt + r} V${T + ph} Z`;
+      const bar = el('path', { class: 'bar', d: path });
+      bars.push(bar);
+      svg.append(bar);
+      if (v === top) svg.append(el('text', { class: 'val', x: x + bw / 2, y: yt - 4, 'text-anchor': 'middle' }, fmt(v)));
+      svg.append(el('text', { class: 'xlab', x: x + bw / 2, y: H - 6, 'text-anchor': 'middle' }, String(d.h)));
+    });
+    svg.append(el('line', { class: 'axis', x1: L, x2: W - R, y1: T + ph, y2: T + ph }));
+    // Hit targets: the whole column, bigger than the bar.
+    HOURS.forEach((d, i) => {
+      const hit = el('rect', { class: 'hit', x: L + i * band, y: T, width: band, height: ph, tabindex: '0', 'aria-label': `${d.h}:00 to ${d.h}:59: ${fmt(d[key])} ${unit} (${d.range})` });
+      const show = () => {
+        bars.forEach((b, j) => b.classList.toggle('dim', j !== i));
+        tip.innerHTML = `<b>${d.h}:00–${d.h}:59</b><br>${fmt(d[key])} ${unit}<br>${d.range}`;
+        tip.hidden = false;
+        const box = svg.getBoundingClientRect(), hb = host.getBoundingClientRect();
+        const s = box.width / W;
+        tip.style.left = `${box.left - hb.left + (L + i * band + band / 2) * s}px`;
+        tip.style.top = `${box.top - hb.top + y(d[key]) * s}px`;
+      };
+      const hide = () => { tip.hidden = true; bars.forEach((b) => b.classList.remove('dim')); };
+      hit.addEventListener('pointerenter', show);
+      hit.addEventListener('pointerleave', hide);
+      hit.addEventListener('focus', show);
+      hit.addEventListener('blur', hide);
+      svg.append(hit);
+    });
+    host.append(svg);
+  }
+
+  barChart(document.getElementById('chart-prs'), 'prs', 10, [0, 5, 10], String, 'PRs merged', 'Pull requests merged per hour');
+  barChart(document.getElementById('chart-lines'), 'lines', 16000, [0, 5000, 10000, 15000], (t) => (t ? `${t / 1000}k` : '0'), 'lines added', 'Lines added per hour');
+
+  const tbody = document.getElementById('chart-table');
+  for (const d of HOURS) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td class="when">${d.h}:00</td><td class="num">${d.prs}</td><td class="num">${fmt(d.lines)}</td><td>${d.range}</td>`;
+    tbody.append(tr);
+  }
+})();
+</script>
+</body>
+</html>
