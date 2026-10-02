@@ -13,7 +13,7 @@ import { generateGenome, planOf, speciesName, type CreatureGenome, type GenomeEd
 import { SKILLS } from '../content/skills';
 import type { Game } from '../game';
 import { CreatureStudio, type PreviewPose } from '../render/creature/studio';
-import type { SaveStore } from '../save';
+import { fromShareCode, shareCode, type SaveStore } from '../save';
 import { h } from './dom';
 
 export interface WorkshopHooks {
@@ -266,6 +266,8 @@ export class Workshop {
         h('button', { class: 'ui-btn primary', onclick: () => this.save() }, 'Save to bestiary'),
         h('button', { class: 'ui-btn', onclick: () => this.randomize() }, 'Randomize'),
         h('button', { class: 'ui-btn', onclick: () => this.set('genome', undefined) }, 'Reset shape'),
+        h('button', { class: 'ui-btn', title: 'Copy a line of text that recreates this species: paste it to a friend', onclick: () => void this.share() }, 'Copy share code'),
+        h('button', { class: 'ui-btn', title: 'Paste a species someone shared', onclick: () => this.importCode() }, 'Import share code…'),
         this.game.hero && this.game.mode !== 'title' ? h('button', { class: 'ui-btn', onclick: () => this.fight() }, 'Test fight') : null,
       ),
     );
@@ -398,6 +400,29 @@ export class Workshop {
     this.hooks.toast(`${this.design.name} saved to the bestiary`, '#ffe9b8');
     this.render();
     return true;
+  }
+
+  private async share() {
+    const code = shareCode(this.design);
+    try {
+      await navigator.clipboard.writeText(code);
+      this.hooks.toast(`Share code for ${this.design.name} copied`, '#7ab8ff');
+    } catch {
+      // No clipboard access (some browsers, file:// pages): show it for copying by hand.
+      prompt('Copy this share code:', code);
+    }
+  }
+
+  private importCode() {
+    const text = prompt('Paste a species share code (starts with DW-SPECIES:)');
+    if (!text) return;
+    const d = fromShareCode(text);
+    if (!d) return this.hooks.toast('That is not a valid species share code', '#ff8a8a');
+    // Opens in the editor as a new, unsaved species (Save to bestiary keeps it).
+    this.design = { ...d, id: '' };
+    this.design.id = this.uniqueId();
+    this.hooks.toast(`${d.name} loaded: Save to bestiary to keep it`, '#7ab8ff');
+    this.render();
   }
 
   private release(b: SpeciesDesign) {
