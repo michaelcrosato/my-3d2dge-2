@@ -123,3 +123,15 @@ it('shares a species as one line of text and refuses broken codes', () => {
   const bad = shareCode({ ...d, body: 'dragon-king' });
   expect(fromShareCode(bad)).toBeNull();
 });
+
+it('species.design hands back a share code for the Workshop', async () => {
+  await import('../src/agent/tools/content');
+  const { callTool } = await import('../src/agent/registry');
+  const r = await callTool('species.design', { id: 'codetest', body: 'crab', seed: 3, palette: 'frost' }, { game: null, clips: {} });
+  if (!r.ok) throw new Error(r.error);
+  const d = r.data as { shareCode: string; design: SpeciesDesign };
+  const back = fromShareCode(d.shareCode)!;
+  expect(back.body).toBe('crab');
+  expect(back.palette).toBe('frost');
+  expect(back.name).toBe(d.design.name);
+});
