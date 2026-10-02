@@ -99,6 +99,8 @@ export class Game {
   /** The real hero, kept aside while a replay plays. */
   private beforePlayback: { hero: Hero | null; ephemeral: boolean; config: Record<string, unknown> } | null = null;
   private playbackReported = false;
+  /** The best run racing alongside: the stored replay in its own sim (Stage draws its hero). */
+  private ghost: { sim: Sim; player: ReplayPlayer; announced: boolean } | null = null;
   /** Autopilot: a bot plays the hero (agent `bot.autopilot`, pause-menu demo). */
   private autopilotOpts: BotOptions | null = null;
   private bot: Bot | null = null;
@@ -151,6 +153,7 @@ export class Game {
 
   /** Rebuilds the sim and the scene from `level` (agents use this directly). */
   async reset(opts: { level?: Level; seed?: number; hero?: Hero | null } = {}) {
+    this.clearGhost();
     if (opts.level) this.level = structuredClone(opts.level);
     if (opts.seed !== undefined) this.seed = opts.seed;
     if (opts.hero !== undefined) this.hero = opts.hero;
@@ -238,6 +241,7 @@ export class Game {
       const start = custom ? null : this.recordingStart(String(n), level.title ?? `Depth ${n}`, level, level.seed ?? spec.dungeon.seed);
       await this.reset({ level, seed: level.seed ?? spec.dungeon.seed });
       this.startRecording(start);
+      if (start) void this.startGhost(start.key);
       const pactTip = level.pacts?.length ? ` Pacts: ${pactRewardText(level.pacts)}.` : '';
       this.emit({ type: 'mode', mode: 'dungeon', stage: n, title: level.title, subtitle: level.subtitle, mechanics: level.mechanics ?? [], pacts: level.pacts ?? [], tip: custom ? undefined : `${spec.tip ?? ''}${pactTip}` });
     } finally {
@@ -263,6 +267,7 @@ export class Game {
       const start = this.recordingStart(`trial:${t.key}`, level.title ?? t.title, level, level.seed ?? 1);
       await this.reset({ level, seed: level.seed });
       this.startRecording(start);
+      if (start) void this.startGhost(start.key);
       const best = this.hero.progress.trials[t.key];
       this.emit({ type: 'mode', mode: 'dungeon', stage: 0, title: level.title, subtitle: level.subtitle, mechanics: level.mechanics ?? [], pacts: level.pacts ?? [],
         tip: `Same trial for everyone today. ${best ? `Your best: ${fmtFrames(best)}.` : 'First clear of the day pays a hoard.'}` });
@@ -339,6 +344,49 @@ export class Game {
     }
     if (this.recorder?.sim === this.sim) this.recorder.capture();
     this.sim.step();
+    this.stepGhost();
+  }
+
+  /**
+   * Loads this slot's best run for the depth as a ghost, if it was recorded on the same level with
+   * the same sim settings (otherwise it would walk through walls or desync), and catches it up to
+   * the live frame.
+   */
+  private async startGhost(key: string) {
+    const sim = this.sim, store = this.replays;
+    if (!config['ui.ghost'] || !store || this.ephemeralHero) return;
+    const replay = await store.get(this.heroSlot, key);
+    if (!replay || this.sim !== sim || this.playback || this.ghost) return;
+    if (JSON.stringify(replay.config) !== JSON.stringify(simConfig(config)) || JSON.stringify(replay.level) !== JSON.stringify(this.recorder?.levelAtStart ?? null)) return;
+    const gsim = new Sim(structuredClone(replay.level), clipTable(this.lib.manifest), replay.seed, { hero: structuredClone(replay.hero) });
+    const player = new ReplayPlayer(gsim, replay);
+    while (gsim.frame < sim.frame && !player.done) {
+      player.apply();
+      gsim.step();
+    }
+    this.ghost = { sim: gsim, player, announced: false };
+    this.stage.setGhost({ sim: gsim, hero: replay.hero });
+  }
+
+  private stepGhost() {
+    const g = this.ghost;
+    if (!g) return;
+    if (!g.player.done) {
+      g.player.apply();
+      g.sim.step();
+      return;
+    }
+    if (g.announced) return;
+    g.announced = true;
+    this.stage.setGhost(null);
+    this.emit({ type: 'ghost.done', time: g.player.replay.time });
+  }
+
+  private clearGhost() {
+    if (!this.ghost) return;
+    this.ghost.sim.dispose();
+    this.ghost = null;
+    this.stage.setGhost(null);
   }
 
   // ---------------------------------------------------------------- replays

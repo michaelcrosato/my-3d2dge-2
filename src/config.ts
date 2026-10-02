@@ -62,6 +62,7 @@ export const CONFIG_SPEC = {
   'sim.timeScale': { value: 1, min: 0, max: 4, desc: 'Real-time playback speed. Ignored by agent step(), which always advances exact frames.' },
   'ui.hints': { value: true, desc: 'First-steps hints (each shows once per hero).' },
   'ui.screenShake': { value: 1, min: 0, max: 1.5, desc: 'Screen shake strength (0 = off). Starts at 0 when the system asks for reduced motion.' },
+  'ui.ghost': { value: true, desc: 'Race your best run: on a depth you have cleared, a translucent ghost replays your best time beside you.' },
   'ui.telegraphs': { value: 'standard', options: ['standard', 'bold'], desc: 'Enemy attack markings on the ground: standard red, or bold (bright magenta, stronger fill, crisp outline) for colour-blind players and busy fights.' },
   'ui.damageNumbers': { value: true, desc: 'Floating damage numbers over hit characters.' },
   'ui.lootFilter': { value: 'all', options: ['all', 'magic', 'rare'], desc: 'Ground item labels to show: all, magic and better, or rare and better (uniques always show). Hidden items can still be picked up.' },
