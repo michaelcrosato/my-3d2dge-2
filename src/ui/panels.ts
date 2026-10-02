@@ -207,6 +207,9 @@ export class Panels {
       onclick: () => {
         this.selected = item ? loc : null;
         this.render();
+        // On phones the details sit below the bags: bring them into view.
+        const details = item ? this.el.querySelector<HTMLElement>('.selected-details') : null;
+        if (details && details.getBoundingClientRect().top > window.innerHeight * 0.8) details.scrollIntoView({ block: 'start', behavior: 'smooth' });
       },
       ondblclick: () => item && this.quickAction(loc),
     },
@@ -249,7 +252,7 @@ export class Panels {
     const hero = this.hero;
     const loc = this.selected;
     const item = loc ? ops.itemAt(hero, loc) : null;
-    const box = h('section', {}, h('h3', {}, 'Selected'));
+    const box = h('section', { class: 'selected-details' }, h('h3', {}, 'Selected'));
     if (!item || !loc) {
       box.append(h('p', { class: 'note' }, mode === 'craft' ? 'Select an item (equipped or in your bags) to work on it.' : 'Select an item to see its details. Double-click / double-tap for the quick action.'));
       return box;
