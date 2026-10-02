@@ -391,9 +391,6 @@ function setupHuman(game: Game, saves: SaveStore) {
       ghud.update(p, input.device, dt, game.mode === 'sandbox' ? '' : debug);
       hints.update(dt);
       updateReplayBar();
-      // Photo mode keeps drawing (frozen sim): one paused frame isn't always enough for WebKit
-      // to drop the overlay, and palette or pixel toggles show at once.
-      if (photo) game.needsRender = true;
       const toolbar = document.getElementById('toolbar')!;
       toolbar.hidden = game.mode === 'title';
       // The title screen has its own buttons: no touch controls behind it.
@@ -496,6 +493,7 @@ async function boot() {
   // THREE.Timer (r183+ replacement for Clock) ignores the time spent in a hidden tab.
   const timer = new THREE.Timer();
   timer.connect(document);
+  let pausedRedraws = 0;
   renderer.setAnimationLoop((now) => {
     timer.update(now);
     const dt = timer.getDelta();
@@ -508,8 +506,14 @@ async function boot() {
       game.advance(dt);
       return;
     }
-    // Paused and nothing changed: the last frame is still on screen, skip the GPU work.
-    if (game.paused && !game.needsRender) return;
+    // Paused and nothing changed: the last frame is still on screen, skip the GPU work. A change
+    // draws two frames, because WebKit can leave a single paused frame unpresented (the overlay
+    // stayed stale after it was cleared).
+    if (game.paused) {
+      if (game.needsRender) pausedRedraws = 2;
+      if (pausedRedraws <= 0) return;
+      pausedRedraws--;
+    }
     game.advance(dt);
   });
   agent.ready = true;
