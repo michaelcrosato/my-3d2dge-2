@@ -24,6 +24,9 @@ const SPECS: PinnacleSpec[] = [
   { id: 'vael_unbound', name: 'Vael Unbound', title: 'The Rift Made Flesh', body: { kind: 'humanoid', preset: 'boss_cult' }, palette: 'void', skills: ['m_bolt', 'b_barrage', 'b_meteors', 'm_groundfire'], adds: 'minion', size: 1.9 },
   { id: 'grull_mountain', name: 'Grull the Mountain', title: 'Powder and Stone', body: { kind: 'humanoid', preset: 'boss_golem' }, palette: 'ash', skills: ['m_punch', 'b_quake', 'm_slam', 'b_meteors'], adds: 'golem', size: 2.3 },
   { id: 'brood_tyrant', name: 'The Brood Tyrant', title: 'Ten Thousand Legs', body: { kind: 'creature', plan: 'scorpion', seed: 7777, genome: { legs: { pairs: 5 }, spikes: { count: 12 }, tail: { segments: 7 } } }, palette: 'venom', skills: ['m_spit', 'm_charge', 'b_quake', 'm_bite'], adds: 'sp:spider:7777', size: 2.4 },
+  // Added later: they join the cycle from depth 70, so depths 10-60 keep their bosses.
+  { id: 'frostshell', name: 'The Frostshell Matriarch', title: 'A Cold That Walks Sideways', body: { kind: 'creature', plan: 'crab', seed: 3131, genome: { spikes: { count: 10 }, head: { eyes: 5 } } }, palette: 'frost', skills: ['m_charge', 'm_nova', 'b_quake', 'm_scratch'], adds: 'sp:crab:3131', size: 2.4 },
+  { id: 'rot_colossus', name: 'The Rot Colossus', title: 'It Grew Here First', body: { kind: 'creature', plan: 'brute', seed: 9090, genome: { spikes: { count: 8 }, horns: { count: 1 } } }, palette: 'venom', skills: ['m_punch', 'b_sweep', 'm_slam', 'm_groundfire'], adds: 'sporeling', size: 2.5 },
 ];
 
 export const PINNACLE_IDS = SPECS.map((s) => `pinnacle_${s.id}`);
