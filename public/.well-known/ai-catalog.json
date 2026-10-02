@@ -30,6 +30,18 @@
         "how do agents play and inspect Depthward",
         "what agent tools does the Depthward engine provide"
       ]
+    },
+    {
+      "identifier": "urn:air:depthward:engine:agent-kit",
+      "displayName": "3dpixel2d agent kit (the engine in one file)",
+      "type": "text/typescript",
+      "url": "https://github.com/michaelcrosato/my-3d2dge-2/blob/main/kit/3dpixel2d.ts",
+      "description": "The Depthward engine distilled into one TypeScript file for AI coding agents: live 3D drawn as pixel-art sprites (low-res pass, outlines, palette lock, pixel snapping, stepped 8-way animation), a deterministic 60 Hz world, agent tools on window.agent and a playable example. Needs only three.js.",
+      "representativeQueries": [
+        "single-file game engine an AI agent can read and build on",
+        "render 3D models as crisp pixel art with three.js",
+        "deterministic game loop that agents can step and capture"
+      ]
     }
   ]
 }

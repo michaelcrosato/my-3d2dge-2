@@ -61,6 +61,7 @@ The ⚙ button opens Settings. Everything is stored per **profile**; Standard, L
 | `npm run build` | Build the web app into `dist/` |
 | `npm run build:standalone` | Rebuild the committed single-file game |
 | `npm run verify:standalone` | Play the offline game in Chromium, WebKit and Firefox on a touch phone (title → town → combat → settings rebind → panels → depth 1); requires Python Playwright and installed browsers |
+| `npm run verify:kit` | Play the agent kit's demo in headless Chromium: tools, exact captures, outlines, palette lock, sprite stepping and pixel snapping, determinism, touch and keyboard (set `CHROMIUM_PATH` when playwright-core's browser revision is not installed) |
 | `npm run agent -- <tool> [args]` | Call an agent tool from the terminal (`help` lists them) |
 | `npm run mcp` | Stdio MCP server exposing the agent tools |
 | `npm run assets` | Download source packs and rebuild runtime assets (requires network) |
@@ -76,6 +77,7 @@ The ⚙ button opens Settings. Everything is stored per **profile**; Standard, L
 - `src/agent/`: the agent tool registry and tools, capture helpers, the asset forge (creature sprite sheets, rig inspection), software-drawn maps.
 - `src/game.ts`, `src/main.ts`, `src/save.ts`, `src/config.ts`: run flow, boot, saves and configuration.
 - `tests/`, `public/assets/`, `tools/`, `standalone/`: unit tests, runtime assets, build tools, the shareable HTML game.
+- `kit/`: the engine in one file for other AI agents (`3dpixel2d.ts`) and its demo page.
 
 ## Agent tools
 
@@ -105,6 +107,19 @@ Content tools also run under Vitest without a browser (`tests/agent-tools.test.t
 Lower level: open `/?agent&seed=1` (training room), `/?agent&town` or `/?agent&stage=N`, wait for `window.agent.ready`, and call `window.agent.step(frames)`; after steps that may change level, `await window.agent.idle()`. `window.game` exposes the game (`game.sim`, `game.hero`, `game.enterStage(n)`, `game.enterTown()`). Agent mode starts paused with human input disabled. See [AGENTS.md](AGENTS.md).
 
 The standalone HTML embeds runtime libraries and assets; see [standalone instructions](standalone/README.md). Keep it in sync after runtime or asset changes.
+
+## Agent kit: the engine in one file
+
+[`kit/3dpixel2d.ts`](kit/3dpixel2d.ts) is the engine distilled into a single TypeScript file to hand to other AI coding agents: about 2,400 lines (110 KB) instead of the 1.3 MB in `src/`. It keeps what an agent needs to build a new game on the engine and leaves Depthward out:
+
+- the pixel pipeline (one pass into colour and normal targets, 1-px outlines and creases, palette lock, whole-number upscale), toon materials, the light pool, art-pixel snapping and 8-way stepped sprite animation;
+- a deterministic `World` (fixed 60 Hz steps, seeded `Rng`, timed input, events, a state hash) that also runs headless in Node;
+- `PixelEngine` (real-time loop, exact `step(n)`, `capture()`, `pick()`, a pixel-font HUD) and the agent tool registry, with seven built-in tools on `window.agent`;
+- `runDemo()`, a small playable game built only from the file.
+
+The header and the example come first (about 330 lines, 20 KB) and are enough to build on the kit; the numbered sections after them are the implementation. Copy the file into any project that has `three@0.186`, or try the demo here: `npm run dev`, then open http://localhost:5173/kit/demo.html (add `?agent` for an agent-driven session).
+
+`tests/kit.test.ts`, part of `npm run check`, keeps everything the kit shares with the engine identical to its source: GLSL, config keys, RNG, grid math, palettes, material patches, lights, geometry kit, pixel font and tool registry. `npm run verify:kit` checks the kit in a browser.
 
 ## Contributing with agents
 

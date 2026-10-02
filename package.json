@@ -12,6 +12,7 @@
     "assets": "node tools/build-assets.mjs",
     "build:standalone": "node node_modules/typescript/bin/tsc --noEmit && node tools/build-standalone.mjs",
     "verify:standalone": "python3 tools/verify-standalone.py",
+    "verify:kit": "node tools/verify-kit.mjs",
     "test": "vitest run",
     "agent": "node tools/agent-cli.mjs",
     "mcp": "node tools/mcp-server.mjs"
