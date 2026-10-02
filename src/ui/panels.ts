@@ -281,7 +281,7 @@ export class Panels {
         const blocked = craftBlocked(item, c);
         const cost = craftCost(item, c);
         actions.append(h('button', {
-          class: 'ui-btn small', disabled: !!blocked, title: blocked ?? CRAFT_INFO[c].desc,
+          class: 'ui-btn small', disabled: !!blocked, title: blocked ?? (item.unique && c === 'reforge' ? 'Reroll the regular affixes; the unique powers stay.' : CRAFT_INFO[c].desc),
           onclick: () => this.act(ops.craft(hero, loc, c, hero.nextUid * 7919 + this.craftSeed++), `${CRAFT_INFO[c].label}: done`),
         }, `${CRAFT_INFO[c].label} · ${cost.gold}g ${cost.shards}◆`));
       }

@@ -268,7 +268,7 @@ export function craftCost(item: Item, craft: Craft): { gold: number; shards: num
   const g = Math.round(15 * Math.pow(power(item.ilvl), 0.6));
   switch (craft) {
     case 'upgrade': return { gold: g * (item.rarity === 'normal' ? 1 : 4), shards: item.rarity === 'normal' ? 2 : 8 };
-    case 'reforge': return { gold: g * 3, shards: 6 };
+    case 'reforge': return item.unique ? { gold: g * 6, shards: 12 } : { gold: g * 3, shards: 6 };
     case 'augment': return { gold: g * 5, shards: 10 };
     case 'temper': return { gold: g * 2, shards: 4 };
     case 'quality': return { gold: g, shards: 3 };
@@ -278,7 +278,13 @@ export function craftCost(item: Item, craft: Craft): { gold: number; shards: num
 /** Why a craft can't be done (null = allowed). */
 export function craftBlocked(item: Item, craft: Craft): string | null {
   const base = itemBase(item.base);
-  if (item.unique) return craft === 'quality' && item.quality < 20 ? null : 'Uniques can only gain quality';
+  // Uniques keep their powers; their regular affixes can be rerolled or tempered.
+  if (item.unique) {
+    if (craft === 'quality') return item.quality >= 20 ? 'Quality is already 20%' : null;
+    if (craft === 'reforge') return null;
+    if (craft === 'temper') return item.affixes.length ? null : 'No affixes to temper';
+    return 'Uniques keep their powers: hone, reforge or temper them';
+  }
   if (item.locked) return 'This item is locked';
   if (base.slot === 'flask' && craft !== 'quality') return 'Flasks can only gain quality';
   switch (craft) {
@@ -307,6 +313,11 @@ export function applyCraft(rng: Rng, item: Item, craft: Craft): void {
       break;
     case 'reforge': {
       item.affixes = [];
+      if (item.unique) {
+        // Only the regular affixes: the unique's own lines and name stay.
+        for (let i = 0; i < UNIQUE_AFFIXES; i++) addRandomAffix(rng, item);
+        break;
+      }
       const n = item.rarity === 'magic' ? (rng.chance(0.55) ? 2 : 1) : rng.int(3, 6);
       for (let i = 0; i < n; i++) addRandomAffix(rng, item);
       item.name = item.rarity === 'magic' ? magicName(item) : rareName(rng, base.slot);
