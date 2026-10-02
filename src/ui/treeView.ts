@@ -236,6 +236,7 @@ export class TreeView {
       }
     // Nodes.
     const t = performance.now() / 300;
+    const labels: Array<{ text: string; x: number; y: number; pri: number; color: string }> = [];
     for (const n of TREE.nodes) {
       const rad = radius(n);
       const on = alloc.has(n.id);
@@ -284,11 +285,26 @@ export class TreeView {
         g.stroke();
       }
       if ((n.kind === 'notable' || n.kind === 'keystone' || n.kind === 'skill') && this.scale > 0.35) {
-        g.fillStyle = on ? '#ffe9b8' : '#a99fb8';
-        g.font = `${Math.round(12 / Math.max(0.5, this.scale))}px system-ui`;
-        g.textAlign = 'center';
-        g.fillText(n.kind === 'skill' ? SKILL_NAMES[n.skill!] ?? n.name : n.name, n.x, n.y + rad + 14 / Math.max(0.5, this.scale));
+        const pri = n === this.selected || n === this.hover ? 5 : on ? 4 : n.kind === 'keystone' ? 3 : n.kind === 'skill' ? 2 : 1;
+        labels.push({ text: n.kind === 'skill' ? SKILL_NAMES[n.skill!] ?? n.name : n.name, x: n.x, y: n.y + rad + 14 / Math.max(0.5, this.scale), pri, color: on ? '#ffe9b8' : '#a99fb8' });
       }
+    }
+    // Labels last, most important first; one that would overlap a placed label is left out.
+    const size = 12 / Math.max(0.5, this.scale);
+    g.font = `${Math.round(size)}px system-ui`;
+    g.textAlign = 'center';
+    g.lineJoin = 'round';
+    g.lineWidth = 3 / Math.max(0.5, this.scale);
+    g.strokeStyle = '#0b0a10';
+    const placed: Array<{ x0: number; x1: number; y0: number; y1: number }> = [];
+    for (const l of labels.sort((a, b) => b.pri - a.pri)) {
+      const w = g.measureText(l.text).width;
+      const r = { x0: l.x - w / 2 - 2, x1: l.x + w / 2 + 2, y0: l.y - size, y1: l.y + size * 0.3 };
+      if (placed.some((q) => r.x0 < q.x1 && r.x1 > q.x0 && r.y0 < q.y1 && r.y1 > q.y0)) continue;
+      placed.push(r);
+      g.strokeText(l.text, l.x, l.y);
+      g.fillStyle = l.color;
+      g.fillText(l.text, l.x, l.y);
     }
   }
 }
