@@ -318,6 +318,7 @@ function setupHuman(game: Game, saves: SaveStore) {
   document.body.append(replayBar);
   let replayDone: string | null = null;
   game.listeners.add((e) => {
+    if (e.type === 'ghost.done') gtoast(`👻 Your best run cleared this depth at ${fmtFrames(e.time as number)}. Beat it!`, '#9fd0ff');
     if (e.type === 'replay.saved') gtoast(`Best run kept: ${fmtFrames(e.time as number)}. Watch it from the waypoint (▶).`, '#7ab8ff');
     if (e.type === 'replay.end') {
       replayDone = e.matches ? '✓ Frame-exact: the state hash matches the original run' : '✗ Desynced: recorded with another game version or browser';

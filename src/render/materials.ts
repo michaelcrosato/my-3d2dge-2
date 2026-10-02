@@ -75,6 +75,24 @@ export function writesNormals<T extends THREE.Material>(material: T, kind: 'surf
   return material;
 }
 
+const GHOST_TINT = new THREE.Color('#9fd0ff');
+
+/**
+ * A translucent pale-blue copy of a material (replay ghosts). clone() drops the shader patch, and
+ * without its normal output the draw fails on the pipeline's two render targets, so it is
+ * reapplied as an fx patch (blended: leaves the normal buffer alone, so no outline).
+ */
+export function ghostMaterial(src: THREE.Material): THREE.Material {
+  const c = src.clone() as THREE.Material & { color?: THREE.Color; emissive?: THREE.Color };
+  c.transparent = true;
+  c.opacity = 0.42;
+  c.depthWrite = false;
+  c.stencilWrite = false;
+  c.color?.lerp(GHOST_TINT, 0.55);
+  c.emissive?.set('#1a3050');
+  return writesNormals(c, 'fx');
+}
+
 /** Adds the hero cutaway to a (normals-writing) material. */
 export function withCutaway<T extends THREE.Material>(material: T): T {
   const keep = patchesOf(material).filter((p) => p !== 'cutaway');

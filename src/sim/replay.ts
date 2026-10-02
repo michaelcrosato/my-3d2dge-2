@@ -81,8 +81,11 @@ export class ReplayRecorder {
   private readonly signature: string;
   /** False once the build changed mid-run (the recording can't reproduce it). */
   valid = true;
+  /** The level this run started on (ghosts only race runs of the same level). */
+  readonly levelAtStart: Level;
 
   constructor(readonly sim: Sim, private meta: { key: string; title: string; level: Level; seed: number; hero: Hero; config: Record<string, unknown> }) {
+    this.levelAtStart = meta.level;
     this.signature = buildSignature(meta.hero);
     sim.onCommand = (name, args) => {
       this.cmds.push([sim.frame, name, structuredClone(args)]);

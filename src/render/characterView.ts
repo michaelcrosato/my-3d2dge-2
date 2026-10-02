@@ -11,7 +11,7 @@ import { PRESETS } from '../content/characters';
 import type { Look } from '../sim/types';
 import { AssetLibrary, firstSkinnedMesh } from './assets';
 import { itemObject, type ItemLookInput } from './itemMeshes';
-import { toonize, writesNormals } from './materials';
+import { ghostMaterial, toonize, writesNormals } from './materials';
 import { LAYER } from './pixelPipeline';
 import { restPoseOf, type RestPose } from './retarget';
 
@@ -301,6 +301,25 @@ export class CharacterView {
     if (on === this.silhouettesOn) return;
     this.silhouettesOn = on;
     for (const s of this.silhouettes) s.visible = on;
+  }
+
+  /**
+   * A replay's ghost racing the player: own translucent pale-blue materials, on the effects layer
+   * (no outlines, silhouettes or stencil marks).
+   */
+  makeGhost() {
+    this.setSilhouettes(false);
+    this.root.traverse((o) => {
+      if (o.userData.silhouette) {
+        o.visible = false;
+        return;
+      }
+      o.layers.set(LAYER.FX);
+      const mesh = o as THREE.Mesh;
+      if (!mesh.isMesh) return;
+      mesh.material = Array.isArray(mesh.material) ? mesh.material.map(ghostMaterial) : ghostMaterial(mesh.material);
+      mesh.userData.ownMaterial = true;
+    });
   }
 
   /** Put every mesh of this character on `layer` (used for isolated captures), or back to normal. */

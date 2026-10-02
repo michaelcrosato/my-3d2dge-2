@@ -181,13 +181,16 @@ registerSystem('lightless', (sim) => {
 
 // ---------------------------------------------------------------- Rolling Boulders
 
-let boulderN = 0;
+/** Boulders released per sim (two sims can run at once: a replay ghost beside the live run). */
+const boulderN = new WeakMap<Sim, number>();
 registerProp('chute', { radius: 0.7, height: 1.6, solid: true, hittable: false, navBlock: true }, {
   step(sim, p) {
     const period = (p.data.period as number) ?? 260;
     if ((sim.frame + ((p.data.phase as number) ?? 0)) % period !== 0) return;
     const fx = Math.sin(p.yaw), fz = Math.cos(p.yaw);
-    const b = sim.addProp({ id: `boulder${p.id}_${boulderN++}`, kind: 'boulder', x: p.x + fx * 1.2, z: p.z + fz * 1.2, data: { life: 540, hit: [] } });
+    const n = boulderN.get(sim) ?? 0;
+    boulderN.set(sim, n + 1);
+    const b = sim.addProp({ id: `boulder${p.id}_${n}`, kind: 'boulder', x: p.x + fx * 1.2, z: p.z + fz * 1.2, data: { life: 540, hit: [] } });
     if (!b?.body) return;
     const m = b.body.mass();
     b.body.applyImpulse({ x: fx * 9 * m, y: 0, z: fz * 9 * m }, true);

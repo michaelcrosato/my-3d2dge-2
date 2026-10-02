@@ -160,6 +160,8 @@ export class Stage {
   follow = 'player';
   /** Hero whose equipment the 'player' view wears. */
   hero: Hero | null = null;
+  /** The best run racing alongside: its own sim's hero, drawn translucent (Game ghosts). */
+  private ghost: { sim: Sim; view: CharacterView } | null = null;
   theme: Theme = THEMES.crypt;
   /** Continuous camera look-at point (world) and its snapped version from the last update. */
   readonly focus = new THREE.Vector3();
@@ -344,6 +346,21 @@ export class Stage {
       }
   }
 
+  /** Shows (or removes, with null) a replay ghost: the hero of another sim, posed every frame. */
+  setGhost(g: { sim: Sim; hero: Hero } | null) {
+    if (this.ghost) {
+      this.ghost.view.dispose();
+      this.ghost = null;
+    }
+    const p = g?.sim.player;
+    if (!g || !p) return;
+    const view = new CharacterView('ghost', p.preset, this.lib, p.look);
+    view.setEquipment(this.equipmentOf(g.hero));
+    view.makeGhost();
+    this.scene.add(view.root);
+    this.ghost = { sim: g.sim, view };
+  }
+
   private equipmentOf(hero: Hero): Equipment {
     const e = hero.equipment;
     const look = (slot: 'weapon' | 'offhand' | 'helmet') => {
@@ -457,6 +474,18 @@ export class Stage {
       if (ch.look.glow && ch.state !== 'dead' && ch.monster) {
         const glow = Object.values(ch.look.glow)[0];
         if (glow && (ch.monster.rarity !== 'normal' || ch.scale > 1.3)) this.lights.add({ x: p.x, y: 1.4 * ch.scale, z: p.z, color: glow, intensity: 1.2, range: 3.5 * ch.scale, priority: 1 });
+      }
+    }
+    const gh = this.ghost, gp = gh?.sim.player;
+    if (gh && gp) {
+      const p = { x: gp.prevPos.x + (gp.pos.x - gp.prevPos.x) * alpha, y: gp.prevPos.y + (gp.pos.y - gp.prevPos.y) * alpha, z: gp.prevPos.z + (gp.pos.z - gp.prevPos.z) * alpha };
+      gh.view.root.visible = gp.state !== 'dead' && onScreen(p.x, p.y, p.z);
+      if (gh.view.root.visible) {
+        const s = snap({ x: p.x, y: p.y + gp.lift, z: p.z });
+        gh.view.root.position.set(s.x, s.y, s.z);
+        const sp = pixel ? gp.sprite : null;
+        gh.view.root.rotation.y = sp ? sp.yaw : gp.yaw + gp.spin;
+        gh.view.pose(sp ?? gp.anim);
       }
     }
     for (const c of sim.crates.values()) {
