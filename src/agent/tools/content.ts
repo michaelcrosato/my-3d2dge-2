@@ -35,6 +35,7 @@ import { newHero, treePoints } from '../../sim/hero';
 import { describeItem, itemValue, rollItem } from '../../sim/items';
 import { costOf } from '../../sim/actions';
 import { Sim, type SimEvent } from '../../sim/sim';
+import { shareCode } from '../../save';
 import { levelMap, treeImage } from '../maps';
 import { heroSheet, monsterSheet, probeSim, spawnProbeMonster } from '../probe';
 import { allTools, defineTool, describeTools, schemaOf, tool } from '../registry';
@@ -169,7 +170,7 @@ defineTool({
 
 defineTool({
   name: 'species.design', group: 'creature',
-  desc: 'Designs a species the way the in-game Workshop does: body + genome edits + palette + archetype + up to three attacks, with life, damage and speed derived from the parts under a threat budget. Registers custom:<id> (and custom:<id>-boss). In the live game, save=true adds it to the player\'s bestiary and release=true sends it into the depths.',
+  desc: 'Designs a species the way the in-game Workshop does: body + genome edits + palette + archetype + up to three attacks, with life, damage and speed derived from the parts under a threat budget. Registers custom:<id> (and custom:<id>-boss). In the live game, save=true adds it to the player\'s bestiary and release=true sends it into the depths. Returns a shareCode a player can paste into the Workshop (Import share code…).',
   params: {
     id: { type: 'string', required: true, desc: 'Short id (lowercase letters, digits, _ -).' },
     name: { type: 'string', desc: 'Display name (default: generated).' },
@@ -202,7 +203,7 @@ defineTool({
       setReleased(saves.file.bestiary);
       saved = a.release ? 'saved and released into the depths' : 'saved to the bestiary';
     }
-    return { id: def.id, bossId: monsterId(d, true), stats: designStats(d), design: d, saved, next: [`monster.render {"id":"${def.id}"}`, `monster.inspect {"id":"${def.id}","level":20}`] };
+    return { id: def.id, bossId: monsterId(d, true), stats: designStats(d), design: d, saved, shareCode: shareCode(d), next: [`monster.render {"id":"${def.id}"}`, `monster.inspect {"id":"${def.id}","level":20}`] };
   },
 });
 
