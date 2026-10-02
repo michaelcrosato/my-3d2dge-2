@@ -15,8 +15,12 @@ Depthward is an engine showcase that treats AI agents as first-class developers 
 - [AGENTS.md](https://github.com/michaelcrosato/my-3d2dge-2/blob/main/AGENTS.md): rules and validation steps for coding agents working on the repository.
 - [Game design](https://github.com/michaelcrosato/my-3d2dge-2/blob/main/docs/GAME-DESIGN.md): the data vocabularies (stats, skills, monsters, items, tree, mechanics, pacts, bestiary, sound, music) and how to extend them.
 
+## Agent kit
+
+- [kit/3dpixel2d.ts](https://github.com/michaelcrosato/my-3d2dge-2/blob/main/kit/3dpixel2d.ts): the engine in one TypeScript file (pixel pipeline, deterministic world, agent tools and a playable example) to build new games on. Its header and example, the first ~330 lines, are enough to start.
+
 ## Agent tools
 
-- [AI catalog](/.well-known/ai-catalog.json): the MCP server card and this guide.
+- [AI catalog](/.well-known/ai-catalog.json): the MCP server card, this guide and the agent kit.
 - Start with `help` (all tools by group) or `help {"tool":"creature.render"}` (one tool's parameters and example).
 - Images (sprite sheets, maps, captures, spectrograms) come back as PNGs.

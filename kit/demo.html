@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>3dpixel2d agent kit demo</title>
+    <link rel="icon" href="data:," />
+    <style>
+      html, body { margin: 0; height: 100%; overflow: hidden; background: #0d0c11; color: #f3ead6; font: 14px system-ui, sans-serif; }
+      canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+      #error { position: fixed; inset: 16px; white-space: pre-wrap; }
+    </style>
+  </head>
+  <body>
+    <!-- Runs runDemo() from the single-file kit. `npm run dev`, then open /kit/demo.html (add ?agent for an agent-driven session). -->
+    <canvas id="view"></canvas>
+    <script type="module">
+      import { runDemo } from './3dpixel2d.ts';
+      const seed = Number(new URLSearchParams(location.search).get('seed') ?? 1);
+      try {
+        runDemo(document.getElementById('view'), { seed });
+      } catch (e) {
+        console.error(e);
+        const box = Object.assign(document.createElement('pre'), { id: 'error', textContent: `Unable to start (WebGL 2 required): ${e}` });
+        document.body.append(box);
+        window.agent = { ready: false, error: String(e) };
+      }
+    </script>
+  </body>
+</html>
