@@ -126,11 +126,13 @@ materials quantize the falloff into crisp bands.
 
 ## Pinnacle bosses
 
-`src/content/pinnacles.ts` assembles six named bosses from the usual parts (humanoid presets or
+`src/content/pinnacles.ts` assembles eight named bosses from the usual parts (humanoid presets or
 creature genomes with edits, palettes, attack kits, add types). Every tenth depth ends in one,
 cycling past the list. Boss phases are general: `phases` splits the life bar evenly, each phase
 change resets cooldowns and calls `adds` minions (magic in the final phase), and pinnacles drop
-a guaranteed unique plus rares (`dropPinnacle`). Bot fights run 22-60 s at depths 10-30.
+a guaranteed unique plus rares (`dropPinnacle`). Bot fights run 22-60 s at depths 10-30. The Frostshell
+Matriarch and the Rot Colossus were added later and join the cycle at depths 70 and 80, so
+earlier depths keep their bosses (bot fights there: 26-31 s and 70-73 s).
 
 ## Replays
 
