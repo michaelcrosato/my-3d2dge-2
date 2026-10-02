@@ -9,6 +9,7 @@
  */
 import * as THREE from 'three';
 import { createAgentApi } from './agent/api';
+import { captureFrame } from './agent/capture';
 import { registerWebMcp } from './agent/webmcp';
 import { AudioEngine } from './audio/engine';
 import { installLogCapture } from './agent/logs';
@@ -81,9 +82,12 @@ function setupHuman(game: Game, saves: SaveStore) {
     panels?.toggle(p as PanelId);
     audio?.play({ id: panels?.open ? 'ui_open' : 'ui_close' });
   };
+  /** Photo mode is on (see enterPhoto below). */
+  let photo = false;
   const input = new InputController(game, store, {
     menuOpen: anyOpen,
     toggleMenu: () => {
+      if (photo) return exitPhoto();
       if (editing) return stopEdit();
       if (menu?.open) return menu.hide();
       if (workshop?.open) return workshop.close();
@@ -239,6 +243,7 @@ function setupHuman(game: Game, saves: SaveStore) {
     },
   });
   const hooks = {
+    photoMode: () => enterPhoto(),
     openSettings: () => menu?.show(),
     openPanel: (p: PanelId) => togglePanel(p),
     toast: (t: string) => gtoast(t),
@@ -251,6 +256,59 @@ function setupHuman(game: Game, saves: SaveStore) {
   title = new TitleScreen(game, saves, { ...hooks, started: () => syncTouch() });
 
   // Talking to townsfolk opens their panel.
+  // Photo mode: the game frozen, every piece of UI hidden, the exact pixels saved as a PNG.
+  const photoBar = h('div', { id: 'photobar', hidden: true, role: 'toolbar', 'aria-label': 'Photo mode' });
+  function enterPhoto() {
+    photo = true;
+    game.paused = true;
+    game.overlay.enabled = false;
+    document.body.classList.add('photo');
+    photoBar.hidden = false;
+    game.needsRender = true;
+  }
+  function exitPhoto() {
+    if (!photo) return;
+    photo = false;
+    photoBar.hidden = true;
+    document.body.classList.remove('photo');
+    game.overlay.enabled = true;
+    game.paused = false;
+    game.needsRender = true;
+  }
+  const savePhoto = () => {
+    const img = captureFrame(game);
+    // Whole-number upscale of the art pixels to about 2400 px wide: crisp at any size.
+    const k = Math.max(1, Math.min(8, Math.round(2400 / img.width)));
+    const src = document.createElement('canvas');
+    src.width = img.width;
+    src.height = img.height;
+    src.getContext('2d')!.putImageData(new ImageData(new Uint8ClampedArray(img.data), img.width, img.height), 0, 0);
+    const out = document.createElement('canvas');
+    out.width = img.width * k;
+    out.height = img.height * k;
+    const g = out.getContext('2d')!;
+    g.imageSmoothingEnabled = false;
+    g.drawImage(src, 0, 0, out.width, out.height);
+    out.toBlob((blob) => {
+      if (!blob) return gtoast('Could not save the picture', '#ff8a8a');
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `depthward-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.png`;
+      document.body.append(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+      gtoast(`Picture saved (${out.width}×${out.height})`, '#7ab8ff');
+    }, 'image/png');
+  };
+  photoBar.append(
+    h('button', { class: 'ui-btn small primary', onclick: savePhoto }, '📷 Save image'),
+    h('button', { class: 'ui-btn small', title: 'Pixel art or plain 3D (F2)', onclick: () => input.press('togglePixel') }, 'Pixel / 3D'),
+    h('button', { class: 'ui-btn small', title: 'Next colour palette (F7)', onclick: () => input.press('cyclePalette') }, 'Palette'),
+    h('button', { class: 'ui-btn small', title: 'Back to the game (Esc)', onclick: exitPhoto }, 'Exit'),
+  );
+  document.body.append(photoBar);
+
   // Replays: a best run is kept per depth; while one plays, a bar shows its clock and a way out.
   const replayBar = h('div', { id: 'replaybar', hidden: true, role: 'status' });
   const replayText = h('span');
@@ -333,6 +391,9 @@ function setupHuman(game: Game, saves: SaveStore) {
       ghud.update(p, input.device, dt, game.mode === 'sandbox' ? '' : debug);
       hints.update(dt);
       updateReplayBar();
+      // Photo mode keeps drawing (frozen sim): one paused frame isn't always enough for WebKit
+      // to drop the overlay, and palette or pixel toggles show at once.
+      if (photo) game.needsRender = true;
       const toolbar = document.getElementById('toolbar')!;
       toolbar.hidden = game.mode === 'title';
       // The title screen has its own buttons: no touch controls behind it.
